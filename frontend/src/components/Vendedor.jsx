@@ -64,7 +64,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
         <div className="card-h">
           <div>
             <h3>{ruta.name}</h3>
-            <div className="muted">{vendedor(ruta.driverId)?.name} · {sucursal(ruta.branchId)?.name}</div>
+            <div className="muted">{vendedor(ruta.driverId)?.name} Â· {sucursal(ruta.branchId)?.name}</div>
           </div>
         </div>
         <div className="card-b">
@@ -96,7 +96,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
           <h3>Nuevo pedido</h3>
           <div className="form-grid">
             <select id="prodPedido" className="select full">
-              {data.productos.map(p=><option value={p.id} key={p.id}>{p.name} · {pesos(p.price)} pza</option>)}
+              {data.productos.map(p=><option value={p.id} key={p.id}>{p.name} Â· {pesos(p.price)} pza</option>)}
             </select>
             <input id="qtyPedido" className="input" type="number" min="1" defaultValue="1"/>
             <button className={`btn ${isBox ? 'secondary' : 'primary'}`} onClick={() => setIsBox(!isBox)}>
@@ -138,7 +138,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
               if (!reason) return;
               navigator.geolocation.getCurrentPosition(async (pos) => {
                 const token = localStorage.getItem('ht_token');
-                await fetch('/api/app/visit', {
+                await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/visit', {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                    body: JSON.stringify({ 
@@ -165,7 +165,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
       <div className="card">
         <div className="card-h">
           <h3>Inventario disponible</h3>
-          <input className="input" style={{ maxWidth: '180px', padding: '6px 12px' }} placeholder="🔍 Buscar SKU / Nombre..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input" style={{ maxWidth: '180px', padding: '6px 12px' }} placeholder="ð Buscar SKU / Nombre..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="card-b list">
           {filtered.map(p=>(
@@ -175,7 +175,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
                    {p.images && p.images.length > 0 ? (
                      <img src={p.images[0].photoBase64} alt={p.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
                    ) : (
-                     <div style={{ width: '60px', height: '60px', background: 'var(--bg)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>📦</div>
+                     <div style={{ width: '60px', height: '60px', background: 'var(--bg)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>ð¦</div>
                    )}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -183,7 +183,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
                     <b>{p.name}</b>
                     <span className={'chip '+(p.stock<=10?'warn':'ok')}>{p.stock} pzas</span>
                   </div>
-                  <div className="muted" style={{ marginBottom: expandedId === p.id ? '0.8rem' : '0' }}>{almacen(p.warehouseId)?.name} · SKU: {p.sku}</div>
+                  <div className="muted" style={{ marginBottom: expandedId === p.id ? '0.8rem' : '0' }}>{almacen(p.warehouseId)?.name} Â· SKU: {p.sku}</div>
                   
                   {expandedId === p.id && (
                     <div style={{ marginTop: '0.8rem' }} onClick={(e) => e.stopPropagation()}>

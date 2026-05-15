@@ -27,7 +27,7 @@ export default function Usuarios({ data, addUser, updateUser }) {
   return (
     <div className="view-container animate-fade-in">
       <div className="glass" style={{ padding: '30px', borderRadius: '24px', marginBottom: '30px' }}>
-        <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900 }}>👥 Gestión de Usuarios y Permisos</h2>
+        <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900 }}>ð¥ Gestión de Usuarios y Permisos</h2>
         <p className="muted">Controla quién tiene acceso a cada módulo del sistema.</p>
       </div>
 
@@ -66,7 +66,7 @@ export default function Usuarios({ data, addUser, updateUser }) {
 
         {/* Formulario Alta/Edición */}
         <div className="glass" style={{ padding: '20px', borderRadius: '24px', height: 'fit-content' }}>
-          <h3 style={{ margin: '0 0 20px 0' }}>{editing ? '📝 Editar Usuario' : '➕ Nuevo Usuario'}</h3>
+          <h3 style={{ margin: '0 0 20px 0' }}>{editing ? 'ð Editar Usuario' : 'â Nuevo Usuario'}</h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div className="form-group">
               <label>Nombre Completo</label>

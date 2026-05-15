@@ -20,7 +20,7 @@ export default function Masivos({ data, reloadState }) {
     if (payload.length === 0) return;
 
     const token = localStorage.getItem('ht_token');
-    const res = await fetch('/api/app/products/bulk', {
+    const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/products/bulk', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(payload)

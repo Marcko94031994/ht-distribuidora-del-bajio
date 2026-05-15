@@ -8,7 +8,7 @@ export default function Liquidacion({ data, ruta, vendedor }) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const token = localStorage.getItem('ht_token');
-    const res = await fetch('/api/app/cash-closure/declare', {
+    const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/cash-closure/declare', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
@@ -38,7 +38,7 @@ export default function Liquidacion({ data, ruta, vendedor }) {
                 <b>{ruta(c.routeId)?.name}</b>
                 <span className="chip warn">{c.status}</span>
               </div>
-              <div className="muted">{vendedor(c.driverId)?.name} · {c.date.split('T')[0]}</div>
+              <div className="muted">{vendedor(c.driverId)?.name} Â· {c.date.split('T')[0]}</div>
             </div>
           ))}
           {data.cierresCaja?.filter(c => c.status === 'Abierto').length === 0 && <div className="muted">No hay cierres pendientes.</div>}

@@ -37,35 +37,10 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Branch>()
-            .HasMany(b => b.Warehouses)
-            .WithOne(w => w.Branch)
-            .HasForeignKey(w => w.BranchId);
-
-        modelBuilder.Entity<Branch>()
-            .HasMany(b => b.Drivers)
-            .WithOne(d => d.Branch)
-            .HasForeignKey(d => d.BranchId);
-
-        modelBuilder.Entity<DeliveryRoute>()
-            .HasMany(r => r.Clients)
-            .WithOne(c => c.Route)
-            .HasForeignKey(c => c.RouteId);
-
-        modelBuilder.Entity<DeliveryRoute>()
-            .HasMany(r => r.Orders)
-            .WithOne(o => o.Route)
-            .HasForeignKey(o => o.RouteId);
-
-        modelBuilder.Entity<Order>()
-            .HasMany(o => o.Items)
-            .WithOne(i => i.Order)
-            .HasForeignKey(i => i.OrderId);
-
-        modelBuilder.Entity<Warehouse>()
-            .HasMany(w => w.Products)
-            .WithOne(p => p.Warehouse)
-            .HasForeignKey(p => p.WarehouseId);
+        foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+        {
+            relationship.DeleteBehavior = DeleteBehavior.Restrict;
+        }
             
         modelBuilder.Entity<Driver>()
             .Property(d => d.CurrentFuelEfficiency)

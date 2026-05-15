@@ -81,7 +81,7 @@ export default function TorreControl({data,vendedor}){
                     key={`driver-${driver.id}`}
                     position={{ lat: driver.latitude, lng: driver.longitude }}
                     icon={driver.hasIncident ? 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'}
-                    label={{ text: "🚚", fontSize: '16px' }}
+                    label={{ text: "ð", fontSize: '16px' }}
                   />
                 );
               }

@@ -56,23 +56,23 @@ export default function Clientes({ data, addCliente, updateCliente, ruta }) {
               <div className="row">
                 <b>{c.name}</b>
                 <div style={{ display: 'flex', gap: '5px' }}>
-                  <button className="btn secondary" style={{ padding: '4px 8px', fontSize: '0.75rem' }} onClick={() => setEditing(c)}>✏️</button>
+                  <button className="btn secondary" style={{ padding: '4px 8px', fontSize: '0.75rem' }} onClick={() => setEditing(c)}>âï¸</button>
                   <button className="btn primary" style={{ padding: '4px 8px', fontSize: '0.75rem' }} onClick={async () => {
                     const token = localStorage.getItem('ht_token');
-                    const res = await fetch(`/api/app/client/${c.id}/statement`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/app/client/${c.id}/statement`, { headers: { 'Authorization': `Bearer ${token}` } });
                     if (res.ok) {
                       const { orders, payments } = await res.json();
-                      const txt = orders.map(o => `📄 ${o.orderNumber}: ${o.totalAmount} (${o.status})`).join('\n') + 
-                                  '\n\nABONOS:\n' + payments.map(p => `💰 ${p.date.split('T')[0]}: -${p.amount}`).join('\n');
+                      const txt = orders.map(o => `ð ${o.orderNumber}: ${o.totalAmount} (${o.status})`).join('\n') + 
+                                  '\n\nABONOS:\n' + payments.map(p => `ð° ${p.date.split('T')[0]}: -${p.amount}`).join('\n');
                       alert(`ESTADO DE CUENTA - ${c.name.toUpperCase()}\nSaldo Actual: ${c.currentBalance}\n\n${txt || 'Sin movimientos'}`);
                     }
-                  }}>📋</button>
+                  }}>ð</button>
                   <button className="btn success" style={{ padding: '4px 8px', fontSize: '0.75rem' }} onClick={async () => {
                     const amt = prompt(`Registrar abono para ${c.name}\nSaldo actual: ${c.currentBalance}\n\nIngresa el monto:`);
                     if (!amt || isNaN(amt)) return;
                     const method = prompt("Método de pago (Efectivo, Transferencia, Cheque):", "Efectivo");
                     const token = localStorage.getItem('ht_token');
-                    const res = await fetch('/api/app/payment', {
+                    const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/payment', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                       body: JSON.stringify({ clientId: c.id, amount: Number(amt), paymentMethod: method })
@@ -88,7 +88,7 @@ export default function Clientes({ data, addCliente, updateCliente, ruta }) {
                 </span>
               </div>
               <div className="muted" style={{ fontSize: '0.75rem' }}>
-                Ruta: {ruta(c.routeId)?.name || 'Sin Ruta'} · {c.latitude}, {c.longitude}
+                Ruta: {ruta(c.routeId)?.name || 'Sin Ruta'} Â· {c.latitude}, {c.longitude}
               </div>
             </div>
           ))}

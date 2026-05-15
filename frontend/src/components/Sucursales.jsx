@@ -22,7 +22,7 @@ export default function Sucursales({data,sucursal,addAlmacen,addSucursal}){
         </div>
         <div className="card-b">
           <form onSubmit={addAlmacen} className="form-grid">
-            <input name="nombre" className="input full" placeholder="Nombre del almacÃ©n" required/>
+            <input name="nombre" className="input full" placeholder="Nombre del almacÃÂ©n" required/>
             <select name="sucursalId" className="select">
               <option value="">Seleccionar sucursal...</option>
               {data.sucursales.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}
@@ -33,7 +33,7 @@ export default function Sucursales({data,sucursal,addAlmacen,addSucursal}){
               <option>Temporal</option>
             </select>
             <input name="responsable" className="input full" placeholder="Responsable" required/>
-            <button className="btn full">Guardar almacÃ©n</button>
+            <button className="btn full">Guardar almacÃÂ©n</button>
           </form>
         </div>
       </div>

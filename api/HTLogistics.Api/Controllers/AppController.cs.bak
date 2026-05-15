@@ -17,10 +17,12 @@ namespace HTLogistics.Api.Controllers;
 public class AppController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public AppController(AppDbContext context)
+    public AppController(AppDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
     }
 
     private string SaveImage(string base64, string subfolder)
@@ -434,11 +436,15 @@ public class AppController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginInputModel input)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == input.Email && u.Password == input.Password);
-        if (user == null) return Unauthorized(new { message = "Credenciales incorrectas" });
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == input.Email);
+        if (user == null || !BCrypt.Net.BCrypt.Verify(input.Password, user.Password)) 
+            return Unauthorized(new { message = "Credenciales incorrectas" });
         
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes("SuperSecretKeyForHTLogistica2026!");
+        var jwtSettings = _configuration.GetSection("Jwt");
+        var secretKey = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key is missing");
+        var key = Encoding.UTF8.GetBytes(secretKey);
+        
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(new[]
@@ -448,8 +454,8 @@ public class AppController : ControllerBase
                 new Claim(ClaimTypes.Role, user.Role)
             }),
             Expires = DateTime.UtcNow.AddDays(7),
-            Issuer = "HTLogistics",
-            Audience = "HTLogisticsClient",
+            Issuer = jwtSettings["Issuer"],
+            Audience = jwtSettings["Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
         var token = tokenHandler.CreateToken(tokenDescriptor);

@@ -51,7 +51,7 @@ export default function Proveedores({ data, addProveedor, updateProveedor }) {
                 <button className="btn secondary" style={{ padding: '2px 8px', fontSize: '0.8rem' }} onClick={() => setEditing(p)}>Editar</button>
               </div>
               <div className="muted">
-                Contacto: {p.contact} · Tel: {p.phone}
+                Contacto: {p.contact} Â· Tel: {p.phone}
               </div>
             </div>
           ))}

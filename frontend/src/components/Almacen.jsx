@@ -28,7 +28,7 @@ export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,
       </div>
       <div className="card double">
         <div className="card-h">
-          <h3>Control de Órdenes de Compra</h3>
+          <h3>Control de Ãrdenes de Compra</h3>
         </div>
         <div className="card-b">
           <table className="table">

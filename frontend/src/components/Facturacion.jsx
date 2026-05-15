@@ -13,21 +13,21 @@ export default function Facturacion({ data, reloadState }) {
   }, [data.pedidos, filter]);
 
   const timbrarFactura = async (orderId) => {
-    if (!confirm('¿Deseas generar el CFDI 4.0 para este pedido?')) return;
+    if (!confirm('Â¿Deseas generar el CFDI 4.0 para este pedido?')) return;
     
     const token = localStorage.getItem('ht_token');
     try {
       // Simulación de timbrado (En producción aquí se llama al PAC)
-      const res = await fetch(`/api/app/order/${orderId}/stamp`, {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/app/order/${orderId}/stamp`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        alert('✅ CFDI 4.0 Generado exitosamente. Se ha enviado al correo del cliente.');
+        alert('â CFDI 4.0 Generado exitosamente. Se ha enviado al correo del cliente.');
         reloadState();
       } else {
         const err = await res.text();
-        alert('❌ Error SAT: ' + err);
+        alert('â Error SAT: ' + err);
       }
     } catch (e) { console.error(e); }
   };
@@ -36,7 +36,7 @@ export default function Facturacion({ data, reloadState }) {
     <div className="view-container animate-fade-in">
       <div className="glass" style={{ padding: '30px', borderRadius: '24px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>📑 Centro de Facturación CFDI 4.0</h2>
+          <h2 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>ð Centro de Facturación CFDI 4.0</h2>
           <p className="muted">Emisión de facturas electrónicas y cumplimiento fiscal.</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -80,7 +80,7 @@ export default function Facturacion({ data, reloadState }) {
                         onClick={() => timbrarFactura(o.id)}
                         title={!client?.rfc ? 'Faltan datos fiscales del cliente' : ''}
                       >
-                        {client?.rfc ? '🚀 Timbrar' : '⚠️ Sin RFC'}
+                        {client?.rfc ? 'ð Timbrar' : 'â ï¸ Sin RFC'}
                       </button>
                     )}
                   </td>

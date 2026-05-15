@@ -50,35 +50,50 @@ builder.Services.AddSwaggerGen(c =>
 
 // Database
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=HTLogistics_v2.db"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Dependency Injection
 // (Services removed for new architecture)
 
 // CORS
+var allowedOrigins = builder.Configuration.GetSection("AllowedCorsOrigins").Get<string[]>() ?? Array.Empty<string>();
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        }
     });
 });
 
-// JWT Authentication (Simple Mock)
+// JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        var jwtSettings = builder.Configuration.GetSection("Jwt");
+        var key = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
+        
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = "HTLogistics",
-            ValidAudience = "HTLogisticsClient",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SuperSecretKeyForHTLogistica2026!"))
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
         };
     });
 
@@ -111,6 +126,15 @@ using (var scope = app.Services.CreateScope())
     var context = services.GetRequiredService<AppDbContext>();
     await context.Database.EnsureCreatedAsync();
     await DbSeeder.SeedAsync(context);
+    
+    // Hash existing plaintext passwords if any
+    var usersToUpdate = await context.Users.Where(u => !u.Password!.StartsWith("$")).ToListAsync();
+    foreach(var u in usersToUpdate) {
+        u.Password = BCrypt.Net.BCrypt.HashPassword(u.Password);
+    }
+    if (usersToUpdate.Any()) {
+        await context.SaveChangesAsync();
+    }
 }
 
 app.Run();

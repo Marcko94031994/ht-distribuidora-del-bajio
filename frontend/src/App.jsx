@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Kpi from './components/Kpi';
 import Login from './components/Login';
-import Topbar from './components/Topbar';
+import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Sucursales from './components/Sucursales';
 import Rutas from './components/Rutas';
@@ -26,8 +26,9 @@ function App() {
     const saved = localStorage.getItem('ht_user');
     return saved ? JSON.parse(saved) : {email:'demo@abarrotera.mx',pass:'123456',sucursalId:1};
   });
-  const [data,setData]=useState({sucursales:[], almacenes:[], vendedores:[], rutas:[], productos:[], pedidos:[], compras:[], proveedores:[], preciosEspeciales:[], devoluciones:[]}); 
+  const [data,setData]=useState({sucursales:[], almacenes:[], vendedores:[], rutas:[], productos:[], pedidos:[], compras:[], proveedores:[], preciosEspeciales:[], devoluciones:[], gastos: [], categoriasGastos: [], unidades: [], cierresCaja: []}); 
   const [reports,setReports]=useState({ventasMargen:[], riesgoMerma:[], valorInventario:[], totalUtilidad:0});
+  const [kpiData, setKpiData] = useState({ suc: 0, alm: 0, ped: 0, pend: 0, rutas: 0 });
 
   const apiFetch = async (url, options = {}) => {
     const token = localStorage.getItem('ht_token');
@@ -43,13 +44,28 @@ function App() {
 
   useEffect(() => {
     if (logged) {
-      apiFetch('/api/app/state')
+      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/state')
         .then(res => res.ok ? res.json() : null)
-        .then(json => json && setData(json))
+        .then(json => json && setData(prev => ({...prev, ...json})))
         .catch(err => console.error('Error fetching API:', err));
 
+      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/kpis')
+        .then(res => res.ok ? res.json() : null)
+        .then(json => json && setKpiData(json))
+        .catch(err => console.error('Error fetching KPIs:', err));
+
+      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/orders?page=1')
+        .then(res => res.ok ? res.json() : null)
+        .then(json => json && setData(prev => ({...prev, pedidos: json.data})))
+        .catch(err => console.error('Error fetching Orders:', err));
+
+      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/products?page=1')
+        .then(res => res.ok ? res.json() : null)
+        .then(json => json && setData(prev => ({...prev, productos: json.data})))
+        .catch(err => console.error('Error fetching Products:', err));
+
     if (user.role === 'Admin') {
-      apiFetch('/api/app/reports')
+      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/reports')
         .then(res => res.ok ? res.json() : null)
         .then(json => json && setReports(json))
         .catch(err => console.error('Error fetching Reports:', err));
@@ -61,7 +77,7 @@ function App() {
         console.log('Syncing offline orders...', offlineOrders.length);
         offlineOrders.forEach(async (order, idx) => {
            try {
-             const res = await apiFetch('/api/app/order', {
+             const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/order', {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify(order)
@@ -79,7 +95,7 @@ function App() {
 
   const handleLogin = async () => {
     try {
-      const res = await fetch('/api/app/login', {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, password: user.pass, sucursalId: user.sucursalId })
@@ -114,22 +130,34 @@ function App() {
   const currentCliente=currentRuta?.clientes?.find(c=>c.id===selectedCliente)||currentRuta?.clientes?.[0]; 
   const currentPedido=data.pedidos?.find(p=>p.id===selectedPedido)||data.pedidos?.[0];
 
-  const kpis=useMemo(()=>({
-    suc:data.sucursales.length,
-    alm:data.almacenes.length,
-    ped:data.pedidos.length,
-    pend:data.pedidos.filter(p=>p.status==='Pendiente').length,
-    rutas:data.rutas.length
-  }),[data]);
+  const kpis=kpiData;
 
-  if(!logged) return <Login user={user} setUser={setUser} sucursales={data.sucursales} onLogin={handleLogin}/>;
+  if(!logged) return <Login user={user} setUser={setUser} onLogin={handleLogin}/>;
 
   const reloadState = async () => {
     try {
-      const res = await apiFetch('/api/app/state');
-      if (res.ok) setData(await res.json());
+      const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/state');
+      if (res.ok) {
+        const stateData = await res.json();
+        setData(prev => ({...prev, ...stateData}));
+      }
 
-      const resRep = await apiFetch('/api/app/reports');
+      const resKpi = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/kpis');
+      if (resKpi.ok) setKpiData(await resKpi.json());
+
+      const resOrd = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/orders?page=1');
+      if (resOrd.ok) {
+        const ordData = await resOrd.json();
+        setData(prev => ({...prev, pedidos: ordData.data}));
+      }
+
+      const resProd = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/products?page=1');
+      if (resProd.ok) {
+        const prodData = await resProd.json();
+        setData(prev => ({...prev, productos: prodData.data}));
+      }
+
+      const resRep = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/reports');
       if (resRep.ok) setReports(await resRep.json());
     } catch (e) { console.error('Error fetching state:', e); }
   };
@@ -138,7 +166,7 @@ function App() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
-      await apiFetch('/api/app/branch', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/branch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: f.get('nombre'), zone: f.get('zona'), manager: f.get('responsable') })
@@ -152,7 +180,7 @@ function App() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
-      await apiFetch('/api/app/warehouse', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/warehouse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre: f.get('nombre'), sucursalId: Number(f.get('sucursalId')), tipo: f.get('tipo'), responsable: f.get('responsable') })
@@ -166,7 +194,7 @@ function App() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
-      await apiFetch('/api/app/driver', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/driver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -186,7 +214,7 @@ function App() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
-      await apiFetch('/api/app/route', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre: f.get('nombre'), dia: f.get('dia'), sucursalId: Number(f.get('sucursalId')), vendedorId: Number(f.get('vendedorId')), clientesText: f.get('clientes') || '' })
@@ -199,7 +227,7 @@ function App() {
   // New endpoints
   const addProducto = async (payload) => {
     try {
-      await apiFetch('/api/app/product', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/product', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -210,7 +238,7 @@ function App() {
 
   const updateProducto = async (id, payload) => {
     try {
-      await apiFetch(`/api/app/product/${id}`, {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/product/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -221,7 +249,7 @@ function App() {
 
   const updateCliente = async (id, payload) => {
     try {
-      await apiFetch(`/api/app/client/${id}`, {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/client/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -232,7 +260,7 @@ function App() {
 
   const updateProveedor = async (id, payload) => {
     try {
-      await apiFetch(`/api/app/provider/${id}`, {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/provider/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -245,7 +273,7 @@ function App() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
-      await apiFetch('/api/app/provider', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/provider', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: f.get('name'), contact: f.get('contact'), phone: f.get('phone') })
@@ -259,7 +287,7 @@ function App() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
-      await apiFetch('/api/app/client', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/client', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: f.get('name'), zone: f.get('zone'), latitude: Number(f.get('latitude')), longitude: Number(f.get('longitude')), routeId: Number(f.get('routeId')) })
@@ -336,7 +364,7 @@ function App() {
     };
 
     try {
-      const res = await apiFetch('/api/app/order', {
+      const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -362,7 +390,7 @@ function App() {
     if (!reason) return;
     try {
       const payload = { driverId: currentRuta.driverId, reason };
-      const res = await apiFetch('/api/app/incident', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/incident', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
       if (res.ok) { alert('Contratiempo reportado a la Torre de Control'); reloadState(); }
     } catch (e) { console.error(e); }
   };
@@ -371,12 +399,12 @@ function App() {
     if(!currentPedido) return;
     if(status === 'En remisión') {
       try {
-        await apiFetch(`/api/app/authorize-order/${currentPedido.id}`, { method: 'POST' });
+        await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/authorize-order/${currentPedido.id}`, { method: 'POST' });
         reloadState();
       } catch(e) { console.error(e); }
     } else if (status === 'Entregado') {
       try {
-        await apiFetch('/api/app/complete-delivery', {
+        await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/complete-delivery', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderId: currentPedido.id, photoBase64 })
@@ -385,7 +413,7 @@ function App() {
       } catch(e) { console.error(e); }
     } else {
       try {
-        await apiFetch(`/api/app/order/${currentPedido.id}/status`, {
+        await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/order/${currentPedido.id}/status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(status)
@@ -398,7 +426,7 @@ function App() {
   const registrarDevolucion = async (returns) => {
     if(!currentPedido) return;
     try {
-      await apiFetch('/api/app/order-return', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/order-return', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: currentPedido.id, returns })
@@ -409,7 +437,7 @@ function App() {
 
   const autorizarDevolucion = async (returnId, isWaste) => {
     try {
-      await apiFetch(`/api/app/order-return/${returnId}/authorize`, {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/order-return/${returnId}/authorize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isWaste })
@@ -422,7 +450,7 @@ function App() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
-      await apiFetch('/api/app/purchase-order', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/purchase-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -441,7 +469,7 @@ function App() {
 
   const aplicarCompra = async (oc) => {
     try {
-      await apiFetch(`/api/app/purchase-order/${oc.id}/apply`, { method: 'POST' });
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/purchase-order/${oc.id}/apply`, { method: 'POST' });
       reloadState();
     } catch(e) { console.error(e); }
   };
@@ -454,7 +482,7 @@ function App() {
 
   const addUser = async (payload) => {
     try {
-      await apiFetch('/api/app/user', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -465,7 +493,7 @@ function App() {
 
   const updateUser = async (id, payload) => {
     try {
-      await apiFetch(`/api/app/user/${id}`, {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/user/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -475,14 +503,15 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <div style={{ background: 'var(--brand-beige)', height: '4px', borderRadius: '10px', marginBottom: '10px', width: '100%' }}></div>
-      <Topbar tab={tab} setTab={setTab} user={user} sucursal={sucursal(user.sucursalId)} logout={handleLogout}/>
+    <div className="app-layout">
+      <Sidebar tab={tab} setTab={setTab} user={user} sucursal={sucursal(user.sucursalId)} logout={handleLogout}/>
+      <div className="app-content">
+        <div style={{ background: 'var(--brand-beige)', height: '4px', borderRadius: '10px', marginBottom: '10px', width: '100%' }}></div>
       {tab==='dashboard'&&(
         <>
           <section className="hero">
             <div className="hero-main">
-              <h1>Sistema abarrotera · preventa, almacén y despacho</h1>
+              <h1>Sistema abarrotera Â· preventa, almacén y despacho</h1>
               <p>Demo con catálogos dinámicos, PWA, precios por volumen y evidencias fotográficas.</p>
             </div>
             <Kpi label="Sucursales" v={kpis.suc}/>
@@ -509,6 +538,7 @@ function App() {
       {tab==='cobranza'&&<Cobranza data={data} reloadState={reloadState}/>}
       {tab==='facturacion'&&<Facturacion data={data} reloadState={reloadState}/>}
       {tab==='tienda'&&<TiendaB2B data={data} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido}/>}
+      </div>
     </div>
   );
 }

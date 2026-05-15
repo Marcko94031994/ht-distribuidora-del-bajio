@@ -11,7 +11,7 @@ public static class DbSeeder
         if (await context.Users.AnyAsync()) return; // Already seeded
 
         // 1. Users
-        var adminUser = new User { Name = "Marco Antonio", Role = "Admin", Email = "demo@abarrotera.mx", Password = "123456" };
+        var adminUser = new User { Name = "Marco Antonio", Role = "Admin", Email = "demo@abarrotera.mx", Password = BCrypt.Net.BCrypt.HashPassword("123456") };
         context.Users.Add(adminUser);
 
         // 2. Branches

@@ -1,4 +1,4 @@
-﻿export default function K({label,v}){
+export default function K({label,v}){
   return (
     <div className="kpi">
       <span>{label}</span>

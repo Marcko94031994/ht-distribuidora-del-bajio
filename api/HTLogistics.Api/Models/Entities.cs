@@ -297,8 +297,9 @@ public class DriverInputModel
 {
     public required string Nombre { get; set; }
     public string? Telefono { get; set; }
-    public string? Unidad { get; set; }
+    public int? VehiculoId { get; set; }
     public int SucursalId { get; set; }
+    public decimal Comision { get; set; }
 }
 
 public class RouteInputModel
@@ -429,4 +430,156 @@ public class BranchInputModel
     public required string Name { get; set; }
     public required string Zone { get; set; }
     public required string Manager { get; set; }
+}
+
+
+public class DeliveryInputModel
+{
+    public int OrderId { get; set; }
+    public string? PhotoBase64 { get; set; }
+}
+
+public class IncidentInputModel
+{
+    public int DriverId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class OrderInputModel
+{
+    public int ClientId { get; set; }
+    public int RouteId { get; set; }
+    public int DriverId { get; set; }
+    public string? PhotoBase64 { get; set; }
+    public string PaymentMethod { get; set; } = "Contado";
+    public List<OrderItemInput> Items { get; set; } = new();
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+}
+
+public class OrderItemInput
+{
+    public int ProductId { get; set; }
+    public int Quantity { get; set; }
+}
+
+public class VehicleInputModel
+{
+    public required string Placas { get; set; }
+    public required string Modelo { get; set; }
+    public required string Marca { get; set; }
+}
+
+public class CashClosureInputModel
+{
+    public int DriverId { get; set; }
+    public int RouteId { get; set; }
+    public decimal TotalExpected { get; set; }
+    public decimal TotalReceived { get; set; }
+    public string? Observations { get; set; }
+}
+
+public class ProductInputModel
+{
+    public required string Name { get; set; }
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
+    public int WarehouseId { get; set; }
+    public string? SKU { get; set; }
+    public List<string>? Photos { get; set; }
+    public decimal BoxPrice { get; set; }
+    public int UnitsPerBox { get; set; }
+    public decimal VolumePrice { get; set; }
+}
+
+public class ProviderInputModel
+{
+    public required string Name { get; set; }
+    public required string Contact { get; set; }
+    public required string Phone { get; set; }
+}
+
+public class ClientInputModel
+{
+    public required string Name { get; set; }
+    public required string Zone { get; set; }
+    public int RouteId { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+}
+
+public class OrderReturnBatchInput
+{
+    public int OrderId { get; set; }
+    public List<OrderReturnInputModel> Returns { get; set; } = new();
+}
+
+public class OrderReturnInputModel
+{
+    public int ProductId { get; set; }
+    public int Quantity { get; set; }
+    public required string Reason { get; set; }
+}
+
+public class ReturnAuthorizeInputModel
+{
+    public bool IsWaste { get; set; }
+}
+
+public class ExpenseCategoryInputModel
+{
+    public required string Name { get; set; }
+}
+
+public class ExpenseInputModel
+{
+    public int? ProviderId { get; set; }
+    public int ExpenseCategoryId { get; set; }
+    public required string Concept { get; set; }
+    public decimal Amount { get; set; }
+    public string? ReferenceNumber { get; set; }
+    public bool IsPaid { get; set; }
+}
+
+public class VisitInputModel
+{
+    public int ClientId { get; set; }
+    public int DriverId { get; set; }
+    public bool SaleAccomplished { get; set; }
+    public string? NoSaleReason { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+}
+
+public class PaymentInputModel
+{
+    public int ClientId { get; set; }
+    public decimal Amount { get; set; }
+    public string? Reference { get; set; }
+    public string? PaymentMethod { get; set; }
+}
+
+public class CashClosureDeclareInput
+{
+    public int ClosureId { get; set; }
+    public decimal TotalDeclared { get; set; }
+    public string? Observations { get; set; }
+}
+
+public class ProductBulkUpdateModel
+{
+    public int Id { get; set; }
+    public decimal? Price { get; set; }
+    public int? Stock { get; set; }
+    public decimal? Cost { get; set; }
+}
+
+public class UserInputModel
+{
+    public required string Name { get; set; }
+    public required string Email { get; set; }
+    public string? Password { get; set; }
+    public required string Role { get; set; }
+    public int? SucursalId { get; set; }
+    public int? ClientId { get; set; }
 }
