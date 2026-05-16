@@ -32,7 +32,7 @@ export default function Rutas({data,sucursal,vendedor,addVendedor,addRuta,select
             <select name="dia" className="select">
               <option>Lunes</option>
               <option>Martes</option>
-              <option>MiÃÂ©rcoles</option>
+              <option>Miércoles</option>
               <option>Jueves</option>
               <option>Viernes</option>
             </select>
@@ -55,7 +55,7 @@ export default function Rutas({data,sucursal,vendedor,addVendedor,addRuta,select
                     <b>{r.name}</b>
                     <span className="chip">{r.dayOfWeek}</span>
                   </div>
-                  <div className="muted">{sucursal(r.branchId)?.name} Â· {vendedor(r.driverId)?.name}</div>
+                  <div className="muted">{sucursal(r.branchId)?.name} · {vendedor(r.driverId)?.name}</div>
                 </div>
                 <button className="btn secondary" style={{ marginTop: '10px' }} onClick={async () => {
                   const token = localStorage.getItem('ht_token');
@@ -67,7 +67,7 @@ export default function Rutas({data,sucursal,vendedor,addVendedor,addRuta,select
                     alert(`HOJA DE CARGA - ${r.name.toUpperCase()}\n\n${text}`);
                   }
                 }}>
-                  ð Hoja de Carga
+                  📋 Hoja de Carga
                 </button>
               </div>
             ))}
@@ -85,7 +85,7 @@ export default function Rutas({data,sucursal,vendedor,addVendedor,addRuta,select
                 <b>{v.name}</b>
                 <span className="chip ok">{v.status}</span>
               </div>
-              <div className="muted">{v.phone} Â· Comisión: {v.commissionPercentage}%</div>
+              <div className="muted">{v.phone} · Comisión: {v.commissionPercentage}%</div>
               <div className="muted">
                 Unidad: {data.unidades?.find(u=>u.id===v.vehicleId)?.plateNumber || 'No asignada'}
               </div>
@@ -97,4 +97,3 @@ export default function Rutas({data,sucursal,vendedor,addVendedor,addRuta,select
     </div>
   );
 }
-

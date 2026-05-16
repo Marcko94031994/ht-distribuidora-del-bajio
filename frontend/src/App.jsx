@@ -511,7 +511,7 @@ function App() {
         <>
           <section className="hero">
             <div className="hero-main">
-              <h1>Sistema abarrotera Â· preventa, almacén y despacho</h1>
+              <h1>Sistema abarrotera · preventa, almacén y despacho</h1>
               <p>Demo con catálogos dinámicos, PWA, precios por volumen y evidencias fotográficas.</p>
             </div>
             <Kpi label="Sucursales" v={kpis.suc}/>
@@ -526,7 +526,7 @@ function App() {
       {tab==='reportes'&&<Reportes data={data} reports={reports} producto={producto} cliente={cliente}/>}
       {tab==='sucursales'&&<Sucursales data={data} sucursal={sucursal} addAlmacen={addAlmacen} addSucursal={addSucursal}/>} 
       {tab==='rutas'&&<Rutas data={data} sucursal={sucursal} vendedor={vendedor} addVendedor={addVendedor} addRuta={addRuta} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} setSelectedCliente={setSelectedCliente}/>} 
-      {tab==='vendedor'&&<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo}/>} 
+      {tab==='vendedor'&&<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} profesional={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo}/>} 
       {tab==='remisiones'&&<Remisiones data={data} pedido={currentPedido} setSelectedPedido={setSelectedPedido} ruta={ruta} vendedor={vendedor} producto={producto} cambiarPedidoStatus={cambiarPedidoStatus} registrarDevolucion={registrarDevolucion}/>} 
       {tab==='almacen'&&<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} addOC={addOC} aplicarCompra={aplicarCompra} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion}/>}
       {tab==='productos'&&<Productos data={data} addProducto={addProducto} updateProducto={updateProducto} almacen={almacen}/>}

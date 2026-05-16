@@ -59,7 +59,7 @@ export default function Cobranza({ data, reloadState }) {
       {/* Header & KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px', marginBottom: '30px' }}>
         <div className="glass" style={{ padding: '30px', borderRadius: '24px' }}>
-          <h2 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>ð° Gestión de Cobranza (CxC)</h2>
+          <h2 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>💰 Gestión de Cobranza (CxC)</h2>
           <p className="muted">Administra el flujo de efectivo y saldos pendientes de clientes.</p>
         </div>
         <div className="kpi-card" style={{ background: 'var(--primary)', color: 'white' }}>
@@ -74,7 +74,7 @@ export default function Cobranza({ data, reloadState }) {
           <div style={{ marginBottom: '20px' }}>
             <input 
               className="input full" 
-              placeholder="ð Buscar por nombre o zona..." 
+              placeholder="🔍 Buscar por nombre o zona..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ borderRadius: '15px' }}
@@ -127,7 +127,7 @@ export default function Cobranza({ data, reloadState }) {
 
               {/* Formulario de Abono */}
               <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 10px 0' }}>ðµ Registrar Nuevo Abono</h4>
+                <h4 style={{ margin: '0 0 10px 0' }}>💵 Registrar Nuevo Abono</h4>
                 <form onSubmit={registrarAbono} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <input name="amount" type="number" step="any" className="input full" placeholder="Monto del abono" required />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -144,17 +144,17 @@ export default function Cobranza({ data, reloadState }) {
 
               {/* Historial Reciente */}
               <div>
-                <h4 style={{ margin: '0 0 10px 0' }}>ð Movimientos Recientes</h4>
+                <h4 style={{ margin: '0 0 10px 0' }}>🕒 Movimientos Recientes</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
                   {statement?.orders.map(o => (
                     <div key={o.orderNumber} style={{ fontSize: '0.85rem', padding: '8px', background: 'white', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>ð {o.orderNumber} ({o.status})</span>
+                      <span>📄 {o.orderNumber} ({o.status})</span>
                       <b style={{ color: 'var(--danger)' }}>+{pesos(o.totalAmount)}</b>
                     </div>
                   ))}
                   {statement?.payments.map(p => (
                     <div key={p.id} style={{ fontSize: '0.85rem', padding: '8px', background: '#ecfdf5', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', border: '1px solid #10b981' }}>
-                      <span>ð° Abono {p.paymentMethod} ({p.date.split('T')[0]})</span>
+                      <span>💰 Abono {p.paymentMethod} ({p.date.split('T')[0]})</span>
                       <b style={{ color: '#059669' }}>-{pesos(p.amount)}</b>
                     </div>
                   ))}
@@ -163,7 +163,7 @@ export default function Cobranza({ data, reloadState }) {
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>
-              <span style={{ fontSize: '3rem' }}>ð§</span>
+              <span style={{ fontSize: '3rem' }}>👤 </span>
               <p>Selecciona un cliente para ver su estado de cuenta y registrar pagos.</p>
             </div>
           )}

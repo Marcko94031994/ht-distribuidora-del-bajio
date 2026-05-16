@@ -82,7 +82,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                 {photos.map((p, i) => (
                   <div key={i} style={{ position: 'relative' }}>
                     <img src={p} alt="preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px' }} />
-                    <button type="button" onClick={() => setPhotos(photos.filter((_, idx) => idx !== i))} style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer' }}>Ã</button>
+                    <button type="button" onClick={() => setPhotos(photos.filter((_, idx) => idx !== i))} style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer' }}>×</button>
                   </div>
                 ))}
               </div>
@@ -97,7 +97,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
       <div className="card">
         <div className="card-h">
           <h3>Catálogo de Productos</h3>
-          <input className="input" style={{ maxWidth: '180px', padding: '6px 12px' }} placeholder="ð Buscar SKU / Nombre..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input" style={{ maxWidth: '180px', padding: '6px 12px' }} placeholder="🔍 Buscar SKU / Nombre..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="card-b list">
           {filtered.map(p => (
@@ -107,7 +107,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                    {p.images && p.images.length > 0 ? (
                      <img src={p.images[0].photoBase64} alt={p.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
                    ) : (
-                     <div style={{ width: '80px', height: '80px', background: 'var(--bg)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>ð¦</div>
+                     <div style={{ width: '80px', height: '80px', background: 'var(--bg)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📦</div>
                    )}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -147,4 +147,3 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
     </div>
   );
 }
-

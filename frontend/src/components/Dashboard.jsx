@@ -13,7 +13,7 @@ export default function Dashboard({data,sucursal,vendedor,producto}){
             <div className="item" key={p.id}>
               <div className="row"><b>{p.id}</b><span className="chip">{p.status}</span></div>
               <div>{p.cliente}</div>
-              <div className="muted">{vendedor(p.driverId)?.name} ÃÂ· {p.hora}</div>
+              <div className="muted">{vendedor(p.driverId)?.name} · {p.hora}</div>
             </div>
           ))}
         </div>
@@ -63,7 +63,7 @@ export default function Dashboard({data,sucursal,vendedor,producto}){
             <div className="item" key={s.id}>
               <b>{s.name}</b>
               <div className="muted">{s.zone}</div>
-              <span className="chip ok">{data.almacenes.filter(a=>a.branchId===s.id).length} almacÃÂ©n(es)</span>
+              <span className="chip ok">{data.almacenes.filter(a=>a.branchId===s.id).length} almacén(es)</span>
             </div>
           ))}
         </div>
@@ -71,4 +71,3 @@ export default function Dashboard({data,sucursal,vendedor,producto}){
     </div>
   );
 }
-

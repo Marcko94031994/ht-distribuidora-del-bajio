@@ -66,11 +66,11 @@ export default function Remisiones({data,pedido,setSelectedPedido,ruta,vendedor,
             <button className="btn secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => {
                const itemsTxt = pedido.items.map(i => `${producto(i.productId)?.name} x ${i.quantity} = ${pesos(producto(i.productId)?.price * i.quantity)}`).join('\n');
                const total = pedido.items.reduce((sum, i) => sum + (producto(i.productId)?.price * i.quantity), 0);
-               const text = `ð§¾ *TICKET HT DISTRIBUIDORA*\n--------------------------\nFolio: ${pedido.orderNumber}\nCliente: ${c?.name}\n\n${itemsTxt}\n\n*TOTAL: ${pesos(total)}*\n--------------------------\nÂ¡Gracias por su compra!`;
+               const text = `🧾 *TICKET HT DISTRIBUIDORA*\n--------------------------\nFolio: ${pedido.orderNumber}\nCliente: ${c?.name}\n\n${itemsTxt}\n\n*TOTAL: ${pesos(total)}*\n--------------------------\n¡Gracias por su compra!`;
                const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
                window.open(url, '_blank');
-            }}>ð± Compartir WhatsApp</button>
-            <div className="muted">{pedido.time} Â· {vendedor(pedido.driverId)?.name}</div>
+            }}>📱 Compartir WhatsApp</button>
+            <div className="muted">{pedido.time} · {vendedor(pedido.driverId)?.name}</div>
           </div>
         </div>
         <div className="card-b">
