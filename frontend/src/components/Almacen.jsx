@@ -31,41 +31,43 @@ export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,
           <h3>Control de Órdenes de Compra</h3>
         </div>
         <div className="card-b">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Folio</th>
-                <th>Proveedor</th>
-                <th>Producto</th>
-                <th>Cant.</th>
-                <th>Costo Unit.</th>
-                <th>Total</th>
-                <th>Estado</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.compras.map(oc=>{
-                const p=producto(oc.productId);
-                const prov=proveedor(oc.providerId);
-                return (
-                  <tr key={oc.id}>
-                    <td><b>{oc.poNumber}</b></td>
-                    <td>{prov?.name || 'Desconocido'}</td>
-                    <td>{p?.name}</td>
-                    <td>{oc.quantity}</td>
-                    <td>{pesos(oc.cost)}</td>
-                    <td>{pesos(oc.cost*oc.quantity)}</td>
-                    <td><span className={'chip '+(oc.status==='Borrador'?'warn':'ok')}>{oc.status}</span></td>
-                    <td>
-                      {oc.status==='Borrador' && <button className="btn primary" onClick={()=>aplicarCompra(oc)}>Aplicar / Recibir</button>}
-                      {oc.status!=='Borrador' && <span className="muted">Completado</span>}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Proveedor</th>
+                  <th>Producto</th>
+                  <th>Cant.</th>
+                  <th>Costo Unit.</th>
+                  <th>Total</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.compras.map(oc=>{
+                  const p=producto(oc.productId);
+                  const prov=proveedor(oc.providerId);
+                  return (
+                    <tr key={oc.id}>
+                      <td><b>{oc.poNumber}</b></td>
+                      <td>{prov?.name || 'Desconocido'}</td>
+                      <td>{p?.name}</td>
+                      <td>{oc.quantity}</td>
+                      <td>{pesos(oc.cost)}</td>
+                      <td>{pesos(oc.cost*oc.quantity)}</td>
+                      <td><span className={'chip '+(oc.status==='Borrador'?'warn':'ok')}>{oc.status}</span></td>
+                      <td>
+                        {oc.status==='Borrador' && <button className="btn primary" onClick={()=>aplicarCompra(oc)}>Aplicar / Recibir</button>}
+                        {oc.status!=='Borrador' && <span className="muted">Completado</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -74,36 +76,38 @@ export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,
           <h3 className="danger">Devoluciones por Autorizar (Bandeja de Cuarentena)</h3>
         </div>
         <div className="card-b">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Pedido</th>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Razón</th>
-                <th>Estado</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {devoluciones?.filter(d => d.status === 'Pendiente').map(d => (
-                <tr key={d.id}>
-                  <td><b>{data.pedidos.find(p => p.id === d.orderId)?.orderNumber}</b></td>
-                  <td>{producto(d.productId)?.name}</td>
-                  <td>{d.quantity}</td>
-                  <td>{d.reason}</td>
-                  <td><span className="chip warn">{d.status}</span></td>
-                  <td style={{display: 'flex', gap: '0.5rem'}}>
-                    <button className="btn success" onClick={() => autorizarDevolucion(d.id, false)}>Reingresar a Stock</button>
-                    <button className="btn danger" onClick={() => autorizarDevolucion(d.id, true)}>Mandar a Merma</button>
-                  </td>
+          <div className="table-responsive">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Razón</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
                 </tr>
-              ))}
-              {devoluciones?.filter(d => d.status === 'Pendiente').length === 0 && (
-                <tr><td colSpan="6" className="muted" style={{textAlign: 'center'}}>No hay devoluciones pendientes de revisión.</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {devoluciones?.filter(d => d.status === 'Pendiente').map(d => (
+                  <tr key={d.id}>
+                    <td><b>{data.pedidos.find(p => p.id === d.orderId)?.orderNumber}</b></td>
+                    <td>{producto(d.productId)?.name}</td>
+                    <td>{d.quantity}</td>
+                    <td>{d.reason}</td>
+                    <td><span className="chip warn">{d.status}</span></td>
+                    <td style={{display: 'flex', gap: '0.5rem'}}>
+                      <button className="btn success" onClick={() => autorizarDevolucion(d.id, false)}>Reingresar a Stock</button>
+                      <button className="btn danger" onClick={() => autorizarDevolucion(d.id, true)}>Mandar a Merma</button>
+                    </td>
+                  </tr>
+                ))}
+                {devoluciones?.filter(d => d.status === 'Pendiente').length === 0 && (
+                  <tr><td colSpan="6" className="muted" style={{textAlign: 'center'}}>No hay devoluciones pendientes de revisión.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
