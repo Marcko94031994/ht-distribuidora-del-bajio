@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: htlogistics_db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=SuperSecureP@ssword2026!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: htlogistics_api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=db;Database=HTLogisticsProd;User Id=sa;Password=SuperSecureP@ssword2026!;TrustServerCertificate=True;MultipleActiveResultSets=true
+    ports:
+      - "5200:5200"
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: htlogistics_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  sql_data:
