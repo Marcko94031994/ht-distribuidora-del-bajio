@@ -128,14 +128,17 @@ using (var scope = app.Services.CreateScope())
     await context.Database.EnsureCreatedAsync();
     await DbSeeder.SeedAsync(context);
     
-    // Hash existing plaintext passwords if any
+    // Hash existing plaintext passwords and force reset demo password
+    var demoUser = await context.Users.FirstOrDefaultAsync(u => u.Email == "demo@abarrotera.mx");
+    if (demoUser != null) {
+        demoUser.Password = BCrypt.Net.BCrypt.HashPassword("123456");
+    }
+
     var usersToUpdate = await context.Users.Where(u => !u.Password!.StartsWith("$")).ToListAsync();
     foreach(var u in usersToUpdate) {
         u.Password = BCrypt.Net.BCrypt.HashPassword(u.Password);
     }
-    if (usersToUpdate.Any()) {
-        await context.SaveChangesAsync();
-    }
+    await context.SaveChangesAsync();
 }
 
 app.Run();
