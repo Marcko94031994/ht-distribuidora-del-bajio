@@ -111,7 +111,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
             <button className={`btn ${isBox ? 'secondary' : 'primary'}`} onClick={() => setIsBox(!isBox)}>
               {isBox ? 'Cajas' : 'Piezas'}
             </button>
-            <button className="btn" onClick={() => addCart(isBox)}>Agregar</button>
+            <button className="btn" onClick={() => addCart(null, null, isBox)}>Agregar</button>
           </div>
           <br/>
           <div>
@@ -210,7 +210,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
                           <b style={{ color: 'var(--success)' }}>{pesos(p.boxPrice)}</b>
                         </div>
                       </div>
-                      <button className="btn success full" style={{ marginTop: '0.8rem' }} onClick={() => addCart(p)}>Agregar al Pedido</button>
+                      <button className="btn success full" style={{ marginTop: '0.8rem' }} onClick={() => addCart(p.id)}>Agregar al Pedido</button>
                     </div>
                   )}
                 </div>
