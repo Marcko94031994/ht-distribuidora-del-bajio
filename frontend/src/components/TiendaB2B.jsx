@@ -6,7 +6,7 @@ export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }
   const [activeCategory, setActiveCategory] = useState(0); // 0 = All
 
   const categories = useMemo(() => [
-    { id: 0, name: 'Todos', icon: 'ð' },
+    { id: 0, name: 'Todos', icon: '🌟' },
     ...(data.productCategories || [])
   ], [data.productCategories]);
 
@@ -25,11 +25,11 @@ export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }
 
   const ProductCard = ({ p, isOffer }) => (
     <div className="kpi-card b2b-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '15px', position: 'relative', border: isOffer ? '2px solid #fbbf24' : '1px solid var(--line)' }}>
-      {isOffer && <div style={{ position: 'absolute', top: '-10px', left: '10px', background: '#fbbf24', color: 'black', padding: '2px 10px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 900 }}>ð¥ SUPER OFERTA</div>}
+      {isOffer && <div style={{ position: 'absolute', top: '-10px', left: '10px', background: '#fbbf24', color: 'black', padding: '2px 10px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 900 }}>🔥 SUPER OFERTA</div>}
       <div style={{ height: '140px', background: '#f8fafc', borderRadius: '16px', marginBottom: '15px', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
           {p.images?.[0] ? 
-          <img src={p.images[0].photoBase64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 
-          <span style={{ fontSize: '2.5rem' }}>ð¦</span>
+          <img src={p.images[0].photoBase64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={p.name} /> : 
+          <span style={{ fontSize: '2.5rem' }}>📦</span>
           }
       </div>
       <div style={{ flex: 1 }}>
@@ -54,7 +54,7 @@ export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }
         <div style={{ position: 'relative', width: '350px' }}>
           <input 
             className="input full" 
-            placeholder="ð Busca productos..." 
+            placeholder="🔍 Busca productos..." 
             style={{ borderRadius: '40px', padding: '10px 20px' }}
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -62,11 +62,11 @@ export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }
         </div>
       </div>
 
-      {/* ð Sección de OFERTAS ð¥ */}
+      {/* 🚀 Sección de OFERTAS 🔥 */}
       {offers.length > 0 && (
         <section>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900 }}>ð¥ Ofertas Relámpago</h3>
+            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900 }}>🔥 Ofertas Relámpago</h3>
             <span className="chip warn">Solo hoy</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
@@ -75,9 +75,9 @@ export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }
         </section>
       )}
 
-      {/* â¨ Sección de SUGERIDOS */}
+      {/* ✨ Sección de SUGERIDOS */}
       <section>
-        <h3 style={{ marginBottom: '15px', fontSize: '1.5rem', fontWeight: 900 }}>â¨ Sugeridos para tu negocio</h3>
+        <h3 style={{ marginBottom: '15px', fontSize: '1.5rem', fontWeight: 900 }}>✨ Sugeridos para tu negocio</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
           {suggested.map(p => <ProductCard key={p.id} p={p} isOffer={false} />)}
         </div>
@@ -85,7 +85,7 @@ export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }
 
       {/* Pasillos */}
       <section>
-        <h3 style={{ marginBottom: '15px', fontSize: '1.5rem', fontWeight: 900 }}>ð¤ï¸ Explora los Pasillos</h3>
+        <h3 style={{ marginBottom: '15px', fontSize: '1.5rem', fontWeight: 900 }}>🛒 Explora los Pasillos</h3>
         <div className="aisles-scroll" style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '10px' }}>
           {categories.map(cat => (
             <div 

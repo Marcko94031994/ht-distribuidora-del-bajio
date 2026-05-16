@@ -4,7 +4,6 @@ import { pesos } from '../utils/helpers';
 export default function Reportes({ data, reports, producto, cliente }) {
   
   const stats = useMemo(() => {
-    // Top products/clients can still be derived from data or we could add them to the reports endpoint
     const productSales = {};
     const clientSales = {};
     
@@ -66,7 +65,7 @@ export default function Reportes({ data, reports, producto, cliente }) {
       <div className="card glass" style={{ gridColumn: '1 / span 2' }}>
         <div className="card-h">
           <div className="row">
-            <h3>â ï¸ Riesgo de Merma (Próximos a Vencer)</h3>
+            <h3>⚠️ Riesgo de Merma (Próximos a Vencer)</h3>
             <span className="chip warn">Acción Requerida</span>
           </div>
         </div>
@@ -99,7 +98,7 @@ export default function Reportes({ data, reports, producto, cliente }) {
                 );
               })}
               {(!reports.riesgoMerma || reports.riesgoMerma.length === 0) && (
-                <tr><td colSpan="5" className="muted text-center">No hay productos próximos a vencer. ð</td></tr>
+                <tr><td colSpan="5" className="muted text-center">No hay productos próximos a vencer. 🙌</td></tr>
               )}
             </tbody>
           </table>
@@ -108,7 +107,7 @@ export default function Reportes({ data, reports, producto, cliente }) {
 
       <div className="card glass">
         <div className="card-h">
-          <h3>ð Análisis de Rentabilidad por Pedido</h3>
+          <h3>📈 Análisis de Rentabilidad por Pedido</h3>
         </div>
         <div className="card-b">
           <div className="list">
@@ -133,7 +132,7 @@ export default function Reportes({ data, reports, producto, cliente }) {
 
       <div className="card glass">
         <div className="card-h">
-          <h3>ð Top 5 Clientes</h3>
+          <h3>🏆 Top 5 Clientes</h3>
         </div>
         <div className="card-b">
           <div className="list">
@@ -147,7 +146,7 @@ export default function Reportes({ data, reports, producto, cliente }) {
                   <div style={{ 
                     height: '100%', 
                     background: 'var(--success)', 
-                    width: `${(c.total / stats.topClients[0].total) * 100}%`,
+                    width: stats.topClients[0].total > 0 ? `${(c.total / stats.topClients[0].total) * 100}%` : '0%',
                     borderRadius: '2px'
                   }}></div>
                 </div>
