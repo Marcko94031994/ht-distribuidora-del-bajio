@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy the csproj and restore
@@ -14,7 +14,7 @@ FROM build AS publish
 RUN dotnet publish "HTLogisticsV2.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Final stage/image
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
