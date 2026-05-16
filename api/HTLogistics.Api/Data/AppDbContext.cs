@@ -42,6 +42,15 @@ public class AppDbContext : DbContext
             relationship.DeleteBehavior = DeleteBehavior.Restrict;
         }
             
+        // Set precision for all decimal properties to 18,2
+        foreach (var property in modelBuilder.Model.GetEntityTypes()
+            .SelectMany(t => t.GetProperties())
+            .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)))
+        {
+            property.SetPrecision(18);
+            property.SetScale(2);
+        }
+
         modelBuilder.Entity<Driver>()
             .Property(d => d.CurrentFuelEfficiency)
             .HasPrecision(5, 2);
