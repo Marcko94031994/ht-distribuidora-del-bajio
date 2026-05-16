@@ -1,6 +1,7 @@
 using HTLogistics.Api.Data;
 using HTLogistics.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using BCrypt.Net;
 
 namespace HTLogistics.Api.Data;
 

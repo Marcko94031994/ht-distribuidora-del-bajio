@@ -3,6 +3,7 @@ using HTLogistics.Api.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using BCrypt.Net;
 // using OpenApiModels = Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
