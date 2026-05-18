@@ -63,7 +63,7 @@ export default function TorreControl({data,vendedor}){
         </div>
       </div>
       
-      <div className="card double" style={{ padding: 0, overflow: 'hidden', position: 'relative', height: '100%' }}>
+      <div className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative', height: '100%' }}>
         {!isLoaded ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Cargando mapa...</div>
         ) : (
