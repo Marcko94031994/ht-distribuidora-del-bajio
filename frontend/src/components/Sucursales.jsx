@@ -53,6 +53,7 @@ export default function Sucursales({data,sucursal,addAlmacen,addSucursal}){
             </div>
           ))}
         </div>
+      </div>
       <div className="card double" style={{gridColumn: '1 / -1'}}>
         <div className="card-h">
           <h3>Layout de Almacén (Ubicaciones y Racks)</h3>
