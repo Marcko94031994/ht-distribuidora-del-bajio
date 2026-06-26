@@ -29,12 +29,34 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> GetProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var total = await _context.Products.CountAsync();
+        
         var products = await _context.Products
+            .AsNoTracking()
             .Include(p => p.Images)
             .OrderBy(p => p.Name)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+            
+        var pendingOrders = await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Items)
+            .Where(o => o.Status == "Pendiente" || o.Status == "Esperando Autorización Admin")
+            .ToListAsync();
+            
+        var pendingQtyByProduct = pendingOrders
+            .SelectMany(o => o.Items)
+            .GroupBy(i => i.ProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+            
+        foreach (var p in products)
+        {
+            if (pendingQtyByProduct.ContainsKey(p.Id))
+            {
+                p.Stock -= pendingQtyByProduct[p.Id];
+                if (p.Stock < 0) p.Stock = 0; // Evitar stock negativo visual
+            }
+        }
             
         return Ok(new { data = products, total, page, pageSize });
     }
@@ -47,23 +69,25 @@ public class InventoryController : ControllerBase
                 Name = input.Name, 
                 Price = input.Price, 
                 Stock = input.Stock, 
-                WarehouseId = input.WarehouseId, 
+                WarehouseId = input.WarehouseId,
+                WarehouseLocationId = input.WarehouseLocationId,
                 SKU = input.SKU,
                 BoxPrice = input.BoxPrice,
                 UnitsPerBox = input.UnitsPerBox,
                 VolumePrice = input.VolumePrice
             };
-            
-            if (input.Photos != null)
-            {
-                foreach (var photo in input.Photos)
-                {
-                    prod.Images.Add(new ProductImage { PhotoBase64 = photo });
-                }
-            }
-    
             _context.Products.Add(prod);
             await _context.SaveChangesAsync();
+
+            if (input.Photos != null)
+            {
+                foreach (var p in input.Photos)
+                {
+                    _context.ProductImages.Add(new ProductImage { ProductId = prod.Id, PhotoBase64 = p });
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(prod);
         }
 
@@ -77,6 +101,7 @@ public class InventoryController : ControllerBase
             prod.Price = input.Price;
             prod.Stock = input.Stock;
             prod.WarehouseId = input.WarehouseId;
+            prod.WarehouseLocationId = input.WarehouseLocationId;
             prod.SKU = input.SKU;
             prod.BoxPrice = input.BoxPrice;
             prod.UnitsPerBox = input.UnitsPerBox;

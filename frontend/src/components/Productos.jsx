@@ -35,6 +35,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
       unitsPerBox: Number(f.get('unitsPerBox')),
       volumePrice: Number(f.get('volumePrice')),
       warehouseId: Number(f.get('warehouseId')),
+      warehouseLocationId: f.get('warehouseLocationId') ? Number(f.get('warehouseLocationId')) : null,
       photos: photos
     };
 
@@ -73,6 +74,13 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
             <select name="warehouseId" className="select full" defaultValue={editingProduct?.warehouseId} required>
               <option value="">Seleccionar Almacén</option>
               {data.almacenes.map(a => <option value={a.id} key={a.id}>{a.name}</option>)}
+            </select>
+            <select name="warehouseLocationId" className="select full" defaultValue={editingProduct?.warehouseLocationId}>
+              <option value="">Seleccionar Ubicación / Rack (Opcional)</option>
+              {data.ubicaciones?.filter(u => u.warehouseId === (editingProduct ? editingProduct.warehouseId : u.warehouseId)).map(u => {
+                 const a = data.almacenes.find(x => x.id === u.warehouseId);
+                 return <option value={u.id} key={u.id}>({a?.name}) {u.name}</option>;
+              })}
             </select>
             
             <div className="full" style={{ marginTop: '1rem' }}>
@@ -118,7 +126,10 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                       <span className="chip ok">{p.stock} pzas</span>
                     </div>
                   </div>
-                  <div className="muted" style={{ marginBottom: expandedId === p.id ? '0.8rem' : '0' }}>{almacen(p.warehouseId)?.name}</div>
+                  <div className="muted" style={{ marginBottom: expandedId === p.id ? '0.8rem' : '0' }}>
+                    {almacen(p.warehouseId)?.name} 
+                    {p.warehouseLocationId && ` - ${data.ubicaciones?.find(u => u.id === p.warehouseLocationId)?.name || ''}`}
+                  </div>
                   
                   {expandedId === p.id && (
                     <div style={{ marginTop: '0.8rem' }} onClick={(e) => e.stopPropagation()}>

@@ -82,9 +82,13 @@ export default function Remisiones({data,pedido,setSelectedPedido,ruta,vendedor,
           </div>
           {pedido.items.map((i,idx)=>{
             const prod=producto(i.productId);
+            const locName = prod?.warehouseLocationId ? data.ubicaciones?.find(u => u.id === prod.warehouseLocationId)?.name : null;
             return (
               <div className="cart-row" key={idx}>
-                <div>{prod?.name}</div>
+                <div>
+                  {prod?.name}
+                  {locName && <div className="muted" style={{fontSize: '0.75rem'}}>📍 {locName}</div>}
+                </div>
                 <div>{i.quantity}</div>
                 <div>{pesos(prod?.price)}</div>
                 <div>

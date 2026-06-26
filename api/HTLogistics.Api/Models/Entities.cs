@@ -129,6 +129,9 @@ public class Product
     public int? CategoryId { get; set; }
     public ProductCategory? Category { get; set; }
     
+    public int? WarehouseLocationId { get; set; }
+    public WarehouseLocation? WarehouseLocation { get; set; }
+    
     public string? UnitOfMeasure { get; set; }
     public string? SKU { get; set; }
     
@@ -485,6 +488,7 @@ public class ProductInputModel
     public decimal Price { get; set; }
     public int Stock { get; set; }
     public int WarehouseId { get; set; }
+    public int? WarehouseLocationId { get; set; }
     public string? SKU { get; set; }
     public List<string>? Photos { get; set; }
     public decimal BoxPrice { get; set; }
@@ -582,4 +586,13 @@ public class UserInputModel
     public required string Role { get; set; }
     public int? SucursalId { get; set; }
     public int? ClientId { get; set; }
+}
+
+public class WarehouseLocation
+{
+    public int Id { get; set; }
+    public int WarehouseId { get; set; }
+    public Warehouse? Warehouse { get; set; }
+    public required string Name { get; set; } // e.g. "Pasillo 1 - Rack A"
+    public string? Description { get; set; }
 }

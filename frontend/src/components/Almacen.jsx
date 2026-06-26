@@ -110,6 +110,53 @@ export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,
           </div>
         </div>
       </div>
+
+      <div className="card double" style={{gridColumn: '1 / -1'}}>
+        <div className="card-h">
+          <h3>Layout de Almacén (Ubicaciones y Racks)</h3>
+        </div>
+        <div className="card-b">
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            const token = localStorage.getItem('ht_token');
+            const res = await fetch('/api/app/locations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ name: f.get('name'), description: f.get('description'), warehouseId: Number(f.get('warehouseId')) })
+            });
+            if (res.ok) { window.location.reload(); }
+          }} className="form-grid" style={{ marginBottom: '20px' }}>
+            <select name="warehouseId" className="select" required>
+              <option value="">Seleccionar Almacén</option>
+              {data.almacenes?.map(a=><option value={a.id} key={a.id}>{a.name}</option>)}
+            </select>
+            <input name="name" className="input" placeholder="Nombre (Ej. Pasillo 1 - Rack A)" required />
+            <input name="description" className="input full" placeholder="Descripción adicional (Opcional)" />
+            <button type="submit" className="btn primary">Agregar Ubicación</button>
+          </form>
+
+          <table className="table full">
+            <thead>
+              <tr>
+                <th>Almacén</th>
+                <th>Nombre de Ubicación</th>
+                <th>Descripción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.ubicaciones?.map(u => (
+                <tr key={u.id}>
+                  <td>{almacen(u.warehouseId)?.name}</td>
+                  <td><b>{u.name}</b></td>
+                  <td>{u.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
+

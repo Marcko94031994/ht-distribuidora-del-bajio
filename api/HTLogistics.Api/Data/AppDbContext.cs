@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+    public DbSet<WarehouseLocation> WarehouseLocations => Set<WarehouseLocation>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<DeliveryRoute> Routes => Set<DeliveryRoute>();
     public DbSet<Client> Clients => Set<Client>();

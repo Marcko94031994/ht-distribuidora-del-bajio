@@ -45,6 +45,7 @@ public class CatalogsController : ControllerBase
             var vehicles = await _context.Vehicles.ToListAsync();
             var cashClosures = await _context.CashClosures.ToListAsync();
             var productCategories = await _context.ProductCategories.ToListAsync();
+            var warehouseLocations = await _context.WarehouseLocations.ToListAsync();
             
             List<User>? users = null;
             if (User.IsInRole("Admin"))
@@ -56,6 +57,7 @@ public class CatalogsController : ControllerBase
             {
                 sucursales = branches,
                 almacenes = warehouses,
+                ubicaciones = warehouseLocations,
                 vendedores = drivers,
                 rutas = routes,
                 compras = purchaseOrders,
