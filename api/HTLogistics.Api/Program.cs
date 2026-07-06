@@ -126,6 +126,28 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
     await context.Database.EnsureCreatedAsync();
+    
+    // Auto-migration for CommittedStock and CurrentBalance
+    try {
+        await context.Database.ExecuteSqlRawAsync("IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[Products]') AND name = 'CommittedStock') ALTER TABLE [Products] ADD [CommittedStock] int NOT NULL DEFAULT 0;");
+        await context.Database.ExecuteSqlRawAsync("IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[Providers]') AND name = 'CurrentBalance') ALTER TABLE [Providers] ADD [CurrentBalance] decimal(18,2) NOT NULL DEFAULT 0;");
+        
+        // Also create ProviderPayments table if missing
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[ProviderPayments]') AND type in (N'U'))
+            CREATE TABLE [ProviderPayments] (
+                [Id] int NOT NULL IDENTITY,
+                [ProviderId] int NOT NULL,
+                [Amount] decimal(18,2) NOT NULL,
+                [Date] datetime2 NOT NULL,
+                [Reference] nvarchar(max) NULL,
+                [PaymentMethod] nvarchar(max) NULL,
+                CONSTRAINT [PK_ProviderPayments] PRIMARY KEY ([Id]),
+                CONSTRAINT [FK_ProviderPayments_Providers_ProviderId] FOREIGN KEY ([ProviderId]) REFERENCES [Providers] ([Id]) ON DELETE CASCADE
+            );
+        ");
+    } catch { }
+
     await DbSeeder.SeedAsync(context);
     
     // Hash existing plaintext passwords and force reset demo password

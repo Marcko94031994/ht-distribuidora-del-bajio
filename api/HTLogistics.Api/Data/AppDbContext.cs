@@ -25,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<OrderReturn> OrderReturns => Set<OrderReturn>();
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
     public DbSet<ClientPayment> ClientPayments => Set<ClientPayment>();
+    public DbSet<ProviderPayment> ProviderPayments => Set<ProviderPayment>();
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();

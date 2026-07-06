@@ -283,6 +283,17 @@ function App() {
     } catch(e) { console.error(e); }
   };
 
+  const registrarPagoProveedor = async (payload) => {
+    try {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/provider-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      reloadState();
+    } catch(e) { console.error(e); }
+  };
+
   const addCliente = async (e) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -306,7 +317,7 @@ function App() {
     
     // Calculate total units being added
     const unitsToAdd = isBox ? q * prod.unitsPerBox : q;
-    if (unitsToAdd <= 0 || unitsToAdd > prod.stock) return alert('Cantidad no válida o sin existencia suficiente'); 
+    if (unitsToAdd <= 0 || unitsToAdd > prod.availableStock) return alert('Cantidad no válida o sin disponibilidad (Stock Apartado)'); 
 
     // Determine effective price per unit
     let unitPrice = prod.price;
@@ -531,7 +542,7 @@ function App() {
       {tab==='almacen'&&<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} addOC={addOC} aplicarCompra={aplicarCompra} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion}/>}
       {tab==='productos'&&<Productos data={data} addProducto={addProducto} updateProducto={updateProducto} almacen={almacen}/>}
       {tab==='clientes'&&<Clientes data={data} addCliente={addCliente} updateCliente={updateCliente} ruta={ruta}/>}
-      {tab==='proveedores'&&<Proveedores data={data} addProveedor={addProveedor} updateProveedor={updateProveedor}/>}
+      {tab==='proveedores'&&<Proveedores data={data} addProveedor={addProveedor} updateProveedor={updateProveedor} registrarPago={registrarPagoProveedor}/>}
       {tab==='liquidacion'&&<Liquidacion data={data} ruta={ruta} vendedor={vendedor}/>}
       {tab==='masivos'&&<Masivos data={data} reloadState={reloadState}/>}
       {tab==='usuarios'&&<Usuarios data={data} addUser={addUser} updateUser={updateUser}/>}

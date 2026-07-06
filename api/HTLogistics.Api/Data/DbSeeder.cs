@@ -110,11 +110,11 @@ public static class DbSeeder
         // 7.1 Products
         var products = new List<Product>
         {
-            new Product { Name = "Coca 600 ml", Price = 18m, Stock = 45, WarehouseId = warehouses[0].Id, WarehouseLocationId = locations[0].Id, SKU = "P-001", BoxPrice = 160m, UnitsPerBox = 12, VolumePrice = 17m, Cost = 12.5m, IvaRate = 0.16m, IepsRate = 0.08m, CategoryId = categories[0].Id, IsPromotion = true, PromotionPrice = 15.5m },
-            new Product { Name = "Sabritas 45 g", Price = 17m, Stock = 32, WarehouseId = warehouses[0].Id, WarehouseLocationId = locations[1].Id, SKU = "P-002", BoxPrice = 150m, UnitsPerBox = 10, VolumePrice = 16m, Cost = 11.2m, IvaRate = 0m, IepsRate = 0.08m, CategoryId = categories[1].Id },
-            new Product { Name = "Galletas Marías", Price = 24m, Stock = 20, WarehouseId = warehouses[1].Id, WarehouseLocationId = locations[3].Id, SKU = "P-003", BoxPrice = 220m, UnitsPerBox = 10, VolumePrice = 23m, Cost = 18.0m, IvaRate = 0m, IepsRate = 0.08m, CategoryId = categories[2].Id, IsPromotion = true, PromotionPrice = 19.9m },
-            new Product { Name = "Arroz 1 kg", Price = 29m, Stock = 18, WarehouseId = warehouses[1].Id, WarehouseLocationId = locations[3].Id, SKU = "P-004", BoxPrice = 550m, UnitsPerBox = 20, VolumePrice = 28m, Cost = 22.5m, IvaRate = 0m, IepsRate = 0m, CategoryId = categories[3].Id },
-            new Product { Name = "Frijol 1 kg", Price = 32m, Stock = 16, WarehouseId = warehouses[2].Id, SKU = "P-005", BoxPrice = 600m, UnitsPerBox = 20, VolumePrice = 31m, Cost = 25.0m, IvaRate = 0m, IepsRate = 0m, CategoryId = categories[3].Id }
+            new Product { Name = "Coca 600 ml", Price = 18m, Stock = 45, CommittedStock = 6, WarehouseId = warehouses[0].Id, WarehouseLocationId = locations[0].Id, SKU = "P-001", BoxPrice = 160m, UnitsPerBox = 12, VolumePrice = 17m, Cost = 12.5m, IvaRate = 0.16m, IepsRate = 0.08m, CategoryId = categories[0].Id, IsPromotion = true, PromotionPrice = 15.5m },
+            new Product { Name = "Sabritas 45 g", Price = 17m, Stock = 32, CommittedStock = 4, WarehouseId = warehouses[0].Id, WarehouseLocationId = locations[1].Id, SKU = "P-002", BoxPrice = 150m, UnitsPerBox = 10, VolumePrice = 16m, Cost = 11.2m, IvaRate = 0m, IepsRate = 0.08m, CategoryId = categories[1].Id },
+            new Product { Name = "Galletas Marías", Price = 24m, Stock = 20, CommittedStock = 0, WarehouseId = warehouses[1].Id, WarehouseLocationId = locations[3].Id, SKU = "P-003", BoxPrice = 220m, UnitsPerBox = 10, VolumePrice = 23m, Cost = 18.0m, IvaRate = 0m, IepsRate = 0.08m, CategoryId = categories[2].Id, IsPromotion = true, PromotionPrice = 19.9m },
+            new Product { Name = "Arroz 1 kg", Price = 29m, Stock = 18, CommittedStock = 0, WarehouseId = warehouses[1].Id, WarehouseLocationId = locations[3].Id, SKU = "P-004", BoxPrice = 550m, UnitsPerBox = 20, VolumePrice = 28m, Cost = 22.5m, IvaRate = 0m, IepsRate = 0m, CategoryId = categories[3].Id },
+            new Product { Name = "Frijol 1 kg", Price = 32m, Stock = 16, CommittedStock = 0, WarehouseId = warehouses[2].Id, SKU = "P-005", BoxPrice = 600m, UnitsPerBox = 20, VolumePrice = 31m, Cost = 25.0m, IvaRate = 0m, IepsRate = 0m, CategoryId = categories[3].Id }
         };
         context.Products.AddRange(products);
         await context.SaveChangesAsync();

@@ -209,6 +209,29 @@ public class CatalogsController : ControllerBase
             return Ok(prov);
         }
 
+    [HttpPost("provider-payment")]
+        public async Task<IActionResult> RegisterProviderPayment([FromBody] ProviderPaymentInputModel input)
+        {
+            var provider = await _context.Providers.FindAsync(input.ProviderId);
+            if (provider == null) return NotFound("Provider not found");
+
+            var payment = new ProviderPayment
+            {
+                ProviderId = input.ProviderId,
+                Amount = input.Amount,
+                Reference = input.Reference,
+                PaymentMethod = input.PaymentMethod,
+                Date = DateTime.Now
+            };
+
+            provider.CurrentBalance -= input.Amount;
+            
+            _context.ProviderPayments.Add(payment);
+            await _context.SaveChangesAsync();
+
+            return Ok(payment);
+        }
+
     [HttpPost("client")]
         public async Task<IActionResult> CreateClient([FromBody] ClientInputModel input)
         {

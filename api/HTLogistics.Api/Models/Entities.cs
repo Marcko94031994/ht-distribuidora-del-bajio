@@ -122,6 +122,10 @@ public class Product
     public required string Name { get; set; }
     public decimal Price { get; set; }
     public int Stock { get; set; }
+    public int CommittedStock { get; set; } // Existencia apartada por pedidos pendientes
+    
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int AvailableStock => Stock - CommittedStock;
     
     public int WarehouseId { get; set; }
     public Warehouse? Warehouse { get; set; }
@@ -314,6 +318,14 @@ public class RouteInputModel
     public required string ClientesText { get; set; }
 }
 
+public class ProviderPaymentInputModel
+{
+    public int ProviderId { get; set; }
+    public decimal Amount { get; set; }
+    public string? Reference { get; set; }
+    public string? PaymentMethod { get; set; }
+}
+
 public class PurchaseOrderInputModel
 {
     public int ProviderId { get; set; }
@@ -330,6 +342,18 @@ public class Provider
     public required string Name { get; set; }
     public required string Contact { get; set; }
     public required string Phone { get; set; }
+    public decimal CurrentBalance { get; set; } // Saldo pendiente a pagar (Cuentas por Pagar)
+}
+
+public class ProviderPayment
+{
+    public int Id { get; set; }
+    public int ProviderId { get; set; }
+    public Provider? Provider { get; set; }
+    public decimal Amount { get; set; }
+    public DateTime Date { get; set; }
+    public string? Reference { get; set; }
+    public string? PaymentMethod { get; set; }
 }
 
 public class ClientPrice

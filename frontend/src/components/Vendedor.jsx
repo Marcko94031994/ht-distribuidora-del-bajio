@@ -190,7 +190,7 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
                 <div style={{ flex: 1 }}>
                   <div className="row">
                     <b>{p.name}</b>
-                    <span className={'chip '+(p.stock<=10?'warn':'ok')}>{p.stock} pzas</span>
+                    <span className={'chip '+(p.availableStock<=10?'warn':'ok')}>Disp: {p.availableStock} pzas</span>
                   </div>
                   <div className="muted" style={{ marginBottom: expandedId === p.id ? '0.8rem' : '0' }}>{almacen(p.warehouseId)?.name} · SKU: {p.sku}</div>
                   

@@ -10,14 +10,14 @@ export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }
     ...(data.productCategories || [])
   ], [data.productCategories]);
 
-  const offers = useMemo(() => data.productos.filter(p => p.isPromotion && p.stock > 0), [data.productos]);
-  const suggested = useMemo(() => data.productos.filter(p => !p.isPromotion && p.stock > 0).slice(0, 4), [data.productos]);
+  const offers = useMemo(() => data.productos.filter(p => p.isPromotion && p.availableStock > 0), [data.productos]);
+  const suggested = useMemo(() => data.productos.filter(p => !p.isPromotion && p.availableStock > 0).slice(0, 4), [data.productos]);
 
   const filteredProducts = useMemo(() => {
     return data.productos.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = activeCategory === 0 || p.categoryId === activeCategory;
-      return matchesSearch && matchesCategory && p.stock > 0;
+      return matchesSearch && matchesCategory && p.availableStock > 0;
     });
   }, [data.productos, search, activeCategory]);
 

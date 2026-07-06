@@ -175,6 +175,14 @@ public class InventoryController : ControllerBase
                     Reference = po.PoNumber
                 });
             }
+
+            // Actualizar cuenta por pagar (CxP) del proveedor
+            var provider = await _context.Providers.FindAsync(po.ProviderId);
+            if (provider != null)
+            {
+                provider.CurrentBalance += (po.Cost * po.Quantity);
+            }
+
             await _context.SaveChangesAsync();
             return Ok(po);
         }

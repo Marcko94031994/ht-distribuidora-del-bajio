@@ -123,7 +123,9 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                     <b>{p.name} ({p.sku})</b>
                     <div>
                       {expandedId === p.id && <button className="btn secondary" style={{ marginRight: '5px', padding: '2px 8px', fontSize: '0.8rem' }} onClick={(e) => { e.stopPropagation(); startEdit(p); }}>Editar</button>}
-                      <span className="chip ok">{p.stock} pzas</span>
+                      <span className="chip" style={{background: '#f1f5f9', color: '#475569', marginRight: '5px'}} title="Físico">F: {p.stock}</span>
+                      <span className="chip warn" style={{marginRight: '5px'}} title="Apartado">A: {p.committedStock || 0}</span>
+                      <span className="chip ok" title="Disponible">D: {p.availableStock}</span>
                     </div>
                   </div>
                   <div className="muted" style={{ marginBottom: expandedId === p.id ? '0.8rem' : '0' }}>

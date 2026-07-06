@@ -16,7 +16,7 @@ export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,
             </select>
             <select name="productoId" className="select full" required>
               <option value="">Seleccionar Producto</option>
-              {data.productos.map(p=><option value={p.id} key={p.id}>{p.name} (Almacén {almacen(p.warehouseId)?.name})</option>)}
+              {data.productos.map(p=><option value={p.id} key={p.id}>{p.name} (Actual: {p.stock} fco. | Disp: {p.availableStock})</option>)}
             </select>
             <input name="cantidad" type="number" className="input" placeholder="Cant. de piezas" required />
             <input name="costo" type="number" step="0.01" className="input" placeholder="Costo Unitario" required />

@@ -97,6 +97,11 @@ public class OrdersController : ControllerBase
                 var product = await _context.Products.FindAsync(item.ProductId);
                 if (product != null)
                 {
+                    if (product.AvailableStock < item.Quantity)
+                    {
+                        return BadRequest($"Stock insuficiente para {product.Name}. Físico: {product.Stock}, Apartado: {product.CommittedStock}");
+                    }
+
                     var subtotal = product.Price * item.Quantity;
                     var tax = subtotal * (product.IvaRate + product.IepsRate);
                     
@@ -111,6 +116,9 @@ public class OrdersController : ControllerBase
                         Quantity = item.Quantity,
                         UnitPrice = product.Price
                     });
+
+                    // Apartar el inventario para pedidos pendientes
+                    product.CommittedStock += item.Quantity;
                 }
             }
     
@@ -196,6 +204,9 @@ public class OrdersController : ControllerBase
                     // Update general stock
                     product.Stock -= item.Quantity;
                     if (product.Stock < 0) product.Stock = 0;
+                    
+                    product.CommittedStock -= item.Quantity;
+                    if (product.CommittedStock < 0) product.CommittedStock = 0;
     
                     // Log movement
                     _context.InventoryMovements.Add(new InventoryMovement
@@ -265,8 +276,43 @@ public class OrdersController : ControllerBase
     [HttpPost("order/{id}/status")]
         public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] string status)
         {
-            var order = await _context.Orders.FindAsync(id);
+            var order = await _context.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
             if (order == null) return NotFound("Order not found");
+            
+            // Lógica de cancelación
+            if (status == "Cancelado" && order.Status != "Cancelado")
+            {
+                foreach (var item in order.Items)
+                {
+                    var product = await _context.Products.FindAsync(item.ProductId);
+                    if (product != null)
+                    {
+                        if (order.Status == "Pendiente" || order.Status == "Esperando Autorización Admin")
+                        {
+                            product.CommittedStock -= item.Quantity;
+                            if (product.CommittedStock < 0) product.CommittedStock = 0;
+                        }
+                        else if (order.Status == "En remisión")
+                        {
+                            // Si ya había salido de bodega, se regresa físicamente
+                            product.Stock += item.Quantity;
+                            
+                            // Log movement
+                            _context.InventoryMovements.Add(new InventoryMovement
+                            {
+                                ProductId = product.Id,
+                                Quantity = item.Quantity,
+                                Type = "Entrada",
+                                Reason = "Devolución por Cancelación",
+                                Date = DateTime.Now,
+                                UserId = 1,
+                                Reference = order.OrderNumber
+                            });
+                        }
+                    }
+                }
+            }
+            
             order.Status = status;
             await _context.SaveChangesAsync();
             return Ok(order);
