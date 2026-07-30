@@ -19,6 +19,7 @@ import Cobranza from './components/Cobranza';
 import Facturacion from './components/Facturacion';
 import Masivos from './components/Masivos';
 import TiendaB2B from './components/TiendaB2B';
+import CajaGeneral from './components/CajaGeneral';
 
 function App() {
   const [logged,setLogged]=useState(!!localStorage.getItem('ht_token')); 
@@ -159,6 +160,18 @@ function App() {
 
       const resRep = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/reports');
       if (resRep.ok) setReports(await resRep.json());
+
+      const resCxc = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/finance/cxc');
+      if (resCxc.ok) {
+        const cxcData = await resCxc.json();
+        setData(prev => ({...prev, cxc: cxcData}));
+      }
+
+      const resCxp = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/finance/cxp');
+      if (resCxp.ok) {
+        const cxpData = await resCxp.json();
+        setData(prev => ({...prev, cxp: cxpData}));
+      }
     } catch (e) { console.error('Error fetching state:', e); }
   };
 
@@ -485,6 +498,31 @@ function App() {
     } catch(e) { console.error(e); }
   };
 
+  const registrarAjuste = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    try {
+      const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/inventory/adjustment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: Number(f.get('productId')),
+          quantity: Number(f.get('quantity')),
+          adjustmentType: f.get('adjustmentType'),
+          reason: f.get('reason')
+        })
+      });
+      if (res.ok) {
+        alert('Ajuste de inventario registrado correctamente.');
+        e.currentTarget.reset();
+        reloadState();
+      } else {
+        const err = await res.text();
+        alert('Error: ' + err);
+      }
+    } catch (err) { console.error(err); }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('ht_token');
     localStorage.removeItem('ht_user');
@@ -539,11 +577,12 @@ function App() {
       {tab==='rutas'&&<Rutas data={data} sucursal={sucursal} vendedor={vendedor} addVendedor={addVendedor} addRuta={addRuta} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} setSelectedCliente={setSelectedCliente}/>} 
       {tab==='vendedor'&&<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo}/>} 
       {tab==='remisiones'&&<Remisiones data={data} pedido={currentPedido} setSelectedPedido={setSelectedPedido} ruta={ruta} vendedor={vendedor} producto={producto} cambiarPedidoStatus={cambiarPedidoStatus} registrarDevolucion={registrarDevolucion}/>} 
-      {tab==='almacen'&&<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} addOC={addOC} aplicarCompra={aplicarCompra} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion}/>}
+      {tab==='almacen'&&<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} addOC={addOC} aplicarCompra={aplicarCompra} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste}/>}
       {tab==='productos'&&<Productos data={data} addProducto={addProducto} updateProducto={updateProducto} almacen={almacen}/>}
       {tab==='clientes'&&<Clientes data={data} addCliente={addCliente} updateCliente={updateCliente} ruta={ruta}/>}
       {tab==='proveedores'&&<Proveedores data={data} addProveedor={addProveedor} updateProveedor={updateProveedor} registrarPago={registrarPagoProveedor}/>}
       {tab==='liquidacion'&&<Liquidacion data={data} ruta={ruta} vendedor={vendedor}/>}
+      {tab==='caja'&&<CajaGeneral data={data}/>}
       {tab==='masivos'&&<Masivos data={data} reloadState={reloadState}/>}
       {tab==='usuarios'&&<Usuarios data={data} addUser={addUser} updateUser={updateUser}/>}
       {tab==='cobranza'&&<Cobranza data={data} reloadState={reloadState}/>}

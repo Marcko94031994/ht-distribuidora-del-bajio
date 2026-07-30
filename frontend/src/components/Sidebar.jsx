@@ -16,6 +16,7 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
     ['proveedores','Proveedores', ['Admin']],
     ['usuarios','Usuarios / Permisos', ['Admin']],
     ['liquidacion','Liquidación', ['Admin']],
+    ['caja','Corte de Caja', ['Admin']],
     ['tienda','Tienda B2B (Portal)', ['Admin', 'Cliente']]
   ];
 

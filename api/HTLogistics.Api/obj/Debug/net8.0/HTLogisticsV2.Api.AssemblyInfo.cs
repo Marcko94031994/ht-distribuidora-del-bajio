@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HTLogisticsV2.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+18b614718c555fccc412ddf4681827f399e53e62")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1feb656a2144381d879752c309015e81ffe7776c")]
 [assembly: System.Reflection.AssemblyProductAttribute("HTLogisticsV2.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HTLogisticsV2.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

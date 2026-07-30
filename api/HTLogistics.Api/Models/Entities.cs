@@ -108,7 +108,7 @@ public class Client
     public decimal CreditLimit { get; set; }
     public decimal CurrentBalance { get; set; }
     public bool HasOverdueDebt { get; set; }
-
+    public int CreditDays { get; set; } = 30; // Configurable per client
     // Datos Fiscales (Para Facturación)
     public string? RFC { get; set; }
     public string? RazonSocial { get; set; }
@@ -142,6 +142,7 @@ public class Product
     public decimal BoxPrice { get; set; }
     public int UnitsPerBox { get; set; }
     public decimal VolumePrice { get; set; }
+    public decimal Weight { get; set; } // Peso en KG
 
     public decimal Cost { get; set; }
     public decimal IvaRate { get; set; } // e.g., 0.16
@@ -226,7 +227,11 @@ public class Order
     
     public decimal TotalAmount { get; set; }
     public decimal TotalTax { get; set; }
+    public decimal TotalWeight { get; set; } // Peso total calculado en KG
     public decimal TotalCost { get; set; } // Para reporte de margen
+    public decimal AmountPaid { get; set; }
+    public DateTime Date { get; set; } = DateTime.Now;
+    public DateTime? DueDate { get; set; }
     
     public double Latitude { get; set; }
     public double Longitude { get; set; }
@@ -283,6 +288,10 @@ public class PurchaseOrder
     
     public string? BatchNumber { get; set; }
     public DateTime? ExpirationDate { get; set; }
+    
+    public decimal AmountPaid { get; set; }
+    public DateTime Date { get; set; } = DateTime.Now;
+    public DateTime? DueDate { get; set; }
 }
 
 public class LoginInputModel
@@ -510,6 +519,7 @@ public class ProductInputModel
 {
     public required string Name { get; set; }
     public decimal Price { get; set; }
+    public decimal Weight { get; set; }
     public int Stock { get; set; }
     public int WarehouseId { get; set; }
     public int? WarehouseLocationId { get; set; }
@@ -534,6 +544,8 @@ public class ClientInputModel
     public int RouteId { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
+    public decimal CreditLimit { get; set; }
+    public int CreditDays { get; set; } = 30;
 }
 
 public class OrderReturnBatchInput
@@ -591,6 +603,7 @@ public class CashClosureDeclareInput
 {
     public int ClosureId { get; set; }
     public decimal TotalDeclared { get; set; }
+    public decimal TotalExpenses { get; set; }
     public string? Observations { get; set; }
 }
 
@@ -599,6 +612,7 @@ public class ProductBulkUpdateModel
     public int Id { get; set; }
     public decimal? Price { get; set; }
     public int? Stock { get; set; }
+    public decimal? Weight { get; set; }
     public decimal? Cost { get; set; }
 }
 
@@ -619,4 +633,31 @@ public class WarehouseLocation
     public Warehouse? Warehouse { get; set; }
     public required string Name { get; set; } // e.g. "Pasillo 1 - Rack A"
     public string? Description { get; set; }
+}
+
+public class DailyClosure
+{
+    public int Id { get; set; }
+    public DateTime Date { get; set; }
+    public decimal TotalRouteCash { get; set; }
+    public decimal TotalBranchExpenses { get; set; }
+    public decimal ExpectedCashInSafe { get; set; }
+    public decimal DeclaredCashInSafe { get; set; }
+    public decimal Difference { get; set; }
+    public int UserId { get; set; }
+    public string? Observations { get; set; }
+}
+
+public class DailyClosureDeclareInput
+{
+    public decimal DeclaredCashInSafe { get; set; }
+    public string? Observations { get; set; }
+}
+
+public class InventoryAdjustmentInput
+{
+    public int ProductId { get; set; }
+    public int Quantity { get; set; }
+    public required string AdjustmentType { get; set; } // "Merma", "Muestra"
+    public required string Reason { get; set; }
 }

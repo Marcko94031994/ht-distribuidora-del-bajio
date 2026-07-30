@@ -88,6 +88,23 @@ public class InventoryController : ControllerBase
                 await _context.SaveChangesAsync();
             }
 
+            if (prod.Stock > 0)
+            {
+                var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+                
+                _context.InventoryMovements.Add(new InventoryMovement {
+                    ProductId = prod.Id,
+                    Quantity = prod.Stock,
+                    Type = "Entrada",
+                    Reason = "Ajuste Inicial",
+                    Date = DateTime.Now,
+                    UserId = userId,
+                    Reference = "Creación de Producto"
+                });
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(prod);
         }
 
@@ -97,6 +114,8 @@ public class InventoryController : ControllerBase
             var prod = await _context.Products.Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id);
             if (prod == null) return NotFound();
     
+            var oldStock = prod.Stock;
+
             prod.Name = input.Name;
             prod.Price = input.Price;
             prod.Stock = input.Stock;
@@ -117,6 +136,25 @@ public class InventoryController : ControllerBase
             }
     
             await _context.SaveChangesAsync();
+
+            if (oldStock != input.Stock)
+            {
+                var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+                var diff = input.Stock - oldStock;
+                
+                _context.InventoryMovements.Add(new InventoryMovement {
+                    ProductId = prod.Id,
+                    Quantity = Math.Abs(diff),
+                    Type = diff > 0 ? "Entrada" : "Salida",
+                    Reason = "Ajuste Manual",
+                    Date = DateTime.Now,
+                    UserId = userId,
+                    Reference = "Actualización de Catálogo"
+                });
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(prod);
         }
 
@@ -132,7 +170,9 @@ public class InventoryController : ControllerBase
                 Cost = input.Costo, 
                 Status = "Borrador",
                 BatchNumber = input.Lote,
-                ExpirationDate = input.Caducidad
+                ExpirationDate = input.Caducidad,
+                Date = DateTime.Now,
+                DueDate = DateTime.Now.AddDays(30) // Default 30 days for CxP
             };
             _context.PurchaseOrders.Add(po);
             await _context.SaveChangesAsync();
@@ -164,6 +204,8 @@ public class InventoryController : ControllerBase
                 });
     
                 // Log movement
+                var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
                 _context.InventoryMovements.Add(new InventoryMovement
                 {
                     ProductId = product.Id,
@@ -171,7 +213,7 @@ public class InventoryController : ControllerBase
                     Type = "Entrada",
                     Reason = "Compra",
                     Date = DateTime.Now,
-                    UserId = 1,
+                    UserId = userId,
                     Reference = po.PoNumber
                 });
             }
@@ -191,18 +233,81 @@ public class InventoryController : ControllerBase
         [Authorize(Roles = "Admin,Almacenista")]
         public async Task<IActionResult> UpdateBulkProducts([FromBody] List<ProductBulkUpdateModel> updates)
         {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
             foreach (var up in updates)
             {
                 var p = await _context.Products.FindAsync(up.Id);
                 if (p != null)
                 {
                     if (up.Price.HasValue) p.Price = up.Price.Value;
-                    if (up.Stock.HasValue) p.Stock = up.Stock.Value;
                     if (up.Cost.HasValue) p.Cost = up.Cost.Value;
+
+                    if (up.Stock.HasValue && p.Stock != up.Stock.Value)
+                    {
+                        var diff = up.Stock.Value - p.Stock;
+                        _context.InventoryMovements.Add(new InventoryMovement {
+                            ProductId = p.Id,
+                            Quantity = Math.Abs(diff),
+                            Type = diff > 0 ? "Entrada" : "Salida",
+                            Reason = "Ajuste Masivo",
+                            Date = DateTime.Now,
+                            UserId = userId,
+                            Reference = "Actualización de Catálogo"
+                        });
+                        p.Stock = up.Stock.Value;
+                    }
                 }
             }
             await _context.SaveChangesAsync();
             return Ok();
+        }
+
+    [HttpGet("product/{id}/kardex")]
+        [Authorize(Roles = "Admin,Almacenista,Supervisor")]
+        public async Task<IActionResult> GetProductKardex(int id)
+        {
+            var movements = await _context.InventoryMovements
+                .Where(m => m.ProductId == id)
+                .OrderByDescending(m => m.Date)
+                .ToListAsync();
+            
+            return Ok(movements);
+        }
+
+    [HttpPost("inventory/adjustment")]
+        [Authorize(Roles = "Admin,Almacenista")]
+        public async Task<IActionResult> RegisterAdjustment([FromBody] InventoryAdjustmentInput input)
+        {
+            if (input.Quantity <= 0) return BadRequest("La cantidad debe ser mayor a cero.");
+
+            var product = await _context.Products.FindAsync(input.ProductId);
+            if (product == null) return NotFound("Producto no encontrado.");
+
+            if (product.Stock < input.Quantity)
+                return BadRequest($"Stock físico insuficiente. Actual: {product.Stock}");
+
+            product.Stock -= input.Quantity;
+
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
+            var movement = new InventoryMovement
+            {
+                ProductId = product.Id,
+                Quantity = input.Quantity,
+                Type = "Salida",
+                Reason = $"{input.AdjustmentType}: {input.Reason}",
+                Date = DateTime.Now,
+                UserId = userId,
+                Reference = $"Ajuste-{DateTime.Now.Ticks}"
+            };
+
+            _context.InventoryMovements.Add(movement);
+            await _context.SaveChangesAsync();
+
+            return Ok(product);
         }
 
 }

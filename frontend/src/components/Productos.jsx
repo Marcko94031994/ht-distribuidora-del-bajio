@@ -6,6 +6,25 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
   const [editingProduct, setEditingProduct] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [search, setSearch] = useState('');
+  
+  const [kardexData, setKardexData] = useState(null);
+  const [kardexProduct, setKardexProduct] = useState(null);
+
+  const fetchKardex = async (p) => {
+    try {
+      const token = localStorage.getItem('ht_token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/app/product/${p.id}/kardex`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setKardexData(data);
+        setKardexProduct(p);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const filtered = (data.productos || []).filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -57,6 +76,50 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
 
   return (
     <div className="grid">
+      {kardexData && (
+        <div className="modal">
+          <div className="modal-content" style={{maxWidth: '800px', width: '90%'}}>
+            <div className="card-h" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <h3>Kardex: {kardexProduct?.name} ({kardexProduct?.sku})</h3>
+              <button className="btn muted" onClick={() => setKardexData(null)}>Cerrar</button>
+            </div>
+            <div className="card-b" style={{maxHeight: '60vh', overflowY: 'auto'}}>
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Movimiento</th>
+                      <th>Concepto</th>
+                      <th>Cant.</th>
+                      <th>Referencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kardexData.map(k => (
+                      <tr key={k.id}>
+                        <td>{new Date(k.date).toLocaleString()}</td>
+                        <td>
+                          <span className={`chip ${k.type === 'Entrada' ? 'ok' : k.type === 'Salida' ? 'warn' : 'primary'}`}>
+                            {k.type}
+                          </span>
+                        </td>
+                        <td>{k.reason}</td>
+                        <td><b>{k.type === 'Entrada' ? '+' : k.type === 'Salida' ? '-' : ''}{k.quantity}</b></td>
+                        <td className="muted">{k.reference || '-'}</td>
+                      </tr>
+                    ))}
+                    {kardexData.length === 0 && (
+                      <tr><td colSpan="5" style={{textAlign: 'center'}} className="muted">No hay movimientos registrados.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div className="card-h">
           <h3>{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</h3>
@@ -67,6 +130,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
             <input name="name" className="input full" placeholder="Nombre del producto" defaultValue={editingProduct?.name} required />
             <input name="sku" className="input" placeholder="SKU" defaultValue={editingProduct?.sku} required />
             <input name="price" type="number" step="0.01" className="input" placeholder="Precio (Pieza)" defaultValue={editingProduct?.price} required />
+            <input name="weight" type="number" step="0.01" className="input" placeholder="Peso (Kg)" defaultValue={editingProduct?.weight} required />
             <input name="stock" type="number" className="input" placeholder="Stock Inicial" defaultValue={editingProduct?.stock} required />
             <input name="boxPrice" type="number" step="0.01" className="input" placeholder="Precio por Caja" defaultValue={editingProduct?.boxPrice} required />
             <input name="unitsPerBox" type="number" className="input" placeholder="Unidades por Caja" defaultValue={editingProduct?.unitsPerBox} required />
@@ -123,6 +187,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                     <b>{p.name} ({p.sku})</b>
                     <div>
                       {expandedId === p.id && <button className="btn secondary" style={{ marginRight: '5px', padding: '2px 8px', fontSize: '0.8rem' }} onClick={(e) => { e.stopPropagation(); startEdit(p); }}>Editar</button>}
+                      {expandedId === p.id && <button className="btn primary" style={{ marginRight: '5px', padding: '2px 8px', fontSize: '0.8rem' }} onClick={(e) => { e.stopPropagation(); fetchKardex(p); }}>Ver Kardex</button>}
                       <span className="chip" style={{background: '#f1f5f9', color: '#475569', marginRight: '5px'}} title="Físico">F: {p.stock}</span>
                       <span className="chip warn" style={{marginRight: '5px'}} title="Apartado">A: {p.committedStock || 0}</span>
                       <span className="chip ok" title="Disponible">D: {p.availableStock}</span>
@@ -135,7 +200,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                   
                   {expandedId === p.id && (
                     <div style={{ marginTop: '0.8rem' }} onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', textAlign: 'center' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.5rem', textAlign: 'center' }}>
                         <div style={{ background: '#f8fafc', padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--line)' }}>
                           <div className="muted" style={{ fontSize: '0.6rem', textTransform: 'uppercase' }}>P. Unidad</div>
                           <b style={{ color: 'var(--primary)', fontSize: '0.8rem' }}>{pesos(p.price)}</b>
@@ -147,6 +212,10 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                         <div style={{ background: '#f8fafc', padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--line)' }}>
                           <div className="muted" style={{ fontSize: '0.6rem', textTransform: 'uppercase' }}>P. Caja ({p.unitsPerBox})</div>
                           <b style={{ color: 'var(--success)', fontSize: '0.8rem' }}>{pesos(p.boxPrice)}</b>
+                        </div>
+                        <div style={{ background: '#f8fafc', padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--line)' }}>
+                          <div className="muted" style={{ fontSize: '0.6rem', textTransform: 'uppercase' }}>Peso</div>
+                          <b style={{ color: 'var(--text)', fontSize: '0.8rem' }}>{p.weight || 0} Kg</b>
                         </div>
                       </div>
                     </div>

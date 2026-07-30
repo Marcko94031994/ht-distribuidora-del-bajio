@@ -51,12 +51,32 @@ public class FinanceController : ControllerBase
             if (closure == null) return NotFound();
     
             closure.TotalDeclared = input.TotalDeclared;
-            closure.Difference = closure.TotalDeclared - closure.TotalExpected;
+            closure.TotalExpenses = input.TotalExpenses;
+            // Difference = lo que entrego físicamente + lo que gasté - lo que el sistema esperaba que entregara
+            closure.Difference = (closure.TotalDeclared + closure.TotalExpenses) - closure.TotalExpected;
             closure.Status = "Cerrado";
             closure.Observations = input.Observations;
     
             await _context.SaveChangesAsync();
             return Ok(closure);
+        }
+
+    [HttpPost("expense")]
+        public async Task<IActionResult> RegisterExpense([FromBody] ExpenseInputModel input)
+        {
+            var expense = new Expense
+            {
+                Concept = input.Concept,
+                Amount = input.Amount,
+                Date = DateTime.Now,
+                ReferenceNumber = input.ReferenceNumber,
+                ExpenseCategoryId = input.ExpenseCategoryId,
+                IsPaid = true
+            };
+            
+            _context.Expenses.Add(expense);
+            await _context.SaveChangesAsync();
+            return Ok(expense);
         }
 
     [HttpPost("payment")]
@@ -74,11 +94,39 @@ public class FinanceController : ControllerBase
                 PaymentMethod = input.PaymentMethod
             };
     
+            // FIFO logic to distribute payment across unpaid orders
+            var pendingOrders = await _context.Orders
+                .Where(o => o.ClientId == input.ClientId && o.PaymentMethod == "Crédito" && o.AmountPaid < o.TotalAmount)
+                .OrderBy(o => o.Date)
+                .ToListAsync();
+
+            decimal remainingPayment = input.Amount;
+            foreach(var o in pendingOrders)
+            {
+                if (remainingPayment <= 0) break;
+                
+                decimal debt = o.TotalAmount - o.AmountPaid;
+                if (remainingPayment >= debt)
+                {
+                    o.AmountPaid = o.TotalAmount;
+                    remainingPayment -= debt;
+                }
+                else
+                {
+                    o.AmountPaid += remainingPayment;
+                    remainingPayment = 0;
+                }
+            }
+
             client.CurrentBalance -= input.Amount;
             if (client.CurrentBalance < 0) client.CurrentBalance = 0;
-    
+            
             _context.ClientPayments.Add(payment);
             await _context.SaveChangesAsync();
+
+            client.HasOverdueDebt = await _context.Orders.AnyAsync(o => o.ClientId == client.Id && o.PaymentMethod == "Crédito" && o.AmountPaid < o.TotalAmount && o.DueDate < DateTime.Now);
+            await _context.SaveChangesAsync();
+
             return Ok(payment);
         }
 
@@ -96,6 +144,152 @@ public class FinanceController : ControllerBase
                 .ToListAsync();
     
             return Ok(new { orders, payments });
+        }
+
+    [HttpGet("finance/daily-summary")]
+        [Authorize(Roles = "Admin,Supervisor")]
+        public async Task<IActionResult> GetDailySummary([FromQuery] string? date)
+        {
+            if (!DateTime.TryParse(date, out var targetDate)) 
+                targetDate = DateTime.Today;
+
+            var startDate = targetDate.Date;
+            var endDate = startDate.AddDays(1);
+
+            // Efectivo entregado por rutas liquidadas hoy
+            var totalRouteCash = await _context.CashClosures
+                .Where(c => c.Date >= startDate && c.Date < endDate && c.Status == "Cerrado")
+                .SumAsync(c => c.TotalDeclared);
+
+            // Gastos administrativos registrados hoy (sin referencia a ruta)
+            var branchExpenses = await _context.Expenses
+                .Where(e => e.Date >= startDate && e.Date < endDate && (e.ReferenceNumber == null || !e.ReferenceNumber.StartsWith("Route-")))
+                .SumAsync(e => e.Amount);
+
+            // Aquí podríamos sumar ClientPayments si se reciben en sucursal directamente, 
+            // pero actualmente todo lo recauda el vendedor en su ruta y entra a TotalDeclared.
+
+            return Ok(new {
+                date = startDate,
+                totalRouteCash,
+                totalBranchExpenses = branchExpenses,
+                expectedCashInSafe = totalRouteCash - branchExpenses
+            });
+        }
+
+    [HttpPost("finance/daily-closure")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateDailyClosure([FromBody] DailyClosureDeclareInput input)
+        {
+            var targetDate = DateTime.Today;
+            var startDate = targetDate.Date;
+            var endDate = startDate.AddDays(1);
+
+            // Evitar doble cierre en el mismo día
+            var existingClosure = await _context.DailyClosures.FirstOrDefaultAsync(c => c.Date >= startDate && c.Date < endDate);
+            if (existingClosure != null) return BadRequest("Ya existe un cierre para el día de hoy.");
+
+            var totalRouteCash = await _context.CashClosures
+                .Where(c => c.Date >= startDate && c.Date < endDate && c.Status == "Cerrado")
+                .SumAsync(c => c.TotalDeclared);
+
+            var branchExpenses = await _context.Expenses
+                .Where(e => e.Date >= startDate && e.Date < endDate && (e.ReferenceNumber == null || !e.ReferenceNumber.StartsWith("Route-")))
+                .SumAsync(e => e.Amount);
+
+            var expected = totalRouteCash - branchExpenses;
+            
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
+            var closure = new DailyClosure
+            {
+                Date = DateTime.Now,
+                TotalRouteCash = totalRouteCash,
+                TotalBranchExpenses = branchExpenses,
+                ExpectedCashInSafe = expected,
+                DeclaredCashInSafe = input.DeclaredCashInSafe,
+                Difference = input.DeclaredCashInSafe - expected,
+                Observations = input.Observations,
+                UserId = userId
+            };
+
+            _context.DailyClosures.Add(closure);
+            await _context.SaveChangesAsync();
+            return Ok(closure);
+        }
+
+    [HttpGet("finance/daily-closures")]
+        [Authorize(Roles = "Admin,Supervisor")]
+        public async Task<IActionResult> GetDailyClosures()
+        {
+            var closures = await _context.DailyClosures
+                .OrderByDescending(c => c.Date)
+                .Take(30)
+                .ToListAsync();
+            return Ok(closures);
+        }
+
+    [HttpGet("finance/cxc")]
+        [Authorize(Roles = "Admin,Supervisor")]
+        public async Task<IActionResult> GetAccountsReceivable()
+        {
+            var clientsWithDebt = await _context.Clients
+                .Where(c => c.CurrentBalance > 0)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Name,
+                    c.Zone,
+                    c.CurrentBalance,
+                    c.HasOverdueDebt,
+                    UnpaidOrders = _context.Orders
+                        .Where(o => o.ClientId == c.Id && o.PaymentMethod == "Crédito" && o.AmountPaid < o.TotalAmount)
+                        .Select(o => new {
+                            o.Id,
+                            o.OrderNumber,
+                            o.Date,
+                            o.DueDate,
+                            o.TotalAmount,
+                            o.AmountPaid,
+                            IsOverdue = o.DueDate < DateTime.Now
+                        })
+                        .OrderBy(o => o.Date)
+                        .ToList()
+                })
+                .ToListAsync();
+
+            return Ok(clientsWithDebt);
+        }
+
+    [HttpGet("finance/cxp")]
+        [Authorize(Roles = "Admin,Supervisor")]
+        public async Task<IActionResult> GetAccountsPayable()
+        {
+            var providersWithDebt = await _context.Providers
+                .Where(p => p.CurrentBalance > 0)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.CurrentBalance,
+                    UnpaidPOs = _context.PurchaseOrders
+                        .Where(po => po.ProviderId == p.Id && po.AmountPaid < (po.Quantity * po.Cost))
+                        .Select(po => new {
+                            po.Id,
+                            po.PoNumber,
+                            po.Date,
+                            po.DueDate,
+                            TotalAmount = po.Quantity * po.Cost,
+                            po.AmountPaid,
+                            IsOverdue = po.DueDate < DateTime.Now
+                        })
+                        .OrderBy(po => po.Date)
+                        .ToList()
+                })
+                .ToListAsync();
+
+            return Ok(providersWithDebt);
         }
 
 }

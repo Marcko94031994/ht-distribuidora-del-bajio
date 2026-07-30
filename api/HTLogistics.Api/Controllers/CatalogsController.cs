@@ -224,7 +224,32 @@ public class CatalogsController : ControllerBase
                 Date = DateTime.Now
             };
 
+            // FIFO logic
+            var pendingPOs = await _context.PurchaseOrders
+                .Where(po => po.ProviderId == input.ProviderId && po.AmountPaid < (po.Quantity * po.Cost))
+                .OrderBy(po => po.Date)
+                .ToListAsync();
+
+            decimal remainingPayment = input.Amount;
+            foreach(var po in pendingPOs)
+            {
+                if (remainingPayment <= 0) break;
+                
+                decimal debt = (po.Quantity * po.Cost) - po.AmountPaid;
+                if (remainingPayment >= debt)
+                {
+                    po.AmountPaid = (po.Quantity * po.Cost);
+                    remainingPayment -= debt;
+                }
+                else
+                {
+                    po.AmountPaid += remainingPayment;
+                    remainingPayment = 0;
+                }
+            }
+
             provider.CurrentBalance -= input.Amount;
+            if (provider.CurrentBalance < 0) provider.CurrentBalance = 0;
             
             _context.ProviderPayments.Add(payment);
             await _context.SaveChangesAsync();

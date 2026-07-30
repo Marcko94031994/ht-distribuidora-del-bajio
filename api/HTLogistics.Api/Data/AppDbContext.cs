@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public DbSet<Visit> Visits => Set<Visit>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<DailyClosure> DailyClosures => Set<DailyClosure>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

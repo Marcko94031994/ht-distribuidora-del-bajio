@@ -1,9 +1,33 @@
 import React from 'react';
 import { pesos } from '../utils/helpers';
 
-export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,aplicarCompra,devoluciones,autorizarDevolucion}){
+export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,aplicarCompra,devoluciones,autorizarDevolucion,registrarAjuste}){
   return (
     <div className="grid">
+      <div className="card">
+        <div className="card-h">
+          <h3>Salida de Mermas / Muestras</h3>
+        </div>
+        <div className="card-b">
+          <form onSubmit={registrarAjuste} className="form-grid">
+            <select name="productId" className="select full" required>
+              <option value="">Seleccionar Producto</option>
+              {data.productos.map(p=><option value={p.id} key={p.id}>{p.name} (Disp: {p.availableStock})</option>)}
+            </select>
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+              <select name="adjustmentType" className="select" required>
+                <option value="">Motivo...</option>
+                <option value="Merma">Merma (Daño/Caducidad)</option>
+                <option value="Muestra">Muestra (Promoción)</option>
+              </select>
+              <input name="quantity" type="number" min="1" className="input" placeholder="Cantidad" required />
+            </div>
+            <textarea name="reason" className="input full" placeholder="Justificación detallada..." required></textarea>
+            <button type="submit" className="btn warn full">Registrar Salida</button>
+          </form>
+        </div>
+      </div>
+
       <div className="card">
         <div className="card-h">
           <h3>Nueva Orden de Compra</h3>

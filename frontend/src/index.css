@@ -1,3 +1,4 @@
+@import 'leaflet/dist/leaflet.css';
 :root{--bg:#f8fafc;--card:#fff;--line:#e2e8f0;--text:#0f172a;--muted:#64748b;--primary:#0056b3;--primary2:#eff6ff;--success:#16a34a;--warning:#d97706;--danger:#dc2626;--dark:#000000;--brand-beige:#f4ede1;--shadow:0 10px 15px -3px rgba(0,0,0,0.1);--radius:16px}
 *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:linear-gradient(180deg,#f8fbff,#eef3f8);color:var(--text)}
 

@@ -91,6 +91,7 @@ public class OrdersController : ControllerBase
             decimal total = 0;
             decimal totalTax = 0;
             decimal totalCost = 0;
+            decimal totalWeight = 0;
     
             foreach (var item in input.Items)
             {
@@ -108,6 +109,7 @@ public class OrdersController : ControllerBase
                     total += subtotal + tax;
                     totalTax += tax;
                     totalCost += product.Cost * item.Quantity;
+                    totalWeight += product.Weight * item.Quantity;
     
                     _context.OrderItems.Add(new OrderItem
                     {
@@ -125,9 +127,11 @@ public class OrdersController : ControllerBase
             order.TotalAmount = total;
             order.TotalTax = totalTax;
             order.TotalCost = totalCost;
+            order.TotalWeight = totalWeight;
     
             if (input.PaymentMethod == "Crédito")
             {
+                order.DueDate = DateTime.Now.AddDays(client.CreditDays > 0 ? client.CreditDays : 30);
                 if (client.HasOverdueDebt || (client.CurrentBalance + total > client.CreditLimit))
                 {
                     order.Status = "Esperando Autorización Admin";
@@ -156,6 +160,22 @@ public class OrdersController : ControllerBase
     
             return Ok(driver);
         }
+    [HttpPost("order/{id}/approve-credit")]
+        [Authorize(Roles = "Admin,Supervisor")]
+        public async Task<IActionResult> ApproveCredit(int id)
+        {
+            var order = await _context.Orders.FindAsync(id);
+            if (order == null) return NotFound();
+
+            if (!order.NeedsAdminApproval) return BadRequest("El pedido no requiere autorización.");
+
+            order.NeedsAdminApproval = false;
+            order.IsApprovedByAdmin = true;
+            order.Status = "Pendiente";
+            
+            await _context.SaveChangesAsync();
+            return Ok(order);
+        }
 
     [HttpPost("authorize-order/{id}")]
         public async Task<IActionResult> AuthorizeOrder(int id)
@@ -175,6 +195,9 @@ public class OrdersController : ControllerBase
     
             order.Status = "En remisión";
     
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
             // Subtract inventory using FEFO (First Expired, First Out)
             foreach (var item in order.Items)
             {
@@ -216,7 +239,7 @@ public class OrdersController : ControllerBase
                         Type = "Salida",
                         Reason = "Venta",
                         Date = DateTime.Now,
-                        UserId = 1, // Default admin for now
+                        UserId = userId,
                         Reference = order.OrderNumber
                     });
                 }
@@ -297,6 +320,9 @@ public class OrdersController : ControllerBase
                             // Si ya había salido de bodega, se regresa físicamente
                             product.Stock += item.Quantity;
                             
+                            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
                             // Log movement
                             _context.InventoryMovements.Add(new InventoryMovement
                             {
@@ -305,7 +331,7 @@ public class OrdersController : ControllerBase
                                 Type = "Entrada",
                                 Reason = "Devolución por Cancelación",
                                 Date = DateTime.Now,
-                                UserId = 1,
+                                UserId = userId,
                                 Reference = order.OrderNumber
                             });
                         }
@@ -370,6 +396,20 @@ public class OrdersController : ControllerBase
                 if (product != null)
                 {
                     product.Stock += ret.Quantity;
+                    
+                    var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
+                    _context.InventoryMovements.Add(new InventoryMovement
+                    {
+                        ProductId = product.Id,
+                        Quantity = ret.Quantity,
+                        Type = "Entrada",
+                        Reason = "Devolución a Almacén",
+                        Date = DateTime.Now,
+                        UserId = userId,
+                        Reference = $"Retorno-{id}"
+                    });
                 }
                 ret.Status = "Reingresado";
             }

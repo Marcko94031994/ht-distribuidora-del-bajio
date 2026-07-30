@@ -155,6 +155,68 @@ export default function Reportes({ data, reports, producto, cliente }) {
           </div>
         </div>
       </div>
+
+      {/* Reportes de Cartera CxC / CxP */}
+      <div className="card glass" style={{ gridColumn: '1 / span 2' }}>
+        <div className="card-h">
+          <h3>💰 Cuentas por Cobrar (CxC)</h3>
+        </div>
+        <div className="card-b list">
+          {(data.cxc || []).map((c, i) => (
+            <div className="item" key={i}>
+              <div className="row">
+                <b>{c.name}</b>
+                <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>{pesos(c.currentBalance)}</span>
+              </div>
+              <div className="row muted" style={{ fontSize: '0.85rem' }}>
+                <span>Zona: {c.zone}</span>
+                <span>{c.unpaidOrders?.length || 0} Notas Pendientes</span>
+              </div>
+              {c.unpaidOrders?.length > 0 && (
+                <div style={{ marginTop: '5px', paddingLeft: '10px', borderLeft: '2px solid #ccc' }}>
+                  {c.unpaidOrders.map(o => (
+                    <div key={o.id} style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', color: o.isOverdue ? 'var(--danger)' : 'inherit', fontWeight: o.isOverdue ? 'bold' : 'normal' }}>
+                      <span>Nota {o.orderNumber} {o.isOverdue && '(VENCIDA)'}</span>
+                      <span>Deuda: {pesos(o.totalAmount - o.amountPaid)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {(!data.cxc || data.cxc.length === 0) && <div className="item muted">No hay cuentas por cobrar. 🎉</div>}
+        </div>
+      </div>
+
+      <div className="card glass">
+        <div className="card-h">
+          <h3>🧾 Cuentas por Pagar (CxP)</h3>
+        </div>
+        <div className="card-b list">
+          {(data.cxp || []).map((p, i) => (
+            <div className="item" key={i}>
+              <div className="row">
+                <b>{p.name}</b>
+                <span style={{ color: 'var(--warning)', fontWeight: 'bold' }}>{pesos(p.currentBalance)}</span>
+              </div>
+              <div className="row muted" style={{ fontSize: '0.85rem' }}>
+                <span>{p.unpaidPOs?.length || 0} OC Pendientes</span>
+              </div>
+              {p.unpaidPOs?.length > 0 && (
+                <div style={{ marginTop: '5px', paddingLeft: '10px', borderLeft: '2px solid #ccc' }}>
+                  {p.unpaidPOs.map(po => (
+                    <div key={po.id} style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', color: po.isOverdue ? 'var(--danger)' : 'inherit' }}>
+                      <span>OC {po.poNumber}</span>
+                      <span>Deuda: {pesos(po.totalAmount - po.amountPaid)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {(!data.cxp || data.cxp.length === 0) && <div className="item muted">No hay cuentas por pagar. 🎉</div>}
+        </div>
+      </div>
     </div>
   );
 }
