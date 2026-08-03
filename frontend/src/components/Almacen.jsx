@@ -65,7 +65,7 @@ export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,
               <tbody>
                 {devoluciones?.filter(d => d.status === 'Pendiente').map(d => (
                   <tr key={d.id}>
-                    <td><b>{data.pedidos.find(p => p.id === d.orderId)?.orderNumber}</b></td>
+                    <td><b>{(data.pedidos || []).find(p => p.id === d.orderId)?.orderNumber || `Folio #${d.orderId}`}</b></td>
                     <td>{producto(d.productId)?.name}</td>
                     <td>{d.quantity}</td>
                     <td>{d.reason}</td>
