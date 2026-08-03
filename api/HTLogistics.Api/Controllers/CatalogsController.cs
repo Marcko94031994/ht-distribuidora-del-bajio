@@ -36,15 +36,17 @@ public class CatalogsController : ControllerBase
                 .Include(r => r.Clients)
                 .ToListAsync();
                 
-            var purchaseOrders = await _context.PurchaseOrders.ToListAsync();
+            var clients = await _context.Clients.ToListAsync();
+            var purchaseOrders = await _context.PurchaseOrders.Include(po => po.Details).ToListAsync();
             var providers = await _context.Providers.ToListAsync();
-            var clientPrices = await _context.ClientPrices.ToListAsync();
+            var clientPrices = await _context.ClientPrices.Include(cp => cp.Product).ToListAsync();
             var returns = await _context.OrderReturns.ToListAsync();
             var expenses = await _context.Expenses.ToListAsync();
             var expenseCategories = await _context.ExpenseCategories.ToListAsync();
             var vehicles = await _context.Vehicles.ToListAsync();
             var cashClosures = await _context.CashClosures.ToListAsync();
             var productCategories = await _context.ProductCategories.ToListAsync();
+            var productBrands = await _context.ProductBrands.ToListAsync();
             var warehouseLocations = await _context.WarehouseLocations.ToListAsync();
             
             List<User>? users = null;
@@ -60,6 +62,7 @@ public class CatalogsController : ControllerBase
                 ubicaciones = warehouseLocations,
                 vendedores = drivers,
                 rutas = routes,
+                clientes = clients,
                 compras = purchaseOrders,
                 proveedores = providers,
                 preciosEspeciales = clientPrices,
@@ -68,7 +71,9 @@ public class CatalogsController : ControllerBase
                 categoriasGastos = expenseCategories,
                 unidades = vehicles,
                 cierresCaja = cashClosures,
-                usuarios = users
+                usuarios = users,
+                categorias = productCategories,
+                marcas = productBrands
             });
         }
 
@@ -107,9 +112,9 @@ public class CatalogsController : ControllerBase
             var inventoryValue = await _context.Products
                 .Select(p => new {
                     p.Name,
-                    p.Stock,
+                    Stock = p.TotalStock,
                     p.Cost,
-                    TotalValue = p.Stock * p.Cost
+                    TotalValue = p.TotalStock * p.Cost
                 }).ToListAsync();
     
             return Ok(new
@@ -122,22 +127,47 @@ public class CatalogsController : ControllerBase
         }
 
     [HttpPost("branch")]
-        public async Task<IActionResult> CreateBranch([FromBody] BranchInputModel input)
-        {
-            var branch = new Branch { Name = input.Name, Zone = input.Zone, Manager = input.Manager };
-            _context.Branches.Add(branch);
-            await _context.SaveChangesAsync();
-            return Ok(branch);
-        }
+    public async Task<IActionResult> CreateBranch([FromBody] BranchInputModel input)
+    {
+        var branch = new Branch { Name = input.Name, Zone = input.Zone, Manager = input.Manager };
+        _context.Branches.Add(branch);
+        await _context.SaveChangesAsync();
+        return Ok(branch);
+    }
+
+    [HttpPut("branch/{id}")]
+    public async Task<IActionResult> UpdateBranch(int id, [FromBody] BranchInputModel input)
+    {
+        var branch = await _context.Branches.FindAsync(id);
+        if (branch == null) return NotFound();
+        branch.Name = input.Name;
+        branch.Zone = input.Zone;
+        branch.Manager = input.Manager;
+        await _context.SaveChangesAsync();
+        return Ok(branch);
+    }
 
     [HttpPost("warehouse")]
-        public async Task<IActionResult> CreateWarehouse([FromBody] WarehouseInputModel input)
-        {
-            var warehouse = new Warehouse { Name = input.Nombre, BranchId = input.SucursalId, Type = input.Tipo, Manager = input.Responsable, IsActive = true };
-            _context.Warehouses.Add(warehouse);
-            await _context.SaveChangesAsync();
-            return Ok(warehouse);
-        }
+    public async Task<IActionResult> CreateWarehouse([FromBody] WarehouseInputModel input)
+    {
+        var warehouse = new Warehouse { Name = input.Nombre, BranchId = input.SucursalId, Type = input.Tipo, Manager = input.Responsable, IsActive = true };
+        _context.Warehouses.Add(warehouse);
+        await _context.SaveChangesAsync();
+        return Ok(warehouse);
+    }
+
+    [HttpPut("warehouse/{id}")]
+    public async Task<IActionResult> UpdateWarehouse(int id, [FromBody] WarehouseInputModel input)
+    {
+        var warehouse = await _context.Warehouses.FindAsync(id);
+        if (warehouse == null) return NotFound();
+        warehouse.Name = input.Nombre;
+        warehouse.BranchId = input.SucursalId;
+        warehouse.Type = input.Tipo;
+        warehouse.Manager = input.Responsable;
+        await _context.SaveChangesAsync();
+        return Ok(warehouse);
+    }
 
     [HttpPost("driver")]
         public async Task<IActionResult> CreateDriver([FromBody] DriverInputModel input)
@@ -146,12 +176,27 @@ public class CatalogsController : ControllerBase
             { 
                 Name = input.Nombre, 
                 Phone = input.Telefono, 
-                VehicleId = input.VehiculoId, // Changed from AssignedVehicleId
+                VehicleId = input.VehiculoId,
                 BranchId = input.SucursalId, 
-                Status = "Activo",
-                CommissionPercentage = input.Comision // New field
+                Status = input.Status ?? "Activo",
+                CommissionPercentage = input.Comision
             };
             _context.Drivers.Add(driver);
+            await _context.SaveChangesAsync();
+            return Ok(driver);
+        }
+
+    [HttpPut("driver/{id}")]
+        public async Task<IActionResult> UpdateDriver(int id, [FromBody] DriverInputModel input)
+        {
+            var driver = await _context.Drivers.FindAsync(id);
+            if (driver == null) return NotFound();
+            driver.Name = input.Nombre;
+            driver.Phone = input.Telefono;
+            driver.VehicleId = input.VehiculoId;
+            driver.BranchId = input.SucursalId;
+            driver.CommissionPercentage = input.Comision;
+            if (!string.IsNullOrEmpty(input.Status)) driver.Status = input.Status;
             await _context.SaveChangesAsync();
             return Ok(driver);
         }
@@ -159,39 +204,65 @@ public class CatalogsController : ControllerBase
     [HttpPost("vehicle")]
         public async Task<IActionResult> CreateVehicle([FromBody] VehicleInputModel input)
         {
-            var vehicle = new Vehicle { PlateNumber = input.Placas, Model = input.Modelo, Brand = input.Marca, Status = "Disponible" };
+            var vehicle = new Vehicle { PlateNumber = input.Placas, Model = input.Modelo, Brand = input.Marca, Status = input.Estatus ?? "Disponible" };
             _context.Vehicles.Add(vehicle);
             await _context.SaveChangesAsync();
             return Ok(vehicle);
         }
 
-    [HttpPost("route")]
-        public async Task<IActionResult> CreateRoute([FromBody] RouteInputModel input)
+    [HttpPut("vehicle/{id}")]
+        public async Task<IActionResult> UpdateVehicle(int id, [FromBody] VehicleInputModel input)
         {
-            var route = new DeliveryRoute { Name = input.Nombre, DayOfWeek = input.Dia, BranchId = input.SucursalId, DriverId = input.VendedorId };
-            _context.Routes.Add(route);
+            var vehicle = await _context.Vehicles.FindAsync(id);
+            if (vehicle == null) return NotFound();
+            vehicle.PlateNumber = input.Placas;
+            vehicle.Model = input.Modelo;
+            vehicle.Brand = input.Marca;
+            if (!string.IsNullOrEmpty(input.Estatus)) vehicle.Status = input.Estatus;
             await _context.SaveChangesAsync();
-    
-            if (!string.IsNullOrWhiteSpace(input.ClientesText))
-            {
-                var names = input.ClientesText.Split(',');
-                foreach (var n in names)
-                {
-                    var trimmed = n.Trim();
-                    if (!string.IsNullOrEmpty(trimmed))
-                    {
-                        _context.Clients.Add(new Client { Name = trimmed, Zone = "Zona general", IsVisited = false, RouteId = route.Id, Latitude = 21.1, Longitude = -101.6 });
-                    }
-                }
-                await _context.SaveChangesAsync();
-            }
-            return Ok(route);
+            return Ok(vehicle);
         }
+
+    [HttpPost("route")]
+    public async Task<IActionResult> CreateRoute([FromBody] RouteInputModel input)
+    {
+        var route = new DeliveryRoute { Name = input.Nombre, DayOfWeek = input.Dia, BranchId = input.SucursalId, DriverId = input.VendedorId };
+        _context.Routes.Add(route);
+        await _context.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(input.ClientesText))
+        {
+            var names = input.ClientesText.Split(',');
+            foreach (var n in names)
+            {
+                var trimmed = n.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                {
+                    _context.Clients.Add(new Client { Name = trimmed, Zone = "Zona general", IsVisited = false, RouteId = route.Id, Latitude = 21.1, Longitude = -101.6 });
+                }
+            }
+            await _context.SaveChangesAsync();
+        }
+        return Ok(route);
+    }
+
+    [HttpPut("route/{id}")]
+    public async Task<IActionResult> UpdateRoute(int id, [FromBody] RouteInputModel input)
+    {
+        var route = await _context.Routes.FindAsync(id);
+        if (route == null) return NotFound();
+        route.Name = input.Nombre;
+        route.DayOfWeek = input.Dia;
+        route.BranchId = input.SucursalId;
+        route.DriverId = input.VendedorId;
+        await _context.SaveChangesAsync();
+        return Ok(route);
+    }
 
     [HttpPost("provider")]
         public async Task<IActionResult> CreateProvider([FromBody] ProviderInputModel input)
         {
-            var prov = new Provider { Name = input.Name, Contact = input.Contact, Phone = input.Phone };
+            var prov = new Provider { Name = input.Name, Contact = input.Contact, Phone = input.Phone, RFC = input.RFC, Address = input.Address };
             _context.Providers.Add(prov);
             await _context.SaveChangesAsync();
             return Ok(prov);
@@ -205,6 +276,8 @@ public class CatalogsController : ControllerBase
             prov.Name = input.Name;
             prov.Contact = input.Contact;
             prov.Phone = input.Phone;
+            prov.RFC = input.RFC;
+            prov.Address = input.Address;
             await _context.SaveChangesAsync();
             return Ok(prov);
         }
@@ -226,7 +299,7 @@ public class CatalogsController : ControllerBase
 
             // FIFO logic
             var pendingPOs = await _context.PurchaseOrders
-                .Where(po => po.ProviderId == input.ProviderId && po.AmountPaid < (po.Quantity * po.Cost))
+                .Where(po => po.ProviderId == input.ProviderId && po.AmountPaid < po.TotalAmount)
                 .OrderBy(po => po.Date)
                 .ToListAsync();
 
@@ -235,10 +308,10 @@ public class CatalogsController : ControllerBase
             {
                 if (remainingPayment <= 0) break;
                 
-                decimal debt = (po.Quantity * po.Cost) - po.AmountPaid;
+                decimal debt = po.TotalAmount - po.AmountPaid;
                 if (remainingPayment >= debt)
                 {
-                    po.AmountPaid = (po.Quantity * po.Cost);
+                    po.AmountPaid = po.TotalAmount;
                     remainingPayment -= debt;
                 }
                 else
@@ -260,7 +333,33 @@ public class CatalogsController : ControllerBase
     [HttpPost("client")]
         public async Task<IActionResult> CreateClient([FromBody] ClientInputModel input)
         {
-            var cli = new Client { Name = input.Name, Zone = input.Zone, RouteId = input.RouteId, Latitude = input.Latitude, Longitude = input.Longitude, IsVisited = false };
+            var cli = new Client { 
+                Name = input.Name, 
+                Zone = input.Zone, 
+                RouteId = input.RouteId, 
+                Latitude = input.Latitude, 
+                Longitude = input.Longitude, 
+                IsVisited = false,
+                CreditLimit = input.CreditLimit,
+                CreditDays = input.CreditDays,
+                RFC = input.RFC,
+                RazonSocial = input.RazonSocial,
+                RegimenFiscal = input.RegimenFiscal,
+                CodigoPostal = input.CodigoPostal,
+                FormaPago = input.FormaPago,
+                MetodoPago = input.MetodoPago,
+                UsoCFDI = input.UsoCFDI,
+                Telefonos = input.Telefonos,
+                Celular = input.Celular,
+                Email1 = input.Email1,
+                Email2 = input.Email2,
+                Email3 = input.Email3,
+                Colonia = input.Colonia,
+                Localidad = input.Localidad,
+                Municipio = input.Municipio,
+                Referencia = input.Referencia,
+                IsBlocked = input.IsBlocked
+            };
             _context.Clients.Add(cli);
             await _context.SaveChangesAsync();
             return Ok(cli);
@@ -276,8 +375,63 @@ public class CatalogsController : ControllerBase
             cli.RouteId = input.RouteId;
             cli.Latitude = input.Latitude;
             cli.Longitude = input.Longitude;
+            cli.CreditLimit = input.CreditLimit;
+            cli.CreditDays = input.CreditDays;
+            cli.RFC = input.RFC;
+            cli.RazonSocial = input.RazonSocial;
+            cli.RegimenFiscal = input.RegimenFiscal;
+            cli.CodigoPostal = input.CodigoPostal;
+            cli.FormaPago = input.FormaPago;
+            cli.MetodoPago = input.MetodoPago;
+            cli.UsoCFDI = input.UsoCFDI;
+            cli.Telefonos = input.Telefonos;
+            cli.Celular = input.Celular;
+            cli.Email1 = input.Email1;
+            cli.Email2 = input.Email2;
+            cli.Email3 = input.Email3;
+            cli.Colonia = input.Colonia;
+            cli.Localidad = input.Localidad;
+            cli.Municipio = input.Municipio;
+            cli.Referencia = input.Referencia;
+            cli.IsBlocked = input.IsBlocked;
             await _context.SaveChangesAsync();
             return Ok(cli);
+        }
+
+    [HttpPost("client-price")]
+        [Authorize(Roles = "Admin,Vendedor,Supervisor")]
+        public async Task<IActionResult> SetClientPrice([FromBody] ClientPriceInputModel input)
+        {
+            var existing = await _context.ClientPrices
+                .FirstOrDefaultAsync(cp => cp.ClientId == input.ClientId && cp.ProductId == input.ProductId);
+            
+            if (existing != null)
+            {
+                existing.SpecialPrice = input.SpecialPrice;
+            }
+            else
+            {
+                existing = new ClientPrice
+                {
+                    ClientId = input.ClientId,
+                    ProductId = input.ProductId,
+                    SpecialPrice = input.SpecialPrice
+                };
+                _context.ClientPrices.Add(existing);
+            }
+            await _context.SaveChangesAsync();
+            return Ok(existing);
+        }
+
+    [HttpDelete("client-price/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteClientPrice(int id)
+        {
+            var cp = await _context.ClientPrices.FindAsync(id);
+            if (cp == null) return NotFound();
+            _context.ClientPrices.Remove(cp);
+            await _context.SaveChangesAsync();
+            return Ok();
         }
 
     [HttpPost("expense-category")]

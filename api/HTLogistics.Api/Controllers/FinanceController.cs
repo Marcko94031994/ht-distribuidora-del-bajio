@@ -85,7 +85,10 @@ public class FinanceController : ControllerBase
             var client = await _context.Clients.FindAsync(input.ClientId);
             if (client == null) return NotFound("Client not found");
     
-            var payment = new ClientPayment
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var payment = new ClientPayment
             {
                 ClientId = input.ClientId,
                 Amount = input.Amount,
@@ -127,7 +130,14 @@ public class FinanceController : ControllerBase
             client.HasOverdueDebt = await _context.Orders.AnyAsync(o => o.ClientId == client.Id && o.PaymentMethod == "Crédito" && o.AmountPaid < o.TotalAmount && o.DueDate < DateTime.Now);
             await _context.SaveChangesAsync();
 
+            await transaction.CommitAsync();
             return Ok(payment);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, "Error interno al procesar el pago: " + ex.Message);
+            }
         }
 
     [HttpGet("client/{id}/statement")]
@@ -200,7 +210,8 @@ public class FinanceController : ControllerBase
             var expected = totalRouteCash - branchExpenses;
             
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized("Invalid user token.");
+                            var userId = int.Parse(userIdString);
 
             var closure = new DailyClosure
             {
@@ -274,13 +285,13 @@ public class FinanceController : ControllerBase
                     p.Name,
                     p.CurrentBalance,
                     UnpaidPOs = _context.PurchaseOrders
-                        .Where(po => po.ProviderId == p.Id && po.AmountPaid < (po.Quantity * po.Cost))
+                        .Where(po => po.ProviderId == p.Id && po.AmountPaid < po.TotalAmount)
                         .Select(po => new {
                             po.Id,
                             po.PoNumber,
                             po.Date,
                             po.DueDate,
-                            TotalAmount = po.Quantity * po.Cost,
+                            TotalAmount = po.TotalAmount,
                             po.AmountPaid,
                             IsOverdue = po.DueDate < DateTime.Now
                         })

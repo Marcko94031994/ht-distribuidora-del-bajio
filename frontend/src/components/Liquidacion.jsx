@@ -15,7 +15,7 @@ export default function Liquidacion({ data, ruta, vendedor }) {
       concept: f.get('concept'),
       amount: amount
     }]);
-    e.currentTarget.reset();
+    e.target.reset();
   };
 
   const handleDeclare = async (e) => {

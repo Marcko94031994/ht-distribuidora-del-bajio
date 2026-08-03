@@ -1,105 +1,154 @@
-export default function Sucursales({data,sucursal,addAlmacen,addSucursal}){
+import React, { useState } from 'react';
+
+export default function Sucursales({ data, sucursal, addSucursal, updateSucursal }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const [form, setForm] = useState({
+    name: '',
+    zone: '',
+    manager: ''
+  });
+
+  const handleOpenAdd = () => {
+    setEditing(null);
+    setForm({ name: '', zone: '', manager: '' });
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (s) => {
+    setEditing(s);
+    setForm({
+      name: s.name || '',
+      zone: s.zone || '',
+      manager: s.manager || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (editing) {
+      if (updateSucursal) updateSucursal(editing.id, form);
+    } else {
+      if (addSucursal) addSucursal(form);
+    }
+    setShowModal(false);
+    setEditing(null);
+  };
+
+  const sucursalesList = data.sucursales || [];
+  const almacenesList = data.almacenes || [];
+
+  const filteredSucursales = sucursalesList.filter(s => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (s.name && s.name.toLowerCase().includes(term)) ||
+      (s.zone && s.zone.toLowerCase().includes(term)) ||
+      (s.manager && s.manager.toLowerCase().includes(term))
+    );
+  });
+
   return (
-    <div className="grid three">
+    <div>
+      {showModal && (
+        <div className="modal">
+          <div className="modal-content" style={{ maxWidth: '500px', width: '90%' }}>
+            <div className="card-h">
+              <h3>{editing ? 'Editar Sucursal' : 'Alta de Sucursal (Nodo principal)'}</h3>
+              <button className="btn secondary" onClick={() => { setShowModal(false); setEditing(null); }}>Cancelar</button>
+            </div>
+            <div className="card-b">
+              <form onSubmit={handleSubmit} className="form-grid">
+                <div>
+                  <label className="muted" style={{ fontSize: '12px' }}>Nombre de la Sucursal</label>
+                  <input
+                    name="name"
+                    className="input full"
+                    placeholder="Ej. Sucursal León, Sucursal Celaya"
+                    value={form.name}
+                    onChange={e => setForm({ ...form, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="muted" style={{ fontSize: '12px' }}>Zona / Ciudad</label>
+                  <input
+                    name="zone"
+                    className="input full"
+                    placeholder="Ej. León Gto, Celaya Gto"
+                    value={form.zone}
+                    onChange={e => setForm({ ...form, zone: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="muted" style={{ fontSize: '12px' }}>Gerente / Responsable</label>
+                  <input
+                    name="manager"
+                    className="input full"
+                    placeholder="Nombre del encargado o gerente"
+                    value={form.manager}
+                    onChange={e => setForm({ ...form, manager: e.target.value })}
+                    required
+                  />
+                </div>
+                <button type="submit" className={`btn full ${editing ? 'warn' : 'primary'}`}>
+                  {editing ? 'Actualizar sucursal' : 'Guardar sucursal'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card">
-        <div className="card-h">
-          <h3>Alta de sucursales</h3>
-          <span className="chip warn">Nodo principal</span>
-        </div>
-        <div className="card-b">
-          <form onSubmit={addSucursal} className="form-grid">
-            <input name="nombre" className="input full" placeholder="Nombre de la sucursal" required/>
-            <input name="zona" className="input full" placeholder="Zona / Ciudad" required/>
-            <input name="responsable" className="input full" placeholder="Gerente de sucursal" required/>
-            <button className="btn full">Guardar sucursal</button>
-          </form>
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-h">
-          <h3>Alta de almacenes</h3>
-          <span className="chip ok">Ligado a sucursal</span>
-        </div>
-        <div className="card-b">
-          <form onSubmit={addAlmacen} className="form-grid">
-            <input name="nombre" className="input full" placeholder="Nombre del almacén" required/>
-            <select name="sucursalId" className="select">
-              <option value="">Seleccionar sucursal...</option>
-              {data.sucursales.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}
-            </select>
-            <select name="tipo" className="select">
-              <option>Principal</option>
-              <option>Sucursal</option>
-              <option>Temporal</option>
-            </select>
-            <input name="responsable" className="input full" placeholder="Responsable" required/>
-            <button className="btn full">Guardar almacén</button>
-          </form>
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-h">
-          <h3>Almacenes registrados</h3>
+        <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <h3>Directorio de Sucursales</h3>
+          <div style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '450px', justifyContent: 'flex-end' }}>
+            <input
+              type="text"
+              className="input full"
+              placeholder="🔍 Buscar por nombre, zona o gerente..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{ flex: 1, minWidth: '180px' }}
+            />
+            <button className="btn success" onClick={handleOpenAdd}>+ Nueva Sucursal</button>
+          </div>
         </div>
         <div className="card-b list">
-          {data.almacenes.map(a=>(
-            <div className="item" key={a.id}>
-              <div className="row">
-                <b>{a.name}</b>
-                <span className="chip ok">{a.type}</span>
+          {filteredSucursales.map(s => {
+            const associatedWarehouses = almacenesList.filter(a => a.branchId === s.id);
+            return (
+              <div className="item" key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ flex: 1, minWidth: '220px' }}>
+                  <div className="row" style={{ alignItems: 'center', gap: '8px' }}>
+                    <b style={{ fontSize: '16px' }}>{s.name}</b>
+                    <span className="chip ok">Activa</span>
+                  </div>
+                  <div className="muted" style={{ marginTop: '4px' }}>
+                    📍 <b>Zona:</b> {s.zone} &nbsp;·&nbsp; 👤 <b>Gerente:</b> {s.manager}
+                  </div>
+                  <div className="muted" style={{ marginTop: '2px', fontSize: '12px' }}>
+                    🏢 <b>Almacenes asociados:</b> {associatedWarehouses.length} {associatedWarehouses.length === 1 ? 'almacén' : 'almacenes'} ({associatedWarehouses.map(a => a.name).join(', ') || 'Ninguno'})
+                  </div>
+                </div>
+                <div>
+                  <button className="btn secondary" style={{ padding: '6px 12px' }} onClick={() => handleOpenEdit(s)}>
+                    ✏️ Editar
+                  </button>
+                </div>
               </div>
-              <div className="muted">Sucursal: {sucursal(a.branchId)?.name}</div>
-              <div className="muted">Responsable: {a.manager}</div>
+            );
+          })}
+          {filteredSucursales.length === 0 && (
+            <div className="muted" style={{ textAlign: 'center', padding: '30px' }}>
+              No se encontraron sucursales registradas con el término de búsqueda.
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="card double" style={{gridColumn: '1 / -1'}}>
-        <div className="card-h">
-          <h3>Layout de Almacén (Ubicaciones y Racks)</h3>
-        </div>
-        <div className="card-b">
-          <form onSubmit={async (e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            const token = localStorage.getItem('ht_token');
-            const res = await fetch('/api/app/locations', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ name: f.get('name'), description: f.get('description'), warehouseId: Number(f.get('warehouseId')) })
-            });
-            if (res.ok) { window.location.reload(); }
-          }} className="form-grid" style={{ marginBottom: '20px' }}>
-            <select name="warehouseId" className="select" required>
-              <option value="">Seleccionar Almacén</option>
-              {data.almacenes?.map(a=><option value={a.id} key={a.id}>{a.name}</option>)}
-            </select>
-            <input name="name" className="input" placeholder="Nombre (Ej. Pasillo 1 - Rack A)" required />
-            <input name="description" className="input full" placeholder="Descripción adicional (Opcional)" />
-            <button type="submit" className="btn primary">Agregar Ubicación</button>
-          </form>
-
-          <table className="table full">
-            <thead>
-              <tr>
-                <th>Almacén</th>
-                <th>Nombre de Ubicación</th>
-                <th>Descripción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.ubicaciones?.map(u => {
-                const wh = data.almacenes?.find(a => a.id === u.warehouseId);
-                return (
-                  <tr key={u.id}>
-                    <td>{wh?.name}</td>
-                    <td><b>{u.name}</b></td>
-                    <td>{u.description}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          )}
         </div>
       </div>
     </div>

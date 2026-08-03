@@ -59,7 +59,10 @@ export default function Facturacion({ data, reloadState }) {
           </thead>
           <tbody>
             {orders.map(o => {
-              const client = (data.rutas || []).flatMap(r => r.clients).find(c => c.id === o.clientId);
+              const allClients = data.clientes && data.clientes.length > 0 
+                ? data.clientes 
+                : (data.rutas || []).flatMap(r => r.clients || []);
+              const client = allClients.find(c => c.id === o.clientId);
               return (
                 <tr key={o.id}>
                   <td style={{ fontWeight: 700 }}>{o.orderNumber}</td>

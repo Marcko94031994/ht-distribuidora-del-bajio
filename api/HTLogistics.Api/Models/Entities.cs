@@ -10,6 +10,7 @@ public class User
     public required string Role { get; set; }
     public string? Email { get; set; }
     public string? Password { get; set; }
+    public string? Permissions { get; set; }
     
     public int? ClientId { get; set; }
     public Client? Client { get; set; }
@@ -114,37 +115,68 @@ public class Client
     public string? RazonSocial { get; set; }
     public string? RegimenFiscal { get; set; }
     public string? CodigoPostal { get; set; }
+    
+    // Additional Fiscal Data
+    public string? FormaPago { get; set; }
+    public string? MetodoPago { get; set; }
+    public string? UsoCFDI { get; set; }
+    
+    // Contact Data
+    public string? Telefonos { get; set; }
+    public string? Celular { get; set; }
+    public string? Email1 { get; set; }
+    public string? Email2 { get; set; }
+    public string? Email3 { get; set; }
+    
+    // Detailed Address
+    public string? Colonia { get; set; }
+    public string? Localidad { get; set; }
+    public string? Municipio { get; set; }
+    public string? Referencia { get; set; }
+    
+    public bool IsBlocked { get; set; }
 }
 
 public class Product
 {
     public int Id { get; set; }
     public required string Name { get; set; }
-    public decimal Price { get; set; }
-    public int Stock { get; set; }
-    public int CommittedStock { get; set; } // Existencia apartada por pedidos pendientes
+    public decimal Price { get; set; } // We'll keep this as base price or backward compatibility
     
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public int AvailableStock => Stock - CommittedStock;
-    
-    public int WarehouseId { get; set; }
-    public Warehouse? Warehouse { get; set; }
+    // NIVELES DE PRECIO
+    public decimal Price1 { get; set; }
+    public decimal Price2 { get; set; }
+    public decimal Price3 { get; set; }
+    public decimal Price4 { get; set; }
+    public decimal Price5 { get; set; }
+
+    public bool IsPerishable { get; set; }
     
     public int? CategoryId { get; set; }
     public ProductCategory? Category { get; set; }
     
-    public int? WarehouseLocationId { get; set; }
-    public WarehouseLocation? WarehouseLocation { get; set; }
+    public int? BrandId { get; set; }
+    public ProductBrand? Brand { get; set; }
+
+    public int? DefaultProviderId { get; set; }
+    public Provider? DefaultProvider { get; set; }
     
     public string? UnitOfMeasure { get; set; }
+    public string? BoxUnitOfMeasure { get; set; }
     public string? SKU { get; set; }
+    public string? AlternativeCode { get; set; }
     
     public decimal BoxPrice { get; set; }
     public int UnitsPerBox { get; set; }
     public decimal VolumePrice { get; set; }
     public decimal Weight { get; set; } // Peso en KG
 
+    public int MinStock { get; set; } // Stock mínimo para alertas de reorden
+    public int MaxStock { get; set; } // Stock máximo sugerido
+
     public decimal Cost { get; set; }
+    public decimal Cogs { get; set; } // Costo de venta
+
     public decimal IvaRate { get; set; } // e.g., 0.16
     public decimal IepsRate { get; set; } // e.g., 0.08
 
@@ -154,8 +186,49 @@ public class Product
     public string? SatProductKey { get; set; } // e.g. 50202306 for Coca Cola
     public string? SatUnitKey { get; set; } // e.g. H87 for Piece
 
+    public string? Currency { get; set; }
+    public bool IsBlocked { get; set; }
+    public string? Status { get; set; }
+
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<ProductBatch> Batches { get; set; } = new List<ProductBatch>();
+    public ICollection<ProductInventory> Inventories { get; set; } = new List<ProductInventory>();
+    
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int TotalStock => Inventories?.Sum(i => i.Stock) ?? 0;
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int TotalAvailableStock => Inventories?.Sum(i => i.AvailableStock) ?? 0;
+    
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[]? RowVersion { get; set; }
+}
+
+public class ProductInventory
+{
+    public int Id { get; set; }
+    
+    public int ProductId { get; set; }
+    public Product? Product { get; set; }
+    
+    public int WarehouseId { get; set; }
+    public Warehouse? Warehouse { get; set; }
+    
+    public int? WarehouseLocationId { get; set; }
+    public WarehouseLocation? WarehouseLocation { get; set; }
+    
+    public int Stock { get; set; }
+    public int CommittedStock { get; set; }
+    
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int AvailableStock => Stock - CommittedStock;
+}
+
+public class ProductBrand
+{
+    public int Id { get; set; }
+    public required string Name { get; set; }
+    
+    public ICollection<Product> Products { get; set; } = new List<Product>();
 }
 
 public class ProductCategory
@@ -173,6 +246,9 @@ public class ProductBatch
     public int ProductId { get; set; }
     public Product? Product { get; set; }
     
+    public int? WarehouseId { get; set; } // Opcional por migración, ideal requerido
+    public Warehouse? Warehouse { get; set; }
+    
     public required string BatchNumber { get; set; }
     public DateTime ExpirationDate { get; set; }
     public int Quantity { get; set; }
@@ -184,6 +260,9 @@ public class InventoryMovement
     public int Id { get; set; }
     public int ProductId { get; set; }
     public Product? Product { get; set; }
+    
+    public int? WarehouseId { get; set; }
+    public Warehouse? Warehouse { get; set; }
     
     public int Quantity { get; set; }
     public required string Type { get; set; } // Entrada, Salida, Ajuste
@@ -278,20 +357,47 @@ public class PurchaseOrder
     public required string PoNumber { get; set; } 
     public int ProviderId { get; set; }
     public Provider? Provider { get; set; }
-    public required string Status { get; set; } 
+    public required string Status { get; set; } // Borrador, Autorizada, Cancelada
+    
+    public string? Reference1 { get; set; } // Factura / Folio de Proveedor
+    public string? Reference2 { get; set; } // Orden de Embarque / Cotización / Guía
+    public string? Notes { get; set; }
+
+    public decimal Subtotal { get; set; }
+    public decimal TaxAmount { get; set; } // IVA Total
+    public decimal TotalAmount { get; set; }
+    public decimal AmountPaid { get; set; }
+    public DateTime Date { get; set; } = DateTime.Now;
+    public DateTime? DueDate { get; set; }
+    public DateTime? AuthorizedDate { get; set; }
+    public int? AuthorizedById { get; set; }
+    public User? AuthorizedBy { get; set; }
+    
+    public ICollection<PurchaseOrderDetail> Details { get; set; } = new List<PurchaseOrderDetail>();
+}
+
+public class PurchaseOrderDetail
+{
+    public int Id { get; set; }
+    public int PurchaseOrderId { get; set; }
+    public PurchaseOrder? PurchaseOrder { get; set; }
     
     public int ProductId { get; set; }
     public Product? Product { get; set; }
     
     public int Quantity { get; set; }
-    public decimal Cost { get; set; }
+    public decimal UnitCost { get; set; }
+    
+    public decimal IvaRate { get; set; } // e.g., 0.16, 0.08, 0.00
+    public decimal Subtotal { get; set; } // Quantity * UnitCost
+    public decimal TaxAmount { get; set; } // Subtotal * IvaRate
+    public decimal Total { get; set; } // Subtotal + TaxAmount
+
+    public int? WarehouseId { get; set; }
+    public Warehouse? Warehouse { get; set; }
     
     public string? BatchNumber { get; set; }
     public DateTime? ExpirationDate { get; set; }
-    
-    public decimal AmountPaid { get; set; }
-    public DateTime Date { get; set; } = DateTime.Now;
-    public DateTime? DueDate { get; set; }
 }
 
 public class LoginInputModel
@@ -316,6 +422,7 @@ public class DriverInputModel
     public int? VehiculoId { get; set; }
     public int SucursalId { get; set; }
     public decimal Comision { get; set; }
+    public string? Status { get; set; }
 }
 
 public class RouteInputModel
@@ -338,11 +445,21 @@ public class ProviderPaymentInputModel
 public class PurchaseOrderInputModel
 {
     public int ProviderId { get; set; }
+    public string? Reference1 { get; set; }
+    public string? Reference2 { get; set; }
+    public string? Notes { get; set; }
+    public List<PurchaseOrderDetailInputModel> Detalles { get; set; } = new();
+}
+
+public class PurchaseOrderDetailInputModel
+{
     public int ProductoId { get; set; }
     public int Cantidad { get; set; }
     public decimal Costo { get; set; }
+    public decimal IvaPercent { get; set; } // e.g. 16, 8, 0
     public string? Lote { get; set; }
     public DateTime? Caducidad { get; set; }
+    public int? WarehouseId { get; set; }
 }
 
 public class Provider
@@ -351,6 +468,8 @@ public class Provider
     public required string Name { get; set; }
     public required string Contact { get; set; }
     public required string Phone { get; set; }
+    public string? RFC { get; set; }
+    public string? Address { get; set; }
     public decimal CurrentBalance { get; set; } // Saldo pendiente a pagar (Cuentas por Pagar)
 }
 
@@ -504,6 +623,7 @@ public class VehicleInputModel
     public required string Placas { get; set; }
     public required string Modelo { get; set; }
     public required string Marca { get; set; }
+    public string? Estatus { get; set; }
 }
 
 public class CashClosureInputModel
@@ -519,15 +639,34 @@ public class ProductInputModel
 {
     public required string Name { get; set; }
     public decimal Price { get; set; }
+    public decimal Price1 { get; set; }
+    public decimal Price2 { get; set; }
+    public decimal Price3 { get; set; }
+    public decimal Price4 { get; set; }
+    public decimal Price5 { get; set; }
+    public decimal Cost { get; set; }
+    public decimal Cogs { get; set; }
     public decimal Weight { get; set; }
-    public int Stock { get; set; }
-    public int WarehouseId { get; set; }
+    public bool IsPerishable { get; set; }
+    public int MinStock { get; set; }
+    public int MaxStock { get; set; }
+    public int? Stock { get; set; } // Optional initial stock
+    public int? WarehouseId { get; set; }
     public int? WarehouseLocationId { get; set; }
     public string? SKU { get; set; }
+    public string? AlternativeCode { get; set; }
+    public int? CategoryId { get; set; }
+    public int? BrandId { get; set; }
+    public int? DefaultProviderId { get; set; }
     public List<string>? Photos { get; set; }
     public decimal BoxPrice { get; set; }
     public int UnitsPerBox { get; set; }
     public decimal VolumePrice { get; set; }
+    public string? UnitOfMeasure { get; set; }
+    public string? BoxUnitOfMeasure { get; set; }
+    public string? Currency { get; set; }
+    public bool IsBlocked { get; set; }
+    public string? Status { get; set; }
 }
 
 public class ProviderInputModel
@@ -535,6 +674,8 @@ public class ProviderInputModel
     public required string Name { get; set; }
     public required string Contact { get; set; }
     public required string Phone { get; set; }
+    public string? RFC { get; set; }
+    public string? Address { get; set; }
 }
 
 public class ClientInputModel
@@ -546,6 +687,30 @@ public class ClientInputModel
     public double Longitude { get; set; }
     public decimal CreditLimit { get; set; }
     public int CreditDays { get; set; } = 30;
+    public string? RFC { get; set; }
+    public string? RazonSocial { get; set; }
+    public string? RegimenFiscal { get; set; }
+    public string? CodigoPostal { get; set; }
+    public string? FormaPago { get; set; }
+    public string? MetodoPago { get; set; }
+    public string? UsoCFDI { get; set; }
+    public string? Telefonos { get; set; }
+    public string? Celular { get; set; }
+    public string? Email1 { get; set; }
+    public string? Email2 { get; set; }
+    public string? Email3 { get; set; }
+    public string? Colonia { get; set; }
+    public string? Localidad { get; set; }
+    public string? Municipio { get; set; }
+    public string? Referencia { get; set; }
+    public bool IsBlocked { get; set; }
+}
+
+public class ClientPriceInputModel
+{
+    public int ClientId { get; set; }
+    public int ProductId { get; set; }
+    public decimal SpecialPrice { get; set; }
 }
 
 public class OrderReturnBatchInput
@@ -611,9 +776,17 @@ public class ProductBulkUpdateModel
 {
     public int Id { get; set; }
     public decimal? Price { get; set; }
+    public decimal? Price1 { get; set; }
+    public decimal? Price2 { get; set; }
+    public decimal? Price3 { get; set; }
+    public decimal? Price4 { get; set; }
+    public decimal? Price5 { get; set; }
+    public decimal? BoxPrice { get; set; }
+    public decimal? VolumePrice { get; set; }
     public int? Stock { get; set; }
     public decimal? Weight { get; set; }
     public decimal? Cost { get; set; }
+    public decimal? Cogs { get; set; }
 }
 
 public class UserInputModel
@@ -621,6 +794,7 @@ public class UserInputModel
     public required string Name { get; set; }
     public required string Email { get; set; }
     public string? Password { get; set; }
+    public string? Permissions { get; set; }
     public required string Role { get; set; }
     public int? SucursalId { get; set; }
     public int? ClientId { get; set; }

@@ -7,12 +7,14 @@ export default function Cobranza({ data, reloadState }) {
   const [statement, setStatement] = useState(null);
 
   const portfolio = useMemo(() => {
-    const clients = (data.rutas || []).flatMap(r => r.clients || []);
+    const clients = data.clientes && data.clientes.length > 0 
+      ? data.clientes 
+      : (data.rutas || []).flatMap(r => r.clients || []);
     return clients.filter(c => 
-      (c.name.toLowerCase().includes(search.toLowerCase()) || c.zone.toLowerCase().includes(search.toLowerCase())) &&
+      (c.name?.toLowerCase().includes(search.toLowerCase()) || c.zone?.toLowerCase().includes(search.toLowerCase())) &&
       c.currentBalance > 0
     ).sort((a, b) => b.currentBalance - a.currentBalance);
-  }, [data.rutas, search]);
+  }, [data.clientes, data.rutas, search]);
 
   const totalReceivable = portfolio.reduce((sum, c) => sum + c.currentBalance, 0);
 
@@ -50,7 +52,7 @@ export default function Cobranza({ data, reloadState }) {
       alert('Abono registrado con éxito');
       reloadState();
       fetchStatement(selectedClient); // Refresh statement
-      e.currentTarget.reset();
+      e.target.reset();
     }
   };
 

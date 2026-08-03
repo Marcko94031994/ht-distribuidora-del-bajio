@@ -58,7 +58,7 @@ public class AuthController : ControllerBase
             
             return Ok(new {
                 token = tokenHandler.WriteToken(token),
-                user = new { user.Id, user.Name, user.Email, user.Role, user.ClientId, SucursalId = user.SucursalId }
+                user = new { user.Id, user.Name, user.Email, user.Role, user.ClientId, SucursalId = user.SucursalId, Permissions = user.Permissions }
             });
         }
 
@@ -72,6 +72,7 @@ public class AuthController : ControllerBase
                 Email = input.Email, 
                 Password = input.Password, 
                 Role = input.Role,
+                Permissions = input.Permissions,
                 SucursalId = input.SucursalId,
                 ClientId = input.ClientId
             };
@@ -91,6 +92,7 @@ public class AuthController : ControllerBase
             user.Email = input.Email;
             if (!string.IsNullOrEmpty(input.Password)) user.Password = input.Password;
             user.Role = input.Role;
+            user.Permissions = input.Permissions;
             user.SucursalId = input.SucursalId;
             user.ClientId = input.ClientId;
             

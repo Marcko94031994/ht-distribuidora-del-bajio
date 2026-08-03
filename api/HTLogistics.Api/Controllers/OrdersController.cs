@@ -1,3 +1,4 @@
+using HTLogistics.Api.Services.Interfaces;
 using HTLogistics.Api.Data;
 using HTLogistics.Api.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -18,11 +19,13 @@ public class OrdersController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly IOrderService _orderService;
 
-    public OrdersController(AppDbContext context, IConfiguration configuration)
+    public OrdersController(AppDbContext context, IConfiguration configuration, IOrderService orderService)
     {
         _context = context;
         _configuration = configuration;
+        _orderService = orderService;
     }
 
     [HttpGet("orders")]
@@ -98,9 +101,9 @@ public class OrdersController : ControllerBase
                 var product = await _context.Products.FindAsync(item.ProductId);
                 if (product != null)
                 {
-                    if (product.AvailableStock < item.Quantity)
+                    if (product.TotalAvailableStock < item.Quantity)
                     {
-                        return BadRequest($"Stock insuficiente para {product.Name}. Físico: {product.Stock}, Apartado: {product.CommittedStock}");
+                        return BadRequest($"Stock insuficiente para {product.Name}. Físico: {product.TotalStock}");
                     }
 
                     var subtotal = product.Price * item.Quantity;
@@ -120,7 +123,16 @@ public class OrdersController : ControllerBase
                     });
 
                     // Apartar el inventario para pedidos pendientes
-                    product.CommittedStock += item.Quantity;
+                    var route = await _context.Routes.FindAsync(order.RouteId);
+                    var warehouse = await _context.Warehouses.FirstOrDefaultAsync(w => w.BranchId == route.BranchId && w.Type == "Principal") 
+                        ?? await _context.Warehouses.FirstOrDefaultAsync(w => w.BranchId == route.BranchId)
+                        ?? await _context.Warehouses.FirstAsync();
+                    var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == product.Id && i.WarehouseId == warehouse.Id);
+                    if (inventory == null) {
+                        inventory = new ProductInventory { ProductId = product.Id, WarehouseId = warehouse.Id };
+                        _context.ProductInventories.Add(inventory);
+                    }
+                    inventory.CommittedStock += item.Quantity;
                 }
             }
     
@@ -180,78 +192,20 @@ public class OrdersController : ControllerBase
     [HttpPost("authorize-order/{id}")]
         public async Task<IActionResult> AuthorizeOrder(int id)
         {
-            var order = await _context.Orders
-                .Include(o => o.Items)
-                .Include(o => o.Client)
-                .FirstOrDefaultAsync(o => o.Id == id);
-                
-            if (order == null) return NotFound("Order not found");
-            if (order.Status != "Pendiente" && order.Status != "Esperando Autorización Admin") return BadRequest("Order is not in a state that can be authorized");
-    
-            if (order.Status == "Esperando Autorización Admin" && !order.IsApprovedByAdmin)
-            {
-                return BadRequest("Order requires Admin authorization first.");
-            }
-    
-            order.Status = "En remisión";
-    
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized("Invalid user token.");
+            var userId = int.Parse(userIdString);
 
-            // Subtract inventory using FEFO (First Expired, First Out)
-            foreach (var item in order.Items)
+            try
             {
-                var product = await _context.Products
-                    .Include(p => p.Batches)
-                    .FirstOrDefaultAsync(p => p.Id == item.ProductId);
-    
-                if (product != null)
-                {
-                    int remainingToDeduct = item.Quantity;
-                    
-                    // Get batches sorted by expiration date
-                    var batches = product.Batches
-                        .Where(b => b.Quantity > 0)
-                        .OrderBy(b => b.ExpirationDate)
-                        .ToList();
-    
-                    foreach (var batch in batches)
-                    {
-                        if (remainingToDeduct <= 0) break;
-    
-                        int deductFromThisBatch = Math.Min(batch.Quantity, remainingToDeduct);
-                        batch.Quantity -= deductFromThisBatch;
-                        remainingToDeduct -= deductFromThisBatch;
-                    }
-    
-                    // Update general stock
-                    product.Stock -= item.Quantity;
-                    if (product.Stock < 0) product.Stock = 0;
-                    
-                    product.CommittedStock -= item.Quantity;
-                    if (product.CommittedStock < 0) product.CommittedStock = 0;
-    
-                    // Log movement
-                    _context.InventoryMovements.Add(new InventoryMovement
-                    {
-                        ProductId = product.Id,
-                        Quantity = -item.Quantity,
-                        Type = "Salida",
-                        Reason = "Venta",
-                        Date = DateTime.Now,
-                        UserId = userId,
-                        Reference = order.OrderNumber
-                    });
-                }
+                var order = await _orderService.AuthorizeOrderAsync(id, userId);
+                if (order == null) return NotFound("Order not found");
+                return Ok(order);
             }
-    
-            if (order.PaymentMethod == "Crédito" && order.Client != null)
+            catch (ArgumentException ex)
             {
-                order.Client.CurrentBalance += order.TotalAmount;
+                return BadRequest(ex.Message);
             }
-    
-            await _context.SaveChangesAsync();
-            return Ok(order);
         }
 
     [HttpPost("order/{id}/admin-authorize")]
@@ -291,6 +245,55 @@ public class OrdersController : ControllerBase
                 decimal total = order.Items.Sum(i => i.Quantity * i.UnitPrice);
                 order.CommissionAmount = total * (order.Driver.CommissionPercentage / 100);
             }
+
+            // Lógica PEPS (Primeras Entradas, Primeras Salidas)
+            foreach (var item in order.Items)
+            {
+                var product = await _context.Products.FindAsync(item.ProductId);
+                if (product != null)
+                {
+                    // Descontar el stock (Nota: esto debería ser gestionado en AuthorizeOrder y no aquí para evitar doble descuento)
+                    // product.CommittedStock -= item.Quantity;
+                    // product.Stock -= item.Quantity;
+
+                    // Descontar de los lotes usando PEPS
+                    var batches = await _context.ProductBatches
+                        .Where(b => b.ProductId == product.Id && b.Quantity > 0)
+                        .OrderBy(b => b.ExpirationDate) // PEPS: los más próximos a caducar salen primero
+                        .ToListAsync();
+                        
+                    int remainingToFulfill = item.Quantity;
+                    foreach (var batch in batches)
+                    {
+                        if (remainingToFulfill <= 0) break;
+                        
+                        if (batch.Quantity >= remainingToFulfill)
+                        {
+                            batch.Quantity -= remainingToFulfill;
+                            remainingToFulfill = 0;
+                        }
+                        else
+                        {
+                            remainingToFulfill -= batch.Quantity;
+                            batch.Quantity = 0;
+                        }
+                    }
+                    
+                    // Log the movement
+                    var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    int userId = string.IsNullOrEmpty(userIdString) ? 0 : int.Parse(userIdString);
+                    _context.InventoryMovements.Add(new InventoryMovement
+                    {
+                        ProductId = product.Id,
+                        Quantity = item.Quantity,
+                        Type = "Salida",
+                        Reason = "Venta",
+                        Date = DateTime.Now,
+                        UserId = userId,
+                        Reference = $"Pedido: {order.OrderNumber}"
+                    });
+                }
+            }
             
             await _context.SaveChangesAsync();
             return Ok(order);
@@ -299,49 +302,20 @@ public class OrdersController : ControllerBase
     [HttpPost("order/{id}/status")]
         public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] string status)
         {
-            var order = await _context.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
-            if (order == null) return NotFound("Order not found");
-            
-            // Lógica de cancelación
-            if (status == "Cancelado" && order.Status != "Cancelado")
-            {
-                foreach (var item in order.Items)
-                {
-                    var product = await _context.Products.FindAsync(item.ProductId);
-                    if (product != null)
-                    {
-                        if (order.Status == "Pendiente" || order.Status == "Esperando Autorización Admin")
-                        {
-                            product.CommittedStock -= item.Quantity;
-                            if (product.CommittedStock < 0) product.CommittedStock = 0;
-                        }
-                        else if (order.Status == "En remisión")
-                        {
-                            // Si ya había salido de bodega, se regresa físicamente
-                            product.Stock += item.Quantity;
-                            
-                            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized("Invalid user token.");
+            var userId = int.Parse(userIdString);
 
-                            // Log movement
-                            _context.InventoryMovements.Add(new InventoryMovement
-                            {
-                                ProductId = product.Id,
-                                Quantity = item.Quantity,
-                                Type = "Entrada",
-                                Reason = "Devolución por Cancelación",
-                                Date = DateTime.Now,
-                                UserId = userId,
-                                Reference = order.OrderNumber
-                            });
-                        }
-                    }
-                }
+            try
+            {
+                var order = await _orderService.UpdateOrderStatusAsync(id, status, userId);
+                if (order == null) return NotFound("Order not found");
+                return Ok(order);
             }
-            
-            order.Status = status;
-            await _context.SaveChangesAsync();
-            return Ok(order);
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
     [HttpPost("order-return")]
@@ -395,10 +369,13 @@ public class OrdersController : ControllerBase
                 var product = await _context.Products.FindAsync(ret.ProductId);
                 if (product != null)
                 {
-                    product.Stock += ret.Quantity;
+                    var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == product.Id && i.WarehouseId == 1);
+                    if (inventory != null) inventory.Stock += ret.Quantity;
+                    else _context.ProductInventories.Add(new ProductInventory { ProductId = product.Id, WarehouseId = 1, Stock = ret.Quantity });
                     
-                    var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                    var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+                    var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    if (string.IsNullOrEmpty(userIdString)) return Unauthorized("Invalid user token.");
+                            var userId = int.Parse(userIdString);
 
                     _context.InventoryMovements.Add(new InventoryMovement
                     {

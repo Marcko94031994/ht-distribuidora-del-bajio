@@ -1,19 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { pesos } from '../utils/helpers';
+import InventarioGrid from './InventarioGrid';
+import SearchableSelect from './SearchableSelect';
 
 export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,aplicarCompra,devoluciones,autorizarDevolucion,registrarAjuste}){
+  const [selectedProductId, setSelectedProductId] = useState('');
+
   return (
     <div className="grid">
+      <div style={{ gridColumn: '1 / -1' }}>
+        <InventarioGrid data={data} />
+      </div>
+
       <div className="card">
         <div className="card-h">
           <h3>Salida de Mermas / Muestras</h3>
         </div>
         <div className="card-b">
           <form onSubmit={registrarAjuste} className="form-grid">
-            <select name="productId" className="select full" required>
-              <option value="">Seleccionar Producto</option>
-              {data.productos.map(p=><option value={p.id} key={p.id}>{p.name} (Disp: {p.availableStock})</option>)}
-            </select>
+            <div className="full">
+              <SearchableSelect
+                name="productId"
+                options={data.productos || []}
+                value={selectedProductId}
+                onChange={(val) => setSelectedProductId(val)}
+                placeholder="🔍 Escribe o selecciona un Producto..."
+                getOptionLabel={(p) => p.name}
+                getOptionValue={(p) => p.id}
+                getOptionSubtext={(p) => `Disp: ${p.availableStock !== undefined ? p.availableStock : p.stock} ${p.sku ? `· SKU: ${p.sku}` : ''}`}
+                required
+              />
+            </div>
             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
               <select name="adjustmentType" className="select" required>
                 <option value="">Motivo...</option>
@@ -25,73 +42,6 @@ export default function Almacen({data,sucursal,almacen,producto,proveedor,addOC,
             <textarea name="reason" className="input full" placeholder="Justificación detallada..." required></textarea>
             <button type="submit" className="btn warn full">Registrar Salida</button>
           </form>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-h">
-          <h3>Nueva Orden de Compra</h3>
-        </div>
-        <div className="card-b">
-          <form onSubmit={addOC} className="form-grid">
-            <select name="providerId" className="select full" required>
-              <option value="">Seleccionar Proveedor</option>
-              {data.proveedores?.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}
-            </select>
-            <select name="productoId" className="select full" required>
-              <option value="">Seleccionar Producto</option>
-              {data.productos.map(p=><option value={p.id} key={p.id}>{p.name} (Actual: {p.stock} fco. | Disp: {p.availableStock})</option>)}
-            </select>
-            <input name="cantidad" type="number" className="input" placeholder="Cant. de piezas" required />
-            <input name="costo" type="number" step="0.01" className="input" placeholder="Costo Unitario" required />
-            <input name="lote" type="text" className="input" placeholder="Lote / Serie" />
-            <input name="caducidad" type="date" className="input" placeholder="Fecha Caducidad" />
-            <button type="submit" className="btn success full">Generar Borrador</button>
-          </form>
-        </div>
-      </div>
-      <div className="card double">
-        <div className="card-h">
-          <h3>Control de Órdenes de Compra</h3>
-        </div>
-        <div className="card-b">
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Proveedor</th>
-                  <th>Producto</th>
-                  <th>Cant.</th>
-                  <th>Costo Unit.</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.compras.map(oc=>{
-                  const p=producto(oc.productId);
-                  const prov=proveedor(oc.providerId);
-                  return (
-                    <tr key={oc.id}>
-                      <td><b>{oc.poNumber}</b></td>
-                      <td>{prov?.name || 'Desconocido'}</td>
-                      <td>{p?.name}</td>
-                      <td>{oc.quantity}</td>
-                      <td>{pesos(oc.cost)}</td>
-                      <td>{pesos(oc.cost*oc.quantity)}</td>
-                      <td><span className={'chip '+(oc.status==='Borrador'?'warn':'ok')}>{oc.status}</span></td>
-                      <td>
-                        {oc.status==='Borrador' && <button className="btn primary" onClick={()=>aplicarCompra(oc)}>Aplicar / Recibir</button>}
-                        {oc.status!=='Borrador' && <span className="muted">Completado</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
 

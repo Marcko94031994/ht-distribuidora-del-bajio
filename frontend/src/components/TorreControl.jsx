@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -26,6 +26,63 @@ const mapContainerStyle = {
   width: '100%',
   height: '100%',
   borderRadius: '8px'
+};
+
+const WeatherWidget = () => {
+  const [weather, setWeather] = useState(null);
+
+  useEffect(() => {
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=21.1221&longitude=-101.6833&current_weather=true&timezone=America%2FMexico_City')
+      .then(res => res.json())
+      .then(data => {
+        if(data && data.current_weather) {
+          setWeather(data.current_weather);
+        }
+      })
+      .catch(e => console.error(e));
+  }, []);
+
+  if(!weather) return null;
+
+  const weatherDescriptions = {
+    0: 'Despejado', 1: 'Mayormente despejado', 2: 'Parcialmente nublado', 3: 'Nublado',
+    45: 'Niebla', 48: 'Niebla escarcha', 51: 'Llovizna ligera', 53: 'Llovizna moderada',
+    55: 'Llovizna densa', 61: 'Lluvia ligera', 63: 'Lluvia moderada', 65: 'Lluvia fuerte',
+    80: 'Chubascos', 81: 'Chubascos fuertes', 82: 'Chubascos violentos', 95: 'Tormenta eléctrica'
+  };
+
+  const desc = weatherDescriptions[weather.weathercode] || 'Desconocido';
+  
+  // Basic emoji logic based on weather code
+  const getEmoji = (code) => {
+    if (code === 0) return '☀️';
+    if (code === 1 || code === 2) return '⛅';
+    if (code === 3) return '☁️';
+    if (code >= 45 && code <= 48) return '🌫️';
+    if (code >= 51 && code <= 65) return '🌧️';
+    if (code >= 80 && code <= 82) return '🌦️';
+    if (code >= 95) return '⛈️';
+    return '🌡️';
+  };
+
+  return (
+    <div style={{
+      position: 'absolute', top: '15px', right: '15px', zIndex: 1000,
+      background: 'rgba(255,255,255,0.9)', padding: '10px 15px', borderRadius: '12px',
+      boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '12px',
+      backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.5)'
+    }}>
+      <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>
+        {getEmoji(weather.weathercode)}
+      </div>
+      <div>
+        <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#1f2937' }}>León, Gto</div>
+        <div style={{ fontSize: '0.9rem', color: '#4b5563' }}>
+          {weather.temperature}°C • {desc}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default function TorreControl({data,vendedor}){
@@ -142,6 +199,7 @@ export default function TorreControl({data,vendedor}){
             </Marker>
           ))}
         </MapContainer>
+        <WeatherWidget />
       </div>
     </div>
   );

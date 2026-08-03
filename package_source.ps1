@@ -3,7 +3,7 @@
 
 Write-Host "Empaquetando código fuente..."
 $rootDir = Get-Location
-$tarFile = "deploy.tar.gz"
+$tarFile = "source.tar.gz"
 
 if (Test-Path $tarFile) { Remove-Item $tarFile -Force }
 

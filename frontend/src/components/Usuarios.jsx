@@ -1,7 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import SearchableSelect from './SearchableSelect';
+
+const MODULES = [
+  { id: 'dashboard', label: 'Resumen (Dashboard)', group: 'Dashboards' },
+  { id: 'torre', label: 'Torre de Control', group: 'Dashboards' },
+  { id: 'reportes', label: 'Reportes Gerenciales', group: 'Dashboards' },
+  { id: 'sucursales', label: 'Sucursales / Almacenes', group: 'Catálogos' },
+  { id: 'rutas', label: 'Rutas / Vendedores', group: 'Catálogos' },
+  { id: 'clientes', label: 'Clientes', group: 'Catálogos' },
+  { id: 'proveedores', label: 'Proveedores', group: 'Catálogos' },
+  { id: 'productos', label: 'Productos', group: 'Catálogos' },
+  { id: 'almacen', label: 'Compras e Inventario', group: 'Inventario' },
+  { id: 'remisiones', label: 'Remisiones (Despacho)', group: 'Inventario' },
+  { id: 'masivos', label: 'Cambios Masivos', group: 'Inventario' },
+  { id: 'vendedor', label: 'App Vendedor', group: 'Ventas' },
+  { id: 'tienda', label: 'Tienda B2B', group: 'Ventas' },
+  { id: 'facturacion', label: 'Facturación SAT', group: 'Finanzas' },
+  { id: 'cobranza', label: 'Cobranza / CxC', group: 'Finanzas' },
+  { id: 'liquidacion', label: 'Liquidación', group: 'Finanzas' },
+  { id: 'caja', label: 'Corte de Caja', group: 'Finanzas' },
+  { id: 'usuarios', label: 'Usuarios / Permisos', group: 'Administración' }
+];
+
+const DEFAULT_ROLE_PERMS = {
+  'Admin': MODULES.map(m => m.id),
+  'Almacenista': ['remisiones','almacen','productos','masivos'],
+  'Vendedor': ['dashboard','vendedor','clientes'],
+  'Chofer': ['rutas','remisiones'],
+  'Cliente': ['tienda']
+};
 
 export default function Usuarios({ data, addUser, updateUser }) {
   const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
+  const [selectedPerms, setSelectedPerms] = useState([]);
+  const [role, setRole] = useState('Vendedor');
+  const [clientId, setClientId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (editing) {
+      setRole(editing.role || 'Vendedor');
+      setClientId(editing.clientId || '');
+      setSelectedPerms(editing.permissions ? editing.permissions.split(',') : (DEFAULT_ROLE_PERMS[editing.role] || []));
+    } else {
+      setRole('Vendedor');
+      setClientId('');
+      setSelectedPerms(DEFAULT_ROLE_PERMS['Vendedor']);
+    }
+  }, [editing]);
+
+  const handleRoleChange = (e) => {
+    const newRole = e.target.value;
+    setRole(newRole);
+    // Auto-fill perms for role if not editing (or even if editing, to reset)
+    setSelectedPerms(DEFAULT_ROLE_PERMS[newRole] || []);
+  };
+
+  const togglePerm = (id) => {
+    setSelectedPerms(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -9,7 +68,8 @@ export default function Usuarios({ data, addUser, updateUser }) {
     const payload = {
       name: f.get('name'),
       email: f.get('email'),
-      role: f.get('role'),
+      role: role,
+      permissions: selectedPerms.join(','),
       sucursalId: f.get('sucursalId') ? Number(f.get('sucursalId')) : null,
       clientId: f.get('clientId') ? Number(f.get('clientId')) : null,
       password: f.get('password') || null
@@ -21,95 +81,215 @@ export default function Usuarios({ data, addUser, updateUser }) {
     } else {
       addUser(payload);
     }
-    e.currentTarget.reset();
+    e.target.reset();
+    setShowForm(false);
   };
+
+  const startEdit = (u) => {
+    setEditing(u);
+    setActiveTab('basic');
+    setShowForm(true);
+  };
+
+  const startNew = () => {
+    setEditing(null);
+    setRole('Vendedor');
+    setSelectedPerms(DEFAULT_ROLE_PERMS['Vendedor']);
+    setActiveTab('basic');
+    setShowForm(true);
+  };
+
+  const groupedModules = MODULES.reduce((acc, m) => {
+    acc[m.group] = acc[m.group] || [];
+    acc[m.group].push(m);
+    return acc;
+  }, {});
+
+  const filteredUsuarios = (data.usuarios || []).filter(u => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    const branchName = data.sucursales?.find(s => s.id === u.sucursalId)?.name || '';
+    return (
+      (u.name && u.name.toLowerCase().includes(term)) ||
+      (u.email && u.email.toLowerCase().includes(term)) ||
+      (u.role && u.role.toLowerCase().includes(term)) ||
+      branchName.toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="view-container animate-fade-in">
-      <div className="glass" style={{ padding: '30px', borderRadius: '24px', marginBottom: '30px' }}>
-        <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900 }}>👥 Gestión de Usuarios y Permisos</h2>
-        <p className="muted">Controla quién tiene acceso a cada módulo del sistema.</p>
+      <div className="glass" style={{ padding: '30px', borderRadius: '24px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900 }}>👥 Gestión de Usuarios y Permisos</h2>
+          <p className="muted">Controla acceso granular a cada módulo por usuario.</p>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px' }}>
-        {/* Tabla de Usuarios */}
+      {showForm && (
+        <div className="modal">
+          <div className="modal-content" style={{maxWidth: '550px', width: '90%'}}>
+            <div className="card-h">
+              <h3 style={{ margin: 0 }}>{editing ? '📝 Editar Usuario' : '➕ Nuevo Usuario'}</h3>
+              <button className="btn secondary" onClick={() => { setEditing(null); setShowForm(false); }}>Cancelar</button>
+            </div>
+            <div className="card-b">
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
+                <button 
+                  type="button"
+                  className={`btn ${activeTab === 'basic' ? 'primary' : 'secondary'}`} 
+                  onClick={() => setActiveTab('basic')}
+                >
+                  Información Básica
+                </button>
+                <button 
+                  type="button"
+                  className={`btn ${activeTab === 'perms' ? 'primary' : 'secondary'}`} 
+                  onClick={() => setActiveTab('perms')}
+                >
+                  Permisos (ACL)
+                </button>
+              </div>
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                
+                {activeTab === 'basic' && (
+                  <>
+                    <div className="form-group">
+                      <label>Nombre Completo</label>
+                      <input name="name" className="input full" defaultValue={editing?.name} required />
+                    </div>
+                    <div className="form-group">
+                      <label>Email (Usuario)</label>
+                      <input name="email" type="email" className="input full" defaultValue={editing?.email} required />
+                    </div>
+                    <div className="form-group">
+                      <label>Contraseña {editing && '(dejar vacío para no cambiar)'}</label>
+                      <input name="password" type="password" className="input full" required={!editing} />
+                    </div>
+                    <div className="form-group">
+                      <label>Perfil Base (Pre-carga permisos)</label>
+                      <select name="role" className="input full" value={role} onChange={handleRoleChange}>
+                        <option value="Admin">Administrador</option>
+                        <option value="Vendedor">Vendedor</option>
+                        <option value="Almacenista">Almacenista</option>
+                        <option value="Chofer">Chofer</option>
+                        <option value="Cliente">Cliente</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Sucursal Asignada</label>
+                      <select name="sucursalId" className="input full" defaultValue={editing?.sucursalId || ''}>
+                        <option value="">Todas / Corporativo</option>
+                        {data.sucursales?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Vincular a Cliente (B2B)</label>
+                      <SearchableSelect
+                        name="clientId"
+                        options={(data.clientes && data.clientes.length > 0 ? data.clientes : data.rutas?.flatMap(r => r.clients || [])) || []}
+                        value={clientId}
+                        onChange={(val) => setClientId(val)}
+                        placeholder="🔍 Escribe o busca un Cliente..."
+                        getOptionLabel={(c) => c.name}
+                        getOptionValue={(c) => c.id}
+                        getOptionSubtext={(c) => (c.zone ? `Zona: ${c.zone}` : (c.rfc ? `RFC: ${c.rfc}` : ''))}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 'perms' && (
+                  <div className="form-group" style={{ background: '#f8fafc', padding: '15px', borderRadius: '14px', border: '1px solid #e2e8f0', overflowY: 'auto', maxHeight: '350px' }}>
+                    <label style={{ marginBottom: '10px', display: 'block', color: '#0f172a' }}>Permisos Específicos (ACL)</label>
+                    <div style={{ display: 'grid', gap: '15px' }}>
+                      {Object.keys(groupedModules).map(group => (
+                        <div key={group}>
+                          <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>{group}</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                            {groupedModules[group].map(m => (
+                              <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 400 }}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={selectedPerms.includes(m.id)}
+                                  onChange={() => togglePerm(m.id)}
+                                />
+                                {m.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                  <button type="submit" className="btn success" style={{flex: 1}}>{editing ? 'Guardar Cambios' : 'Crear Usuario'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div>
         <div className="glass" style={{ padding: '20px', borderRadius: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '15px' }}>
+            <h3 style={{ margin: 0 }}>Directorio de Usuarios y Accesos</h3>
+            <div style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '400px' }}>
+              <input 
+                type="text" 
+                className="input full" 
+                placeholder="🔍 Buscar usuario, email o rol..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+              <button className="btn success" onClick={startNew}>+ Nuevo Usuario</button>
+            </div>
+          </div>
           <table className="table full">
             <thead>
               <tr>
                 <th>Nombre</th>
                 <th>Email</th>
-                <th>Rol / Permisos</th>
+                <th>Rol (Perfil)</th>
+                <th>Accesos</th>
                 <th>Sucursal</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {data.usuarios?.map(u => (
-                <tr key={u.id}>
-                  <td style={{ fontWeight: 700 }}>{u.name}</td>
-                  <td>{u.email}</td>
-                  <td>
-                    <span className={`chip ${u.role === 'Admin' ? 'primary' : 'secondary'}`}>
-                      {u.role}
-                    </span>
-                  </td>
-                  <td>{data.sucursales?.find(s => s.id === u.sucursalId)?.name || 'N/A'}</td>
-                  <td>
-                    <button className="btn secondary small" onClick={() => setEditing(u)}>Editar</button>
+              {filteredUsuarios.map(u => {
+                const permsArr = u.permissions ? u.permissions.split(',') : [];
+                return (
+                  <tr key={u.id}>
+                    <td style={{ fontWeight: 700 }}>{u.name}</td>
+                    <td>{u.email}</td>
+                    <td>
+                      <span className={`chip ${u.role === 'Admin' ? 'primary' : 'secondary'}`}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '12px', color: '#64748b' }}>
+                      {permsArr.length} módulos permitidos
+                    </td>
+                    <td>{data.sucursales?.find(s => s.id === u.sucursalId)?.name || 'N/A'}</td>
+                    <td>
+                      <button className="btn secondary small" onClick={() => startEdit(u)}>Editar</button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredUsuarios.length === 0 && (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }} className="muted">
+                    No se encontraron usuarios.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
-        </div>
-
-        {/* Formulario Alta/Edición */}
-        <div className="glass" style={{ padding: '20px', borderRadius: '24px', height: 'fit-content' }}>
-          <h3 style={{ margin: '0 0 20px 0' }}>{editing ? '📝 Editar Usuario' : '➕ Nuevo Usuario'}</h3>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div className="form-group">
-              <label>Nombre Completo</label>
-              <input name="name" className="input full" defaultValue={editing?.name} required />
-            </div>
-            <div className="form-group">
-              <label>Email (Usuario)</label>
-              <input name="email" type="email" className="input full" defaultValue={editing?.email} required />
-            </div>
-            <div className="form-group">
-              <label>Contraseña {editing && '(dejar vacío para no cambiar)'}</label>
-              <input name="password" type="password" className="input full" required={!editing} />
-            </div>
-            <div className="form-group">
-              <label>Rol de Sistema</label>
-              <select name="role" className="input full" defaultValue={editing?.role || 'Vendedor'}>
-                <option value="Admin">Administrador (Acceso Total)</option>
-                <option value="Vendedor">Vendedor (App de Campo)</option>
-                <option value="Almacenista">Almacenista (Compras/Stock)</option>
-                <option value="Chofer">Chofer (Remisiones/Entregas)</option>
-                <option value="Cliente">Cliente (Portal B2B)</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Sucursal Asignada</label>
-              <select name="sucursalId" className="input full" defaultValue={editing?.sucursalId || ''}>
-                <option value="">Todas / Corporativo</option>
-                {data.sucursales?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Vincular a Cliente (Solo para rol Cliente)</label>
-              <select name="clientId" className="input full" defaultValue={editing?.clientId || ''}>
-                <option value="">Ninguno</option>
-                {data.rutas?.flatMap(r => r.clients).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <button type="submit" className="btn primary full">{editing ? 'Guardar Cambios' : 'Crear Usuario'}</button>
-              {editing && <button type="button" className="btn secondary" onClick={() => setEditing(null)}>Cancelar</button>}
-            </div>
-          </form>
         </div>
       </div>
     </div>

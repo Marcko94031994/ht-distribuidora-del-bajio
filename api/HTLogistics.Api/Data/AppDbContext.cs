@@ -15,11 +15,13 @@ public class AppDbContext : DbContext
     public DbSet<DeliveryRoute> Routes => Set<DeliveryRoute>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductBrand> ProductBrands => Set<ProductBrand>();
     public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderDetail> PurchaseOrderDetails => Set<PurchaseOrderDetail>();
     public DbSet<Provider> Providers => Set<Provider>();
     public DbSet<ClientPrice> ClientPrices => Set<ClientPrice>();
     public DbSet<OrderReturn> OrderReturns => Set<OrderReturn>();
@@ -35,6 +37,7 @@ public class AppDbContext : DbContext
     public DbSet<Visit> Visits => Set<Visit>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<DailyClosure> DailyClosures => Set<DailyClosure>();
+    public DbSet<ProductInventory> ProductInventories => Set<ProductInventory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

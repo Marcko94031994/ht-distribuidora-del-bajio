@@ -1,14 +1,18 @@
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
 import Kpi from './components/Kpi';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Sucursales from './components/Sucursales';
+import AlmacenesCatalogo from './components/AlmacenesCatalogo';
+import VendedoresCatalogo from './components/VendedoresCatalogo';
 import Rutas from './components/Rutas';
 import Vendedor from './components/Vendedor';
 import Remisiones from './components/Remisiones';
 import Almacen from './components/Almacen';
 import Productos from './components/Productos';
+import ListaPrecios from './components/ListaPrecios';
 import Proveedores from './components/Proveedores';
 import Clientes from './components/Clientes';
 import TorreControl from './components/TorreControl';
@@ -20,6 +24,9 @@ import Facturacion from './components/Facturacion';
 import Masivos from './components/Masivos';
 import TiendaB2B from './components/TiendaB2B';
 import CajaGeneral from './components/CajaGeneral';
+import Mermas from './components/Mermas';
+import OrdenesCompra from './components/OrdenesCompra';
+import Vehiculos from './components/Vehiculos';
 
 function App() {
   const [logged,setLogged]=useState(!!localStorage.getItem('ht_token')); 
@@ -27,7 +34,7 @@ function App() {
     const saved = localStorage.getItem('ht_user');
     return saved ? JSON.parse(saved) : {email:'demo@abarrotera.mx',pass:'123456',sucursalId:1};
   });
-  const [data,setData]=useState({sucursales:[], almacenes:[], vendedores:[], rutas:[], productos:[], pedidos:[], compras:[], proveedores:[], preciosEspeciales:[], devoluciones:[], gastos: [], categoriasGastos: [], unidades: [], cierresCaja: []}); 
+  const [data,setData]=useState({sucursales:[], almacenes:[], vendedores:[], rutas:[], clientes:[], productos:[], pedidos:[], compras:[], proveedores:[], preciosEspeciales:[], devoluciones:[], gastos: [], categoriasGastos: [], unidades: [], cierresCaja: [], categorias: [], marcas: []}); 
   const [reports,setReports]=useState({ventasMargen:[], riesgoMerma:[], valorInventario:[], totalUtilidad:0});
   const [kpiData, setKpiData] = useState({ suc: 0, alm: 0, ped: 0, pend: 0, rutas: 0 });
 
@@ -60,7 +67,7 @@ function App() {
         .then(json => json && setData(prev => ({...prev, pedidos: json.data})))
         .catch(err => console.error('Error fetching Orders:', err));
 
-      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/products?page=1')
+      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/products?page=1&pageSize=1000')
         .then(res => res.ok ? res.json() : null)
         .then(json => json && setData(prev => ({...prev, productos: json.data})))
         .catch(err => console.error('Error fetching Products:', err));
@@ -104,7 +111,12 @@ function App() {
       if(res.ok) {
         const payload = await res.json();
         localStorage.setItem('ht_token', payload.token);
-        localStorage.setItem('ht_user', JSON.stringify(user));
+        
+        // Use the API response for the user to get role, permissions, etc.
+        const updatedUser = { ...user, ...payload.user };
+        localStorage.setItem('ht_user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        
         setLogged(true);
       } else alert("Credenciales incorrectas");
     } catch(e) {
@@ -113,7 +125,13 @@ function App() {
     }
   };
 
-  const [tab,setTab]=useState('dashboard'); 
+  const navigate = useNavigate();
+  const location = useLocation();
+  const tab = location.pathname === '/' ? 'dashboard' : location.pathname.substring(1);
+  const setTab = (newTab) => {
+    if (newTab === 'dashboard') navigate('/');
+    else navigate('/' + newTab);
+  }; 
   const [selectedRuta,setSelectedRuta]=useState(1); 
   const [selectedCliente,setSelectedCliente]=useState(1); 
   const [cart,setCart]=useState([]); 
@@ -152,7 +170,7 @@ function App() {
         setData(prev => ({...prev, pedidos: ordData.data}));
       }
 
-      const resProd = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/products?page=1');
+      const resProd = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/products?page=1&pageSize=1000');
       if (resProd.ok) {
         const prodData = await resProd.json();
         setData(prev => ({...prev, productos: prodData.data}));
@@ -175,69 +193,119 @@ function App() {
     } catch (e) { console.error('Error fetching state:', e); }
   };
 
-  const addSucursal = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
+  const addSucursal = async (payloadOrEvent) => {
     try {
+      let payload;
+      if (payloadOrEvent && payloadOrEvent.preventDefault) {
+        payloadOrEvent.preventDefault();
+        const f = new FormData(payloadOrEvent.currentTarget);
+        payload = { name: f.get('nombre'), zone: f.get('zona'), manager: f.get('responsable') };
+      } else {
+        payload = payloadOrEvent;
+      }
       await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/branch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: f.get('nombre'), zone: f.get('zona'), manager: f.get('responsable') })
+        body: JSON.stringify(payload)
       });
-      e.currentTarget.reset();
       reloadState();
     } catch(e) { console.error(e); }
   };
 
-  const addAlmacen = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
+  const updateSucursal = async (id, payload) => {
     try {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/branch/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      reloadState();
+    } catch(e) { console.error(e); }
+  };
+
+  const addAlmacen = async (payloadOrEvent) => {
+    try {
+      let payload;
+      if (payloadOrEvent && payloadOrEvent.preventDefault) {
+        payloadOrEvent.preventDefault();
+        const f = new FormData(payloadOrEvent.currentTarget);
+        payload = { nombre: f.get('nombre'), sucursalId: Number(f.get('sucursalId')), tipo: f.get('tipo'), responsable: f.get('responsable') };
+      } else {
+        payload = payloadOrEvent;
+      }
       await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/warehouse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: f.get('nombre'), sucursalId: Number(f.get('sucursalId')), tipo: f.get('tipo'), responsable: f.get('responsable') })
+        body: JSON.stringify(payload)
       });
-      e.currentTarget.reset();
       reloadState();
     } catch(e) { console.error(e); }
   };
 
-  const addVendedor = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
+  const updateAlmacen = async (id, payload) => {
+    try {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/warehouse/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      reloadState();
+    } catch(e) { console.error(e); }
+  };
+
+  const addVendedor = async (payload) => {
     try {
       await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/driver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nombre: f.get('nombre'), 
-          telefono: f.get('telefono'), 
-          vehiculoId: f.get('vehiculoId') ? Number(f.get('vehiculoId')) : null, 
-          sucursalId: Number(f.get('sucursalId')),
-          comision: Number(f.get('comision'))
-        })
+        body: JSON.stringify(payload)
       });
-      e.currentTarget.reset();
       reloadState();
     } catch(e) { console.error(e); }
   };
 
-  const addRuta = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
+  const updateVendedor = async (id, payload) => {
     try {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/driver/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      reloadState();
+    } catch(e) { console.error(e); }
+  };
+
+  const addRuta = async (payloadOrEvent) => {
+    try {
+      let payload;
+      if (payloadOrEvent && payloadOrEvent.preventDefault) {
+        payloadOrEvent.preventDefault();
+        const f = new FormData(payloadOrEvent.currentTarget);
+        payload = { nombre: f.get('nombre'), dia: f.get('dia'), sucursalId: Number(f.get('sucursalId')), vendedorId: Number(f.get('vendedorId')), clientesText: f.get('clientes') || '' };
+      } else {
+        payload = payloadOrEvent;
+      }
       await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: f.get('nombre'), dia: f.get('dia'), sucursalId: Number(f.get('sucursalId')), vendedorId: Number(f.get('vendedorId')), clientesText: f.get('clientes') || '' })
+        body: JSON.stringify(payload)
       });
-      e.currentTarget.reset();
+      reloadState();
+    } catch(e) { console.error(e); }
+  };
+
+  const updateRuta = async (id, payload) => {
+    try {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/route/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       reloadState();
     } catch(e) { console.error(e); }
   };
   
-  // New endpoints
+  // Products endpoints
   const addProducto = async (payload) => {
     try {
       await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/product', {
@@ -260,10 +328,48 @@ function App() {
     } catch(e) { console.error(e); }
   };
 
+  const addCliente = async (payloadOrEvent) => {
+    try {
+      let payload;
+      if (payloadOrEvent && payloadOrEvent.preventDefault) {
+        payloadOrEvent.preventDefault();
+        const f = new FormData(payloadOrEvent.currentTarget);
+        payload = { name: f.get('name'), zone: f.get('zone'), latitude: Number(f.get('latitude')), longitude: Number(f.get('longitude')), routeId: Number(f.get('routeId')) };
+      } else {
+        payload = payloadOrEvent;
+      }
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      reloadState();
+    } catch(e) { console.error(e); }
+  };
+
   const updateCliente = async (id, payload) => {
     try {
       await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/client/${id}`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      reloadState();
+    } catch(e) { console.error(e); }
+  };
+
+  const addProveedor = async (payloadOrEvent) => {
+    try {
+      let payload;
+      if (payloadOrEvent && payloadOrEvent.preventDefault) {
+        payloadOrEvent.preventDefault();
+        const f = new FormData(payloadOrEvent.currentTarget);
+        payload = { name: f.get('name'), contact: f.get('contact'), phone: f.get('phone'), rfc: f.get('rfc'), address: f.get('address') };
+      } else {
+        payload = payloadOrEvent;
+      }
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/provider', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -282,16 +388,24 @@ function App() {
     } catch(e) { console.error(e); }
   };
 
-  const addProveedor = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
+  const addVehiculo = async (payload) => {
     try {
-      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/provider', {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/vehicle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: f.get('name'), contact: f.get('contact'), phone: f.get('phone') })
+        body: JSON.stringify(payload)
       });
-      e.currentTarget.reset();
+      reloadState();
+    } catch(e) { console.error(e); }
+  };
+
+  const updateVehiculo = async (id, payload) => {
+    try {
+      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/vehicle/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       reloadState();
     } catch(e) { console.error(e); }
   };
@@ -303,20 +417,6 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
-    } catch(e) { console.error(e); }
-  };
-
-  const addCliente = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    try {
-      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/client', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: f.get('name'), zone: f.get('zone'), latitude: Number(f.get('latitude')), longitude: Number(f.get('longitude')), routeId: Number(f.get('routeId')) })
-      });
-      e.currentTarget.reset();
       reloadState();
     } catch(e) { console.error(e); }
   };
@@ -470,33 +570,7 @@ function App() {
     } catch(e) { console.error(e); }
   };
 
-  const addOC = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    try {
-      await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/purchase-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          providerId: Number(f.get('providerId')), 
-          productoId: Number(f.get('productoId')), 
-          cantidad: Number(f.get('cantidad')), 
-          costo: Number(f.get('costo')),
-          lote: f.get('lote'),
-          caducidad: f.get('caducidad')
-        })
-      });
-      e.currentTarget.reset();
-      reloadState();
-    } catch(e) { console.error(e); }
-  };
 
-  const aplicarCompra = async (oc) => {
-    try {
-      await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/purchase-order/${oc.id}/apply`, { method: 'POST' });
-      reloadState();
-    } catch(e) { console.error(e); }
-  };
 
   const registrarAjuste = async (e) => {
     e.preventDefault();
@@ -514,7 +588,7 @@ function App() {
       });
       if (res.ok) {
         alert('Ajuste de inventario registrado correctamente.');
-        e.currentTarget.reset();
+        e.target.reset();
         reloadState();
       } else {
         const err = await res.text();
@@ -556,38 +630,47 @@ function App() {
       <Sidebar tab={tab} setTab={setTab} user={user} sucursal={sucursal(user.sucursalId)} logout={handleLogout}/>
       <div className="app-content">
         <div style={{ background: 'var(--brand-beige)', height: '4px', borderRadius: '10px', marginBottom: '10px', width: '100%' }}></div>
-      {tab==='dashboard'&&(
-        <>
-          <section className="hero">
-            <div className="hero-main">
-              <h1>Sistema abarrotera · preventa, almacén y despacho</h1>
-              <p>Demo con catálogos dinámicos, PWA, precios por volumen y evidencias fotográficas.</p>
-            </div>
-            <Kpi label="Sucursales" v={kpis.suc}/>
-            <Kpi label="Almacenes" v={kpis.alm}/>
-            <Kpi label="Rutas" v={kpis.rutas}/>
-            <Kpi label="Pedidos" v={kpis.ped}/>
-          </section>
-          <Dashboard data={data} sucursal={sucursal} vendedor={vendedor} producto={producto}/>
-        </>
-      )} 
-      {tab==='torre'&&<TorreControl data={data} vendedor={vendedor}/>}
-      {tab==='reportes'&&<Reportes data={data} reports={reports} producto={producto} cliente={cliente}/>}
-      {tab==='sucursales'&&<Sucursales data={data} sucursal={sucursal} addAlmacen={addAlmacen} addSucursal={addSucursal}/>} 
-      {tab==='rutas'&&<Rutas data={data} sucursal={sucursal} vendedor={vendedor} addVendedor={addVendedor} addRuta={addRuta} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} setSelectedCliente={setSelectedCliente}/>} 
-      {tab==='vendedor'&&<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo}/>} 
-      {tab==='remisiones'&&<Remisiones data={data} pedido={currentPedido} setSelectedPedido={setSelectedPedido} ruta={ruta} vendedor={vendedor} producto={producto} cambiarPedidoStatus={cambiarPedidoStatus} registrarDevolucion={registrarDevolucion}/>} 
-      {tab==='almacen'&&<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} addOC={addOC} aplicarCompra={aplicarCompra} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste}/>}
-      {tab==='productos'&&<Productos data={data} addProducto={addProducto} updateProducto={updateProducto} almacen={almacen}/>}
-      {tab==='clientes'&&<Clientes data={data} addCliente={addCliente} updateCliente={updateCliente} ruta={ruta}/>}
-      {tab==='proveedores'&&<Proveedores data={data} addProveedor={addProveedor} updateProveedor={updateProveedor} registrarPago={registrarPagoProveedor}/>}
-      {tab==='liquidacion'&&<Liquidacion data={data} ruta={ruta} vendedor={vendedor}/>}
-      {tab==='caja'&&<CajaGeneral data={data}/>}
-      {tab==='masivos'&&<Masivos data={data} reloadState={reloadState}/>}
-      {tab==='usuarios'&&<Usuarios data={data} addUser={addUser} updateUser={updateUser}/>}
-      {tab==='cobranza'&&<Cobranza data={data} reloadState={reloadState}/>}
-      {tab==='facturacion'&&<Facturacion data={data} reloadState={reloadState}/>}
-      {tab==='tienda'&&<TiendaB2B data={data} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido}/>}
+      <Routes>
+        <Route path="/" element={
+          <>
+            <section className="hero">
+              <div className="hero-main">
+                <h1>Sistema abarrotera · preventa, almacén y despacho</h1>
+                <p>Demo con catálogos dinámicos, PWA, precios por volumen y evidencias fotográficas.</p>
+              </div>
+              <Kpi label="Sucursales" v={kpis.suc}/>
+              <Kpi label="Almacenes" v={kpis.alm}/>
+              <Kpi label="Rutas" v={kpis.rutas}/>
+              <Kpi label="Pedidos" v={kpis.ped}/>
+            </section>
+            <Dashboard data={data} sucursal={sucursal} vendedor={vendedor} producto={producto}/>
+          </>
+        } />
+        <Route path="/torre" element={<TorreControl data={data} vendedor={vendedor}/>} />
+        <Route path="/reportes" element={<Reportes data={data} reports={reports} producto={producto} cliente={cliente}/>} />
+        <Route path="/sucursales" element={<Sucursales data={data} sucursal={sucursal} addSucursal={addSucursal} updateSucursal={updateSucursal}/>} />
+        <Route path="/almacenes" element={<AlmacenesCatalogo data={data} sucursal={sucursal} addAlmacen={addAlmacen} updateAlmacen={updateAlmacen} reloadState={reloadState} />} />
+        <Route path="/vendedores" element={<VendedoresCatalogo data={data} sucursal={sucursal} addVendedor={addVendedor} updateVendedor={updateVendedor} />} />
+        <Route path="/rutas" element={<Rutas data={data} sucursal={sucursal} vendedor={vendedor} addVendedor={addVendedor} updateVendedor={updateVendedor} addRuta={addRuta} updateRuta={updateRuta} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} setSelectedCliente={setSelectedCliente}/>} />
+        <Route path="/vendedor" element={<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo}/>} />
+        <Route path="/remisiones" element={<Remisiones data={data} pedido={currentPedido} setSelectedPedido={setSelectedPedido} ruta={ruta} vendedor={vendedor} producto={producto} cambiarPedidoStatus={cambiarPedidoStatus} registrarDevolucion={registrarDevolucion}/>} />
+        <Route path="/almacen" element={<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste}/>} />
+        <Route path="/ordenes" element={<OrdenesCompra data={data} producto={producto} proveedor={proveedor} reloadState={reloadState} />} />
+        <Route path="/mermas" element={<Mermas data={data} />} />
+        <Route path="/productos" element={<Productos data={data} addProducto={addProducto} updateProducto={updateProducto} almacen={almacen}/>} />
+        <Route path="/precios" element={<ListaPrecios data={data} reloadState={reloadState}/>} />
+        <Route path="/clientes" element={<Clientes data={data} addCliente={addCliente} updateCliente={updateCliente} ruta={ruta}/>} />
+        <Route path="/proveedores" element={<Proveedores data={data} addProveedor={addProveedor} updateProveedor={updateProveedor} registrarPago={registrarPagoProveedor}/>} />
+        <Route path="/vehiculos" element={<Vehiculos data={data} addVehiculo={addVehiculo} updateVehiculo={updateVehiculo} />} />
+        <Route path="/liquidacion" element={<Liquidacion data={data} ruta={ruta} vendedor={vendedor}/>} />
+        <Route path="/caja" element={<CajaGeneral data={data}/>} />
+        <Route path="/masivos" element={<Masivos data={data} reloadState={reloadState}/>} />
+        <Route path="/usuarios" element={<Usuarios data={data} addUser={addUser} updateUser={updateUser}/>} />
+        <Route path="/cobranza" element={<Cobranza data={data} reloadState={reloadState}/>} />
+        <Route path="/facturacion" element={<Facturacion data={data} reloadState={reloadState}/>} />
+        <Route path="/tienda" element={<TiendaB2B data={data} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido}/>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       </div>
     </div>
   );

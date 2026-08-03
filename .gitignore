@@ -1,0 +1,18 @@
+# Build and release folders
+bin/
+obj/
+publish/
+dist/
+node_modules/
+test_bin/
+scratch/
+*.tar.gz
+.vs/
+*.user
+*.suo
+
+# Environment files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

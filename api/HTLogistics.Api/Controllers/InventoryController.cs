@@ -33,6 +33,8 @@ public class InventoryController : ControllerBase
         var products = await _context.Products
             .AsNoTracking()
             .Include(p => p.Images)
+            .Include(p => p.Category)
+            .Include(p => p.Brand)
             .OrderBy(p => p.Name)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -49,14 +51,7 @@ public class InventoryController : ControllerBase
             .GroupBy(i => i.ProductId)
             .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
             
-        foreach (var p in products)
-        {
-            if (pendingQtyByProduct.ContainsKey(p.Id))
-            {
-                p.Stock -= pendingQtyByProduct[p.Id];
-                if (p.Stock < 0) p.Stock = 0; // Evitar stock negativo visual
-            }
-        }
+        // Stock logic handled via TotalStock property based on inventories
             
         return Ok(new { data = products, total, page, pageSize });
     }
@@ -68,13 +63,30 @@ public class InventoryController : ControllerBase
             { 
                 Name = input.Name, 
                 Price = input.Price, 
-                Stock = input.Stock, 
-                WarehouseId = input.WarehouseId,
-                WarehouseLocationId = input.WarehouseLocationId,
+                Price1 = input.Price1,
+                Price2 = input.Price2,
+                Price3 = input.Price3,
+                Price4 = input.Price4,
+                Price5 = input.Price5,
+                Cost = input.Cost,
+                Cogs = input.Cogs,
+                Weight = input.Weight,
+                IsPerishable = input.IsPerishable,
+                MinStock = input.MinStock,
+                MaxStock = input.MaxStock,
                 SKU = input.SKU,
+                AlternativeCode = input.AlternativeCode,
+                CategoryId = input.CategoryId,
+                BrandId = input.BrandId,
+                DefaultProviderId = input.DefaultProviderId,
                 BoxPrice = input.BoxPrice,
                 UnitsPerBox = input.UnitsPerBox,
-                VolumePrice = input.VolumePrice
+                VolumePrice = input.VolumePrice,
+                UnitOfMeasure = input.UnitOfMeasure,
+                BoxUnitOfMeasure = input.BoxUnitOfMeasure,
+                Currency = input.Currency,
+                IsBlocked = input.IsBlocked,
+                Status = input.Status
             };
             _context.Products.Add(prod);
             await _context.SaveChangesAsync();
@@ -88,20 +100,32 @@ public class InventoryController : ControllerBase
                 await _context.SaveChangesAsync();
             }
 
-            if (prod.Stock > 0)
+            if (input.Stock > 0 && input.WarehouseId.HasValue)
             {
-                var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
-                
-                _context.InventoryMovements.Add(new InventoryMovement {
-                    ProductId = prod.Id,
-                    Quantity = prod.Stock,
-                    Type = "Entrada",
-                    Reason = "Ajuste Inicial",
-                    Date = DateTime.Now,
-                    UserId = userId,
-                    Reference = "Creación de Producto"
-                });
+                var inventory = new ProductInventory 
+                { 
+                    ProductId = prod.Id, 
+                    WarehouseId = input.WarehouseId.Value, 
+                    WarehouseLocationId = input.WarehouseLocationId,
+                    Stock = input.Stock.Value,
+                    CommittedStock = 0
+                };
+                _context.ProductInventories.Add(inventory);
+
+                var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userIdString)) {
+                    var userId = int.Parse(userIdString);
+                    _context.InventoryMovements.Add(new InventoryMovement {
+                        ProductId = prod.Id,
+                        WarehouseId = input.WarehouseId.Value,
+                        Quantity = input.Stock.Value,
+                        Type = "Entrada",
+                        Reason = "Ajuste Inicial",
+                        Date = DateTime.Now,
+                        UserId = userId,
+                        Reference = "Creación de Producto"
+                    });
+                }
                 await _context.SaveChangesAsync();
             }
 
@@ -114,17 +138,32 @@ public class InventoryController : ControllerBase
             var prod = await _context.Products.Include(p => p.Images).FirstOrDefaultAsync(p => p.Id == id);
             if (prod == null) return NotFound();
     
-            var oldStock = prod.Stock;
-
             prod.Name = input.Name;
             prod.Price = input.Price;
-            prod.Stock = input.Stock;
-            prod.WarehouseId = input.WarehouseId;
-            prod.WarehouseLocationId = input.WarehouseLocationId;
+            prod.Price1 = input.Price1;
+            prod.Price2 = input.Price2;
+            prod.Price3 = input.Price3;
+            prod.Price4 = input.Price4;
+            prod.Price5 = input.Price5;
+            prod.Cost = input.Cost;
+            prod.Cogs = input.Cogs;
+            prod.Weight = input.Weight;
+            prod.IsPerishable = input.IsPerishable;
+            prod.MinStock = input.MinStock;
+            prod.MaxStock = input.MaxStock;
             prod.SKU = input.SKU;
+            prod.AlternativeCode = input.AlternativeCode;
+            prod.CategoryId = input.CategoryId;
+            prod.BrandId = input.BrandId;
+            prod.DefaultProviderId = input.DefaultProviderId;
             prod.BoxPrice = input.BoxPrice;
             prod.UnitsPerBox = input.UnitsPerBox;
             prod.VolumePrice = input.VolumePrice;
+            prod.UnitOfMeasure = input.UnitOfMeasure;
+            prod.BoxUnitOfMeasure = input.BoxUnitOfMeasure;
+            prod.Currency = input.Currency;
+            prod.IsBlocked = input.IsBlocked;
+            prod.Status = input.Status;
     
             if (input.Photos != null && input.Photos.Any())
             {
@@ -137,22 +176,36 @@ public class InventoryController : ControllerBase
     
             await _context.SaveChangesAsync();
 
-            if (oldStock != input.Stock)
+            if (input.Stock.HasValue && input.WarehouseId.HasValue)
             {
-                var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
-                var diff = input.Stock - oldStock;
-                
-                _context.InventoryMovements.Add(new InventoryMovement {
-                    ProductId = prod.Id,
-                    Quantity = Math.Abs(diff),
-                    Type = diff > 0 ? "Entrada" : "Salida",
-                    Reason = "Ajuste Manual",
-                    Date = DateTime.Now,
-                    UserId = userId,
-                    Reference = "Actualización de Catálogo"
-                });
-                await _context.SaveChangesAsync();
+                var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == prod.Id && i.WarehouseId == input.WarehouseId.Value);
+                if (inventory == null)
+                {
+                    inventory = new ProductInventory { ProductId = prod.Id, WarehouseId = input.WarehouseId.Value, WarehouseLocationId = input.WarehouseLocationId, Stock = 0, CommittedStock = 0 };
+                    _context.ProductInventories.Add(inventory);
+                }
+
+                if (inventory.Stock != input.Stock.Value)
+                {
+                    var diff = input.Stock.Value - inventory.Stock;
+                    inventory.Stock = input.Stock.Value;
+                    
+                    var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    if (!string.IsNullOrEmpty(userIdString)) {
+                        var userId = int.Parse(userIdString);
+                        _context.InventoryMovements.Add(new InventoryMovement {
+                            ProductId = prod.Id,
+                            WarehouseId = input.WarehouseId.Value,
+                            Quantity = Math.Abs(diff),
+                            Type = diff > 0 ? "Entrada" : "Salida",
+                            Reason = "Ajuste Manual",
+                            Date = DateTime.Now,
+                            UserId = userId,
+                            Reference = "Actualización de Catálogo"
+                        });
+                    }
+                    await _context.SaveChangesAsync();
+                }
             }
 
             return Ok(prod);
@@ -165,15 +218,46 @@ public class InventoryController : ControllerBase
             { 
                 PoNumber = "OC-" + new Random().Next(1000, 9999), 
                 ProviderId = input.ProviderId, 
-                ProductId = input.ProductoId, 
-                Quantity = input.Cantidad, 
-                Cost = input.Costo, 
+                Reference1 = input.Reference1,
+                Reference2 = input.Reference2,
+                Notes = input.Notes,
                 Status = "Borrador",
-                BatchNumber = input.Lote,
-                ExpirationDate = input.Caducidad,
                 Date = DateTime.Now,
                 DueDate = DateTime.Now.AddDays(30) // Default 30 days for CxP
             };
+            
+            decimal subtotal = 0;
+            decimal taxAmount = 0;
+            if(input.Detalles != null)
+            {
+                foreach(var det in input.Detalles)
+                {
+                    var lineSubtotal = det.Cantidad * det.Costo;
+                    var ivaRate = det.IvaPercent > 0 ? (det.IvaPercent / 100m) : 0m;
+                    var lineTax = lineSubtotal * ivaRate;
+                    var lineTotal = lineSubtotal + lineTax;
+
+                    po.Details.Add(new PurchaseOrderDetail 
+                    {
+                        ProductId = det.ProductoId,
+                        Quantity = det.Cantidad,
+                        UnitCost = det.Costo,
+                        IvaRate = ivaRate,
+                        Subtotal = lineSubtotal,
+                        TaxAmount = lineTax,
+                        Total = lineTotal,
+                        WarehouseId = det.WarehouseId,
+                        BatchNumber = det.Lote,
+                        ExpirationDate = det.Caducidad
+                    });
+                    subtotal += lineSubtotal;
+                    taxAmount += lineTax;
+                }
+            }
+            po.Subtotal = subtotal;
+            po.TaxAmount = taxAmount;
+            po.TotalAmount = subtotal + taxAmount;
+
             _context.PurchaseOrders.Add(po);
             await _context.SaveChangesAsync();
             return Ok(po);
@@ -182,47 +266,66 @@ public class InventoryController : ControllerBase
     [HttpPost("purchase-order/{id}/apply")]
         public async Task<IActionResult> ApplyPurchaseOrder(int id)
         {
-            var po = await _context.PurchaseOrders.FindAsync(id);
+            var po = await _context.PurchaseOrders.Include(p => p.Details).FirstOrDefaultAsync(p => p.Id == id);
             if (po == null) return NotFound();
             
-            po.Status = "Compra definitiva";
-            var product = await _context.Products.FindAsync(po.ProductId);
-            if (product != null)
+            po.Status = "Autorizada"; // At authorizar, it receives the goods directly as requested
+            po.AuthorizedDate = DateTime.Now;
+            
+            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userIdString)) {
+                po.AuthorizedById = int.Parse(userIdString);
+            }
+
+            foreach(var detail in po.Details)
             {
-                // Simple Weighted Average Cost update (optional, using last cost for now as requested for simplicity)
-                product.Cost = po.Cost;
-                product.Stock += po.Quantity;
-    
-                // Add to batch
-                _context.ProductBatches.Add(new ProductBatch
+                var product = await _context.Products.FindAsync(detail.ProductId);
+                if (product != null)
                 {
-                    ProductId = product.Id,
-                    BatchNumber = po.BatchNumber ?? "S/L",
-                    ExpirationDate = po.ExpirationDate ?? DateTime.Now.AddMonths(12),
-                    Quantity = po.Quantity,
-                    EntryDate = DateTime.Now
-                });
-    
-                // Log movement
-                var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
-                _context.InventoryMovements.Add(new InventoryMovement
-                {
-                    ProductId = product.Id,
-                    Quantity = po.Quantity,
-                    Type = "Entrada",
-                    Reason = "Compra",
-                    Date = DateTime.Now,
-                    UserId = userId,
-                    Reference = po.PoNumber
-                });
+                    product.Cost = detail.UnitCost; // Simplified weighted average using last cost
+                    
+                    var targetWarehouseId = detail.WarehouseId ?? 1; // Default to main warehouse if not specified
+                    
+                    var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == product.Id && i.WarehouseId == targetWarehouseId);
+                    if (inventory == null) {
+                        inventory = new ProductInventory { ProductId = product.Id, WarehouseId = targetWarehouseId, Stock = 0, CommittedStock = 0 };
+                        _context.ProductInventories.Add(inventory);
+                    }
+                    inventory.Stock += detail.Quantity;
+        
+                    // Add to batch
+                    _context.ProductBatches.Add(new ProductBatch
+                    {
+                        ProductId = product.Id,
+                        WarehouseId = targetWarehouseId,
+                        BatchNumber = detail.BatchNumber ?? "S/L",
+                        ExpirationDate = detail.ExpirationDate ?? DateTime.Now.AddMonths(12),
+                        Quantity = detail.Quantity,
+                        EntryDate = DateTime.Now
+                    });
+        
+                    // Log movement
+                    if (!string.IsNullOrEmpty(userIdString)) {
+                        _context.InventoryMovements.Add(new InventoryMovement
+                        {
+                            ProductId = product.Id,
+                            WarehouseId = targetWarehouseId,
+                            Quantity = detail.Quantity,
+                            Type = "Entrada",
+                            Reason = "Compra",
+                            Date = DateTime.Now,
+                            UserId = int.Parse(userIdString),
+                            Reference = po.PoNumber
+                        });
+                    }
+                }
             }
 
             // Actualizar cuenta por pagar (CxP) del proveedor
             var provider = await _context.Providers.FindAsync(po.ProviderId);
             if (provider != null)
             {
-                provider.CurrentBalance += (po.Cost * po.Quantity);
+                provider.CurrentBalance += po.TotalAmount;
             }
 
             await _context.SaveChangesAsync();
@@ -242,22 +345,17 @@ public class InventoryController : ControllerBase
                 if (p != null)
                 {
                     if (up.Price.HasValue) p.Price = up.Price.Value;
+                    if (up.Price1.HasValue) p.Price1 = up.Price1.Value;
+                    if (up.Price2.HasValue) p.Price2 = up.Price2.Value;
+                    if (up.Price3.HasValue) p.Price3 = up.Price3.Value;
+                    if (up.Price4.HasValue) p.Price4 = up.Price4.Value;
+                    if (up.Price5.HasValue) p.Price5 = up.Price5.Value;
+                    if (up.BoxPrice.HasValue) p.BoxPrice = up.BoxPrice.Value;
+                    if (up.VolumePrice.HasValue) p.VolumePrice = up.VolumePrice.Value;
                     if (up.Cost.HasValue) p.Cost = up.Cost.Value;
+                    if (up.Cogs.HasValue) p.Cogs = up.Cogs.Value;
 
-                    if (up.Stock.HasValue && p.Stock != up.Stock.Value)
-                    {
-                        var diff = up.Stock.Value - p.Stock;
-                        _context.InventoryMovements.Add(new InventoryMovement {
-                            ProductId = p.Id,
-                            Quantity = Math.Abs(diff),
-                            Type = diff > 0 ? "Entrada" : "Salida",
-                            Reason = "Ajuste Masivo",
-                            Date = DateTime.Now,
-                            UserId = userId,
-                            Reference = "Actualización de Catálogo"
-                        });
-                        p.Stock = up.Stock.Value;
-                    }
+                    // Bulk stock updates disabled in multi-warehouse. Use adjustments endpoint.
                 }
             }
             await _context.SaveChangesAsync();
@@ -285,10 +383,11 @@ public class InventoryController : ControllerBase
             var product = await _context.Products.FindAsync(input.ProductId);
             if (product == null) return NotFound("Producto no encontrado.");
 
-            if (product.Stock < input.Quantity)
-                return BadRequest($"Stock físico insuficiente. Actual: {product.Stock}");
+            var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == input.ProductId && i.WarehouseId == 1 /* Default */);
+            if (inventory == null || inventory.Stock < input.Quantity)
+                return BadRequest($"Stock físico insuficiente.");
 
-            product.Stock -= input.Quantity;
+            inventory.Stock -= input.Quantity;
 
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);

@@ -4,6 +4,7 @@ import { pesos } from '../utils/helpers';
 export default function Remisiones({data,pedido,setSelectedPedido,ruta,vendedor,producto,cambiarPedidoStatus,registrarDevolucion}){
   const [photoBase64, setPhotoBase64] = useState(null);
   const [returnItems, setReturnItems] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handlePhoto = (e) => {
     const file = e.target.files[0];
@@ -38,18 +39,40 @@ export default function Remisiones({data,pedido,setSelectedPedido,ruta,vendedor,
     setReturnItems({});
   };
 
-  if(!pedido)return null;
-  const r=ruta(pedido.routeId);
-  const c=r?.clientes?.find(x=>x.id===pedido.clientId);
+  const filteredPedidos = (data.pedidos || []).filter(p => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    const rutaName = ruta(p.routeId)?.name || '';
+    return (
+      (p.orderNumber && p.orderNumber.toLowerCase().includes(term)) ||
+      (p.status && p.status.toLowerCase().includes(term)) ||
+      rutaName.toLowerCase().includes(term)
+    );
+  });
+
+  if(!pedido && filteredPedidos.length > 0) {
+    // If current selected pedido is not found or empty, allow UI to still show
+  }
+
   return (
     <div className="grid">
       <div className="card">
-        <div className="card-h">
-          <h3>Remisiones</h3>
+        <div className="card-h" style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <h3 style={{margin: 0}}>Remisiones</h3>
+            <span className="chip secondary">{filteredPedidos.length}</span>
+          </div>
+          <input 
+            type="text" 
+            className="input full" 
+            placeholder="🔍 Buscar folio o ruta..." 
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
         </div>
         <div className="card-b list">
-          {data.pedidos.map(p=>(
-            <div className={'item '+(pedido.id===p.id?'active':'')} onClick={()=>setSelectedPedido(p.id)} key={p.id}>
+          {filteredPedidos.map(p=>(
+            <div className={'item '+(pedido?.id===p.id?'active':'')} onClick={()=>setSelectedPedido(p.id)} key={p.id}>
               <div className="row">
                 <b>{p.orderNumber}</b>
                 <span className={'chip '+(p.status==='Entregado'?'ok':p.status==='Pendiente'?'warn':p.status==='Entregado con Devolución'?'danger':'')}> {p.status}</span>
@@ -57,6 +80,9 @@ export default function Remisiones({data,pedido,setSelectedPedido,ruta,vendedor,
               <div className="muted">Ruta: {ruta(p.routeId)?.name}</div>
             </div>
           ))}
+          {filteredPedidos.length === 0 && (
+            <div className="muted" style={{textAlign: 'center', padding: '20px'}}>No se encontraron remisiones.</div>
+          )}
         </div>
       </div>
       <div className="card double">

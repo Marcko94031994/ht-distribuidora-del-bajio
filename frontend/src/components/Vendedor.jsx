@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { pesos } from '../utils/helpers';
 import { MapContainer, TileLayer, Marker, Polyline, Popup } from 'react-leaflet';
 import L from 'leaflet';
+import SearchableSelect from './SearchableSelect';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -39,6 +40,9 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
   const [isBox, setIsBox] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [search, setSearch] = useState('');
+  const [clientSearch, setClientSearch] = useState('');
+  const [selectedProdId, setSelectedProdId] = useState('');
+  const [qtyPedido, setQtyPedido] = useState(1);
   const [debtWarning, setDebtWarning] = useState(false);
   const [routeLine, setRouteLine] = useState([]);
 
@@ -139,6 +143,30 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
     );
   }
 
+  const filteredClients = useMemo(() => {
+    const list = ruta.clientes || [];
+    if (!clientSearch) return list;
+    const term = clientSearch.toLowerCase();
+    return list.filter(c => 
+      c.name?.toLowerCase().includes(term) || 
+      c.zone?.toLowerCase().includes(term) ||
+      c.rfc?.toLowerCase().includes(term)
+    );
+  }, [ruta.clientes, clientSearch]);
+
+  const handleAddProductToCart = () => {
+    if (!selectedProdId) {
+      alert('Por favor selecciona un producto');
+      return;
+    }
+    const q = Number(qtyPedido) || 1;
+    if (q <= 0) {
+      alert('La cantidad debe ser mayor a 0');
+      return;
+    }
+    addCart(Number(selectedProdId), q, isBox);
+  };
+
   return (
     <div className="grid">
       <div className="card">
@@ -147,7 +175,15 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
           <span className="chip ok">{ruta.dayOfWeek}</span>
         </div>
         <div className="card-b list">
-          {(ruta.clientes || []).map(c=>(
+          <input
+            type="text"
+            className="input full"
+            style={{ marginBottom: '8px', fontSize: '13px' }}
+            placeholder="🔍 Filtrar clientes en ruta..."
+            value={clientSearch}
+            onChange={e => setClientSearch(e.target.value)}
+          />
+          {filteredClients.map(c=>(
             <div className={'item '+(cliente?.id===c.id?'active':'')} onClick={()=>setSelectedCliente(c.id)} key={c.id}>
               <div className="row">
                 <b>{c.name}</b>
@@ -156,6 +192,11 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
               <div className="muted">{c.zone}</div>
             </div>
           ))}
+          {filteredClients.length === 0 && (
+            <div className="muted" style={{ textAlign: 'center', padding: '12px' }}>
+              No se encontraron clientes
+            </div>
+          )}
         </div>
       </div>
       <div className="card">
@@ -196,15 +237,50 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
           </div>
           <br/>
           <h3>Nuevo pedido</h3>
-          <div className="form-grid">
-            <select id="prodPedido" className="select full">
-              {data.productos.map(p=><option value={p.id} key={p.id}>{p.name} · {pesos(p.price)} pza</option>)}
-            </select>
-            <input id="qtyPedido" className="input" type="number" min="1" defaultValue="1"/>
-            <button className={`btn ${isBox ? 'secondary' : 'primary'}`} onClick={() => setIsBox(!isBox)}>
-              {isBox ? 'Cajas' : 'Piezas'}
-            </button>
-            <button className="btn" onClick={() => addCart(null, null, isBox)}>Agregar</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div>
+              <label className="muted" style={{ fontSize: '13px', fontWeight: 'bold' }}>Producto:</label>
+              <SearchableSelect
+                options={data.productos || []}
+                value={selectedProdId}
+                onChange={(val) => setSelectedProdId(val)}
+                placeholder="🔍 Escribe nombre o SKU del producto..."
+                getOptionLabel={(p) => p.name}
+                getOptionValue={(p) => p.id}
+                getOptionSubtext={(p) => `${pesos(p.price)} pza ${p.sku ? `· SKU: ${p.sku}` : ''} · Disp: ${p.availableStock || 0}`}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div>
+                <label className="muted" style={{ fontSize: '13px', fontWeight: 'bold' }}>Cantidad:</label>
+                <input 
+                  id="qtyPedido" 
+                  className="input full" 
+                  type="number" 
+                  min="1" 
+                  value={qtyPedido} 
+                  onChange={e => setQtyPedido(e.target.value)} 
+                />
+              </div>
+              <div style={{ alignSelf: 'end' }}>
+                <button 
+                  type="button"
+                  className={`btn full ${isBox ? 'secondary' : 'primary'}`} 
+                  onClick={() => setIsBox(!isBox)}
+                >
+                  {isBox ? '📦 Cajas' : '🛒 Piezas'}
+                </button>
+              </div>
+              <div style={{ alignSelf: 'end' }}>
+                <button 
+                  type="button"
+                  className="btn success full" 
+                  onClick={handleAddProductToCart}
+                >
+                  ➕ Agregar
+                </button>
+              </div>
+            </div>
           </div>
           <br/>
           <div>
@@ -318,7 +394,19 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
         </div>
         <div className="card-b list">
           {filtered.map(p=>(
-            <div className="item" key={p.id} style={{ paddingBottom: expandedId === p.id ? '1.5rem' : '14px', cursor: 'pointer' }} onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}>
+            <div 
+              className="item" 
+              key={p.id} 
+              style={{ 
+                paddingBottom: expandedId === p.id ? '1.5rem' : '14px', 
+                cursor: 'pointer',
+                border: expandedId === p.id ? '1.5px solid var(--primary, #0056b3)' : '1px solid var(--line, #e2e8f0)',
+                boxShadow: expandedId === p.id ? '0 4px 12px rgba(0,86,179,0.08)' : 'none',
+                transition: 'all 0.2s ease',
+                borderRadius: '8px'
+              }} 
+              onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+            >
               <div style={{ display: 'flex', gap: '15px' }}>
                 <div style={{ width: '60px' }}>
                    {p.images && p.images.length > 0 ? (
@@ -328,8 +416,29 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
                    )}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div className="row">
-                    <b>{p.name}</b>
+                  <div className="row" style={{ alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <b>{p.name}</b>
+                      <span 
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          background: expandedId === p.id ? 'var(--primary, #0056b3)' : '#e2e8f0',
+                          color: expandedId === p.id ? '#ffffff' : '#334155',
+                          border: '1px solid ' + (expandedId === p.id ? 'var(--primary, #0056b3)' : '#cbd5e1'),
+                          borderRadius: '12px',
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          transition: 'all 0.15s ease',
+                          userSelect: 'none'
+                        }}
+                        title={expandedId === p.id ? 'Click para contraer' : 'Click para ver precios y agregar'}
+                      >
+                        {expandedId === p.id ? '▲ Menos' : '➕ Ver más'}
+                      </span>
+                    </div>
                     <span className={'chip '+(p.availableStock<=10?'warn':'ok')}>Disp: {p.availableStock} pzas</span>
                   </div>
                   <div className="muted" style={{ marginBottom: expandedId === p.id ? '0.8rem' : '0' }}>{almacen(p.warehouseId)?.name} · SKU: {p.sku}</div>
