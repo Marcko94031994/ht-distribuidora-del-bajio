@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { pesos } from '../utils/helpers';
 import SearchableSelect from './SearchableSelect';
 
+// Helper to extract category name safely regardless of whether it's string or object
+const getCategoryName = (p) => {
+  if (!p) return '';
+  if (typeof p.category === 'object' && p.category !== null) return p.category.name || '';
+  if (typeof p.category === 'string') return p.category;
+  return '';
+};
+
 export default function ListaPrecios({ data, reloadState }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -11,7 +19,9 @@ export default function ListaPrecios({ data, reloadState }) {
   const [clientPriceForm, setClientPriceForm] = useState({ clientId: '', price: '' });
   const [saving, setSaving] = useState(false);
 
-  const categories = Array.from(new Set((data.productos || []).map(p => p.category).filter(Boolean)));
+  const categories = Array.from(
+    new Set((data.productos || []).map(p => getCategoryName(p)).filter(Boolean))
+  );
 
   const handleFieldChange = (id, field, value) => {
     const num = parseFloat(value);
@@ -98,9 +108,10 @@ export default function ListaPrecios({ data, reloadState }) {
 
   const filteredProducts = (data.productos || []).filter(p => {
     const matchesSearch = !searchTerm || 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase())) || 
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCat = !categoryFilter || p.category === categoryFilter;
+    const pCat = getCategoryName(p);
+    const matchesCat = !categoryFilter || pCat === categoryFilter;
     return matchesSearch && matchesCat;
   });
 
@@ -265,6 +276,7 @@ export default function ListaPrecios({ data, reloadState }) {
                 // Calculate margin on base price
                 const margin = currentPrice > 0 ? (((currentPrice - currentCost) / currentPrice) * 100).toFixed(1) : 0;
                 const isModified = Boolean(updates[p.id]);
+                const pCat = getCategoryName(p);
 
                 return (
                   <tr 
@@ -282,7 +294,7 @@ export default function ListaPrecios({ data, reloadState }) {
                     </td>
                     <td style={{ padding: '8px 12px', maxWidth: '240px' }}>
                       <b>{p.name}</b>
-                      {p.category && <div className="muted" style={{ fontSize: '11px' }}>{p.category}</div>}
+                      {pCat && <div className="muted" style={{ fontSize: '11px' }}>{pCat}</div>}
                     </td>
 
                     {/* COSTO PROMEDIO / BASE (EDITABLE CON DEFAULT) */}

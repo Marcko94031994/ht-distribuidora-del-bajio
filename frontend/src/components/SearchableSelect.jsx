@@ -17,7 +17,7 @@ export default function SearchableSelect({
   placeholder = '🔍 Escribe para buscar...',
   getOptionLabel = (opt) => opt?.name || opt?.label || opt?.title || String(opt || ''),
   getOptionValue = (opt) => opt?.id !== undefined ? opt.id : (opt?.value !== undefined ? opt.value : opt),
-  getOptionSubtext = (opt) => opt?.subtext || opt?.sku || opt?.rfc || opt?.category || '',
+  getOptionSubtext = (opt) => opt?.subtext || opt?.sku || opt?.rfc || (typeof opt?.category === 'object' ? opt?.category?.name : opt?.category) || '',
   disabled = false,
   required = false,
   name,
