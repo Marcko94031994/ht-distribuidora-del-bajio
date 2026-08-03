@@ -72,90 +72,89 @@ export default function Rutas({ data, sucursal, vendedor, addRuta, updateRuta, s
 
   return (
     <div>
-      {showRutaModal && (
-        <div className="modal">
-          <div className="modal-content" style={{ maxWidth: '500px', width: '90%' }}>
-            <div className="card-h">
-              <h3>{editingRuta ? 'Editar Ruta' : 'Alta de Ruta de Entrega'}</h3>
-              <button className="btn secondary" onClick={() => { setShowRutaModal(false); setEditingRuta(null); }}>Cancelar</button>
-            </div>
-            <div className="card-b">
-              <form onSubmit={handleSubmit} className="form-grid">
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Nombre de la Ruta</label>
-                  <input
-                    name="nombre"
-                    className="input full"
-                    placeholder="Ej. Ruta León Norte, Ruta Celaya Centro"
-                    value={form.nombre}
-                    onChange={e => setForm({ ...form, nombre: e.target.value })}
-                    required
+      {showRutaModal ? (
+        <div className="card">
+          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>{editingRuta ? '✏️ Editar Ruta' : '➕ Alta de Ruta de Entrega'}</h3>
+            <button className="btn secondary" onClick={() => { setShowRutaModal(false); setEditingRuta(null); }}>Cancelar</button>
+          </div>
+          <div className="card-b">
+            <form onSubmit={handleSubmit} className="form-grid">
+              <div className="full">
+                <label className="muted" style={{ fontSize: '12px' }}>Nombre de la Ruta *</label>
+                <input
+                  name="nombre"
+                  className="input full"
+                  placeholder="Ej. Ruta León Norte, Ruta Celaya Centro"
+                  value={form.nombre}
+                  onChange={e => setForm({ ...form, nombre: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Día de Visita / Entrega *</label>
+                <select
+                  name="dia"
+                  className="select full"
+                  value={form.dia}
+                  onChange={e => setForm({ ...form, dia: e.target.value })}
+                  required
+                >
+                  <option value="Lunes">Lunes</option>
+                  <option value="Martes">Martes</option>
+                  <option value="Miércoles">Miércoles</option>
+                  <option value="Jueves">Jueves</option>
+                  <option value="Viernes">Viernes</option>
+                  <option value="Sábado">Sábado</option>
+                  <option value="Domingo">Domingo</option>
+                </select>
+              </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Sucursal *</label>
+                <SearchableSelect
+                  options={data.sucursales || []}
+                  value={form.sucursalId}
+                  onChange={val => setForm({ ...form, sucursalId: val })}
+                  getOptionLabel={s => s.name}
+                  getOptionValue={s => s.id}
+                  placeholder="Seleccionar sucursal..."
+                  required
+                />
+              </div>
+              <div className="full">
+                <label className="muted" style={{ fontSize: '12px' }}>Vendedor / Chofer Asignado *</label>
+                <SearchableSelect
+                  options={data.vendedores || []}
+                  value={form.vendedorId}
+                  onChange={val => setForm({ ...form, vendedorId: val })}
+                  getOptionLabel={v => `${v.name} (${v.phone || 'Sin tel'})`}
+                  getOptionValue={v => v.id}
+                  placeholder="Seleccionar vendedor..."
+                  required
+                />
+              </div>
+              {!editingRuta && (
+                <div className="full">
+                  <label className="muted" style={{ fontSize: '12px' }}>Clientes Iniciales (Opcional, separados por coma)</label>
+                  <textarea
+                    name="clientes"
+                    className="textarea full"
+                    placeholder="Ej. Tienda Doña Mary, Abarrotes San Juan, Super Express"
+                    value={form.clientesText}
+                    onChange={e => setForm({ ...form, clientesText: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Día de Visita / Entrega</label>
-                  <select
-                    name="dia"
-                    className="select full"
-                    value={form.dia}
-                    onChange={e => setForm({ ...form, dia: e.target.value })}
-                    required
-                  >
-                    <option value="Lunes">Lunes</option>
-                    <option value="Martes">Martes</option>
-                    <option value="Miércoles">Miércoles</option>
-                    <option value="Jueves">Jueves</option>
-                    <option value="Viernes">Viernes</option>
-                    <option value="Sábado">Sábado</option>
-                    <option value="Domingo">Domingo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Sucursal</label>
-                  <SearchableSelect
-                    options={data.sucursales || []}
-                    value={form.sucursalId}
-                    onChange={val => setForm({ ...form, sucursalId: val })}
-                    getOptionLabel={s => s.name}
-                    getOptionValue={s => s.id}
-                    placeholder="Seleccionar sucursal..."
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Vendedor / Chofer Asignado</label>
-                  <SearchableSelect
-                    options={data.vendedores || []}
-                    value={form.vendedorId}
-                    onChange={val => setForm({ ...form, vendedorId: val })}
-                    getOptionLabel={v => `${v.name} (${v.phone || 'Sin tel'})`}
-                    getOptionValue={v => v.id}
-                    placeholder="Seleccionar vendedor..."
-                    required
-                  />
-                </div>
-                {!editingRuta && (
-                  <div>
-                    <label className="muted" style={{ fontSize: '12px' }}>Clientes Iniciales (Opcional, separados por coma)</label>
-                    <textarea
-                      name="clientes"
-                      className="textarea full"
-                      placeholder="Ej. Tienda Doña Mary, Abarrotes San Juan, Super Express"
-                      value={form.clientesText}
-                      onChange={e => setForm({ ...form, clientesText: e.target.value })}
-                    />
-                  </div>
-                )}
+              )}
+              <div className="full" style={{ marginTop: '12px' }}>
                 <button type="submit" className={`btn full ${editingRuta ? 'warn' : 'primary'}`}>
-                  {editingRuta ? 'Actualizar ruta' : 'Guardar ruta'}
+                  {editingRuta ? '💾 Actualizar ruta' : '✅ Guardar ruta'}
                 </button>
-              </form>
-            </div>
+              </div>
+            </form>
           </div>
         </div>
-      )}
-
-      <div className="card">
+      ) : (
+        <div className="card">
         <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <h3>Directorio de Rutas de Entrega</h3>
           <div style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '450px', justifyContent: 'flex-end' }}>
@@ -227,6 +226,7 @@ export default function Rutas({ data, sucursal, vendedor, addRuta, updateRuta, s
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

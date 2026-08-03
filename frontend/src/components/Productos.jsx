@@ -270,66 +270,61 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
         </div>
       )}
 
-      {showForm && (
-        <div className="modal">
-          <div className="modal-content" style={{maxWidth: '750px', width: '90%', maxHeight: '90vh', overflowY: 'auto'}}>
-            <div className="card-h">
-              <h3>{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</h3>
-              <button className="btn secondary" onClick={() => { setEditingProduct(null); setPhotos([]); setShowForm(false); }}>Cancelar</button>
-            </div>
-            <div className="card-b">
-              <form onSubmit={handleSubmit} key={editingProduct?.id || 'new'} className="form-grid">
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Nombre del producto (Descripción)</label>
-                  <input name="name" className="input full" placeholder="Ej. Galletas Marías 170g" defaultValue={editingProduct?.name} required />
-                </div>
+      {showForm ? (
+        <div className="card">
+          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>{editingProduct ? '✏️ Editar Producto' : '➕ Nuevo Producto'}</h3>
+            <button className="btn secondary" onClick={() => { setEditingProduct(null); setPhotos([]); setShowForm(false); }}>Cancelar</button>
+          </div>
+          <div className="card-b">
+            <form onSubmit={handleSubmit} key={editingProduct?.id || 'new'} className="form-grid">
+              <div className="full">
+                <label className="muted" style={{ fontSize: '12px' }}>Nombre del producto (Descripción) *</label>
+                <input name="name" className="input full" placeholder="Ej. Galletas Marías 170g" defaultValue={editingProduct?.name} required />
+              </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label className="muted" style={{ fontSize: '12px' }}>SKU (Clave)</label>
-                    <input name="sku" className="input full" placeholder="Ej. GAL-MAR-170" defaultValue={editingProduct?.sku} required />
-                  </div>
-                  <div>
-                    <label className="muted" style={{ fontSize: '12px' }}>Cód. Alterno / Barras</label>
-                    <input name="alternativeCode" className="input full" placeholder="Ej. 750100012345" defaultValue={editingProduct?.alternativeCode} />
-                  </div>
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label className="muted" style={{ fontSize: '12px' }}>Clasificación / Categoría</label>
-                    <select name="categoryId" className="select full" defaultValue={editingProduct?.categoryId || ''}>
-                      <option value="">-- Seleccionar Clasificación --</option>
-                      {(data.categorias || []).map(c => <option key={c.id} value={c.id}>{c.icon ? c.icon + ' ' : ''}{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="muted" style={{ fontSize: '12px' }}>Marca</label>
-                    <select name="brandId" className="select full" defaultValue={editingProduct?.brandId || ''}>
-                      <option value="">-- Seleccionar Marca --</option>
-                      {(data.marcas || []).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
-                  </div>
-                </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>SKU (Clave) *</label>
+                <input name="sku" className="input full" placeholder="Ej. GAL-MAR-170" defaultValue={editingProduct?.sku} required />
+              </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Cód. Alterno / Barras</label>
+                <input name="alternativeCode" className="input full" placeholder="Ej. 750100012345" defaultValue={editingProduct?.alternativeCode} />
+              </div>
+              
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Clasificación / Categoría</label>
+                <select name="categoryId" className="select full" defaultValue={editingProduct?.categoryId || ''}>
+                  <option value="">-- Seleccionar Clasificación --</option>
+                  {(data.categorias || []).map(c => <option key={c.id} value={c.id}>{c.icon ? c.icon + ' ' : ''}{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Marca</label>
+                <select name="brandId" className="select full" defaultValue={editingProduct?.brandId || ''}>
+                  <option value="">-- Seleccionar Marca --</option>
+                  {(data.marcas || []).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '10px', alignItems: 'end' }}>
-                  <div>
-                    <label className="muted" style={{ fontSize: '12px' }}>Estatus</label>
-                    <select name="status" className="select full" defaultValue={editingProduct?.status || 'Activo'}>
-                      <option value="Activo">Activo</option>
-                      <option value="Inactivo">Inactivo</option>
-                      <option value="Descontinuado">Descontinuado</option>
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fffbeb', padding: '9px 12px', borderRadius: '8px', border: '1px solid #fef3c7' }}>
-                    <input type="checkbox" name="isPerishable" id="isPerishable" defaultChecked={editingProduct?.isPerishable} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                    <label htmlFor="isPerishable" style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: '#92400e' }}>⏳ Perecedero</label>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fef2f2', padding: '9px 12px', borderRadius: '8px', border: '1px solid #fee2e2' }}>
-                    <input type="checkbox" name="isBlocked" id="isBlocked" defaultChecked={editingProduct?.isBlocked} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                    <label htmlFor="isBlocked" style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: '#b91c1c' }}>🚫 Bloquear Venta</label>
-                  </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Estatus del Producto</label>
+                <select name="status" className="select full" defaultValue={editingProduct?.status || 'Activo'}>
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                  <option value="Descontinuado">Descontinuado</option>
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', alignItems: 'end' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fffbeb', padding: '9px 12px', borderRadius: '8px', border: '1px solid #fef3c7' }}>
+                  <input type="checkbox" name="isPerishable" id="isPerishable" defaultChecked={editingProduct?.isPerishable} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                  <label htmlFor="isPerishable" style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: '#92400e' }}>⏳ Perecedero</label>
                 </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fef2f2', padding: '9px 12px', borderRadius: '8px', border: '1px solid #fee2e2' }}>
+                  <input type="checkbox" name="isBlocked" id="isBlocked" defaultChecked={editingProduct?.isBlocked} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                  <label htmlFor="isBlocked" style={{ cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: '#b91c1c' }}>🚫 Bloquear Venta</label>
+                </div>
+              </div>
 
                 <div className="full">
                   <hr style={{margin: '12px 0 6px 0', borderColor: 'var(--line)'}}/>
@@ -458,15 +453,15 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                   </div>
                 </div>
 
-                <button type="submit" className={`btn full ${editingProduct ? 'warn' : 'primary'}`} style={{ marginTop: '12px' }}>
-                  {editingProduct ? 'Actualizar Producto' : 'Guardar Producto'}
-                </button>
+                <div className="full" style={{ marginTop: '12px' }}>
+                  <button type="submit" className={`btn full ${editingProduct ? 'warn' : 'primary'}`}>
+                    {editingProduct ? '💾 Actualizar Producto' : '✅ Guardar Producto'}
+                  </button>
+                </div>
               </form>
             </div>
-          </div>
         </div>
-      )}
-
+      ) : (
       <div className="card">
         <div className="card-h" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
           <h3>Catálogo de Productos</h3>
@@ -594,6 +589,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

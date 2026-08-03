@@ -166,15 +166,14 @@ export default function Clientes({ data, addCliente, updateCliente, ruta }) {
 
   return (
     <div>
-      {/* MODAL ALTA / EDICIÓN */}
-      {showForm && (
-        <div className="modal">
-          <div className="modal-content" style={{ maxWidth: '780px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>{editing ? `✏️ Editar Cliente #${editing.id}` : '➕ Nuevo Cliente'}</h3>
-              <button className="btn secondary" onClick={() => { setEditing(null); setShowForm(false); }}>Cancelar</button>
-            </div>
-            <div className="card-b">
+      {/* FORMULARIO DE ALTA / EDICIÓN */}
+      {showForm ? (
+        <div className="card">
+          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>{editing ? `✏️ Editar Cliente #${editing.id}` : '➕ Nuevo Cliente'}</h3>
+            <button className="btn secondary" onClick={() => { setEditing(null); setShowForm(false); }}>Cancelar</button>
+          </div>
+          <div className="card-b">
               <form onSubmit={handleSubmit} className="form-grid">
                 
                 {/* 1. DATOS GENERALES */}
@@ -449,102 +448,10 @@ export default function Clientes({ data, addCliente, updateCliente, ruta }) {
                 </div>
               </form>
             </div>
-          </div>
         </div>
-      )}
-
-      {/* MODAL ESTADO DE CUENTA */}
-      {statementData && (
-        <div className="modal">
-          <div className="modal-content" style={{ maxWidth: '800px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>📋 Estado de Cuenta: {statementData.client?.name}</h3>
-              <button className="btn secondary" onClick={() => setStatementData(null)}>Cerrar</button>
-            </div>
-            <div className="card-b">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-                <div className="kpi-card" style={{ padding: '12px', background: 'var(--bg)', borderRadius: '8px' }}>
-                  <span className="muted" style={{ fontSize: '12px' }}>Límite de Crédito</span>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{pesos(statementData.client?.creditLimit || 0)}</div>
-                </div>
-                <div className="kpi-card" style={{ padding: '12px', background: 'var(--bg)', borderRadius: '8px' }}>
-                  <span className="muted" style={{ fontSize: '12px' }}>Saldo Actual</span>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: (statementData.client?.currentBalance || 0) > 0 ? 'var(--danger)' : 'var(--success)' }}>
-                    {pesos(statementData.client?.currentBalance || 0)}
-                  </div>
-                </div>
-                <div className="kpi-card" style={{ padding: '12px', background: 'var(--bg)', borderRadius: '8px' }}>
-                  <span className="muted" style={{ fontSize: '12px' }}>Crédito Disponible</span>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--primary)' }}>
-                    {pesos(Math.max(0, (statementData.client?.creditLimit || 0) - (statementData.client?.currentBalance || 0)))}
-                  </div>
-                </div>
-                <div className="kpi-card" style={{ padding: '12px', background: 'var(--bg)', borderRadius: '8px' }}>
-                  <span className="muted" style={{ fontSize: '12px' }}>Días de Crédito</span>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{statementData.client?.creditDays || 15} días</div>
-                </div>
-              </div>
-
-              <h4 style={{ borderBottom: '1px solid var(--line)', paddingBottom: '6px' }}>📦 Historial de Pedidos y Facturas</h4>
-              <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '20px' }}>
-                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--bg)', textAlign: 'left' }}>
-                      <th style={{ padding: '6px 8px' }}>Folio</th>
-                      <th style={{ padding: '6px 8px' }}>Fecha</th>
-                      <th style={{ padding: '6px 8px' }}>Total</th>
-                      <th style={{ padding: '6px 8px' }}>Estatus</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(statementData.orders || []).map(o => (
-                      <tr key={o.id} style={{ borderBottom: '1px solid var(--line)' }}>
-                        <td style={{ padding: '6px 8px' }}><b>#{o.id}</b></td>
-                        <td style={{ padding: '6px 8px' }}>{new Date(o.createdAt).toLocaleDateString()}</td>
-                        <td style={{ padding: '6px 8px' }}>{pesos(o.total)}</td>
-                        <td style={{ padding: '6px 8px' }}><span className="chip ok">{o.status}</span></td>
-                      </tr>
-                    ))}
-                    {(!statementData.orders || statementData.orders.length === 0) && (
-                      <tr><td colSpan="4" style={{ padding: '15px', textAlign: 'center' }} className="muted">Sin pedidos registrados</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <h4 style={{ borderBottom: '1px solid var(--line)', paddingBottom: '6px' }}>💵 Historial de Abonos y Pagos</h4>
-              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--bg)', textAlign: 'left' }}>
-                      <th style={{ padding: '6px 8px' }}>ID</th>
-                      <th style={{ padding: '6px 8px' }}>Fecha</th>
-                      <th style={{ padding: '6px 8px' }}>Monto</th>
-                      <th style={{ padding: '6px 8px' }}>Método</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(statementData.payments || []).map(p => (
-                      <tr key={p.id} style={{ borderBottom: '1px solid var(--line)' }}>
-                        <td style={{ padding: '6px 8px' }}><b>#{p.id}</b></td>
-                        <td style={{ padding: '6px 8px' }}>{new Date(p.date).toLocaleDateString()}</td>
-                        <td style={{ padding: '6px 8px', color: 'var(--success)', fontWeight: 'bold' }}>{pesos(p.amount)}</td>
-                        <td style={{ padding: '6px 8px' }}>{p.paymentMethod}</td>
-                      </tr>
-                    ))}
-                    {(!statementData.payments || statementData.payments.length === 0) && (
-                      <tr><td colSpan="4" style={{ padding: '15px', textAlign: 'center' }} className="muted">Sin pagos registrados</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* VISTA PRINCIPAL DEL DIRECTORIO */}
-      <div className="card">
+      ) : (
+        /* VISTA PRINCIPAL DEL DIRECTORIO */
+        <div className="card">
         <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <h3 style={{ margin: 0 }}>Directorio de Clientes</h3>
@@ -766,6 +673,97 @@ export default function Clientes({ data, addCliente, updateCliente, ruta }) {
           )}
         </div>
       </div>
+      )}
+
+      {/* MODAL ESTADO DE CUENTA */}
+      {statementData && (
+        <div className="modal">
+          <div className="modal-content" style={{ maxWidth: '800px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>📋 Estado de Cuenta: {statementData.client?.name}</h3>
+              <button className="btn secondary" onClick={() => setStatementData(null)}>Cerrar</button>
+            </div>
+            <div className="card-b">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+                <div className="kpi-card" style={{ padding: '12px', background: 'var(--bg)', borderRadius: '8px' }}>
+                  <span className="muted" style={{ fontSize: '12px' }}>Límite de Crédito</span>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{pesos(statementData.client?.creditLimit || 0)}</div>
+                </div>
+                <div className="kpi-card" style={{ padding: '12px', background: 'var(--bg)', borderRadius: '8px' }}>
+                  <span className="muted" style={{ fontSize: '12px' }}>Saldo Actual</span>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: (statementData.client?.currentBalance || 0) > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                    {pesos(statementData.client?.currentBalance || 0)}
+                  </div>
+                </div>
+                <div className="kpi-card" style={{ padding: '12px', background: 'var(--bg)', borderRadius: '8px' }}>
+                  <span className="muted" style={{ fontSize: '12px' }}>Crédito Disponible</span>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--primary)' }}>
+                    {pesos(Math.max(0, (statementData.client?.creditLimit || 0) - (statementData.client?.currentBalance || 0)))}
+                  </div>
+                </div>
+                <div className="kpi-card" style={{ padding: '12px', background: 'var(--bg)', borderRadius: '8px' }}>
+                  <span className="muted" style={{ fontSize: '12px' }}>Días de Crédito</span>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{statementData.client?.creditDays || 15} días</div>
+                </div>
+              </div>
+
+              <h4 style={{ borderBottom: '1px solid var(--line)', paddingBottom: '6px' }}>📦 Historial de Pedidos y Facturas</h4>
+              <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '20px' }}>
+                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg)', textAlign: 'left' }}>
+                      <th style={{ padding: '6px 8px' }}>Folio</th>
+                      <th style={{ padding: '6px 8px' }}>Fecha</th>
+                      <th style={{ padding: '6px 8px' }}>Total</th>
+                      <th style={{ padding: '6px 8px' }}>Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(statementData.orders || []).map(o => (
+                      <tr key={o.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                        <td style={{ padding: '6px 8px' }}><b>#{o.id}</b></td>
+                        <td style={{ padding: '6px 8px' }}>{new Date(o.createdAt).toLocaleDateString()}</td>
+                        <td style={{ padding: '6px 8px' }}>{pesos(o.total)}</td>
+                        <td style={{ padding: '6px 8px' }}><span className="chip ok">{o.status}</span></td>
+                      </tr>
+                    ))}
+                    {(!statementData.orders || statementData.orders.length === 0) && (
+                      <tr><td colSpan="4" style={{ padding: '15px', textAlign: 'center' }} className="muted">Sin pedidos registrados</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <h4 style={{ borderBottom: '1px solid var(--line)', paddingBottom: '6px' }}>💵 Historial de Abonos y Pagos</h4>
+              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg)', textAlign: 'left' }}>
+                      <th style={{ padding: '6px 8px' }}>ID</th>
+                      <th style={{ padding: '6px 8px' }}>Fecha</th>
+                      <th style={{ padding: '6px 8px' }}>Monto</th>
+                      <th style={{ padding: '6px 8px' }}>Método</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(statementData.payments || []).map(p => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                        <td style={{ padding: '6px 8px' }}><b>#{p.id}</b></td>
+                        <td style={{ padding: '6px 8px' }}>{new Date(p.date).toLocaleDateString()}</td>
+                        <td style={{ padding: '6px 8px', color: 'var(--success)', fontWeight: 'bold' }}>{pesos(p.amount)}</td>
+                        <td style={{ padding: '6px 8px' }}>{p.paymentMethod}</td>
+                      </tr>
+                    ))}
+                    {(!statementData.payments || statementData.payments.length === 0) && (
+                      <tr><td colSpan="4" style={{ padding: '15px', textAlign: 'center' }} className="muted">Sin pagos registrados</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

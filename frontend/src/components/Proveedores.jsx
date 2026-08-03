@@ -80,126 +80,121 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
 
   return (
     <div>
-      {/* Modal Alta / Edición Proveedor */}
-      {showModal && (
-        <div className="modal">
-          <div className="modal-content" style={{ maxWidth: '520px', width: '90%' }}>
-            <div className="card-h">
-              <h3>{editing ? 'Editar Proveedor' : 'Nuevo Proveedor'}</h3>
-              <button className="btn secondary" onClick={() => { setEditing(null); setShowModal(false); }}>Cancelar</button>
-            </div>
-            <div className="card-b">
-              <form onSubmit={handleSubmit} className="form-grid">
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Razón Social / Nombre Comercial</label>
-                  <input
-                    name="name"
-                    className="input full"
-                    placeholder="Ej. Distribuidora Mayorista SA de CV"
-                    value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label className="muted" style={{ fontSize: '12px' }}>RFC</label>
-                    <input
-                      name="rfc"
-                      className="input full"
-                      placeholder="Ej. DMA980101ABC"
-                      value={form.rfc}
-                      onChange={e => setForm({ ...form, rfc: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="muted" style={{ fontSize: '12px' }}>Teléfono</label>
-                    <input
-                      name="phone"
-                      className="input full"
-                      placeholder="Ej. 4771234567"
-                      value={form.phone}
-                      onChange={e => setForm({ ...form, phone: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Nombre de Contacto / Atención</label>
-                  <input
-                    name="contact"
-                    className="input full"
-                    placeholder="Ej. Lic. Carlos Mendoza"
-                    value={form.contact}
-                    onChange={e => setForm({ ...form, contact: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Domicilio / Dirección</label>
-                  <input
-                    name="address"
-                    className="input full"
-                    placeholder="Ej. Av. Central #123, Parque Industrial"
-                    value={form.address}
-                    onChange={e => setForm({ ...form, address: e.target.value })}
-                  />
-                </div>
-                <button type="submit" className={`btn full ${editing ? 'warn' : 'primary'}`}>
-                  {editing ? 'Actualizar Proveedor' : 'Guardar Proveedor'}
-                </button>
-              </form>
-            </div>
+      {/* Formulario Alta / Edición Proveedor */}
+      {showModal ? (
+        <div className="card">
+          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>{editing ? '✏️ Editar Proveedor' : '➕ Nuevo Proveedor'}</h3>
+            <button className="btn secondary" onClick={() => { setEditing(null); setShowModal(false); }}>Cancelar</button>
           </div>
-        </div>
-      )}
-
-      {/* Modal Abono a Proveedor */}
-      {paying && (
-        <div className="modal">
-          <div className="modal-content" style={{ maxWidth: '480px', width: '90%' }}>
-            <div className="card-h">
-              <h3>Pagar a {paying.name}</h3>
-              <button className="btn secondary" onClick={() => setPaying(null)}>Cancelar</button>
-            </div>
-            <div className="card-b">
-              <div className="muted" style={{ marginBottom: '15px' }}>
-                Deuda Actual: <b className="danger" style={{ fontSize: '16px' }}>{pesos(paying.currentBalance || 0)}</b>
+          <div className="card-b">
+            <form onSubmit={handleSubmit} className="form-grid">
+              <div className="full">
+                <label className="muted" style={{ fontSize: '12px' }}>Razón Social / Nombre Comercial *</label>
+                <input
+                  name="name"
+                  className="input full"
+                  placeholder="Ej. Distribuidora Mayorista SA de CV"
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  required
+                />
               </div>
-              <form onSubmit={handlePayment} className="form-grid">
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Monto a Pagar</label>
-                  <input
-                    name="amount"
-                    type="number"
-                    step="0.01"
-                    max={paying.currentBalance || undefined}
-                    className="input full"
-                    placeholder="Monto a Pagar"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Método de Pago</label>
-                  <select name="method" className="select full" required>
-                    <option value="Transferencia">Transferencia</option>
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Cheque">Cheque</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="muted" style={{ fontSize: '12px' }}>Referencia / Folio</label>
-                  <input name="reference" className="input full" placeholder="Ej. TRANSF-8934" />
-                </div>
-                <button type="submit" className="btn primary full">Registrar Pago</button>
-              </form>
-            </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>RFC</label>
+                <input
+                  name="rfc"
+                  className="input full"
+                  placeholder="Ej. DMA980101ABC"
+                  value={form.rfc}
+                  onChange={e => setForm({ ...form, rfc: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Teléfono *</label>
+                <input
+                  name="phone"
+                  className="input full"
+                  placeholder="Ej. 4771234567"
+                  value={form.phone}
+                  onChange={e => setForm({ ...form, phone: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Nombre de Contacto / Atención *</label>
+                <input
+                  name="contact"
+                  className="input full"
+                  placeholder="Ej. Lic. Carlos Mendoza"
+                  value={form.contact}
+                  onChange={e => setForm({ ...form, contact: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Domicilio / Dirección</label>
+                <input
+                  name="address"
+                  className="input full"
+                  placeholder="Ej. Av. Central #123, Parque Industrial"
+                  value={form.address}
+                  onChange={e => setForm({ ...form, address: e.target.value })}
+                />
+              </div>
+              <div className="full" style={{ marginTop: '12px' }}>
+                <button type="submit" className={`btn full ${editing ? 'warn' : 'primary'}`}>
+                  {editing ? '💾 Actualizar Proveedor' : '✅ Guardar Proveedor'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      )}
-
-      {/* Directorio de Proveedores */}
-      <div className="card">
+      ) : paying ? (
+        /* Formulario Abono a Proveedor */
+        <div className="card">
+          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>💵 Pagar a {paying.name}</h3>
+            <button className="btn secondary" onClick={() => setPaying(null)}>Cancelar</button>
+          </div>
+          <div className="card-b">
+            <div className="muted" style={{ marginBottom: '15px', fontSize: '15px' }}>
+              Deuda Actual: <b className="danger" style={{ fontSize: '18px', color: 'var(--danger)' }}>{pesos(paying.currentBalance || 0)}</b>
+            </div>
+            <form onSubmit={handlePayment} className="form-grid">
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Monto a Pagar *</label>
+                <input
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  max={paying.currentBalance || undefined}
+                  className="input full"
+                  placeholder="Monto a Pagar"
+                  required
+                />
+              </div>
+              <div>
+                <label className="muted" style={{ fontSize: '12px' }}>Método de Pago *</label>
+                <select name="method" className="select full" required>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Cheque">Cheque</option>
+                </select>
+              </div>
+              <div className="full">
+                <label className="muted" style={{ fontSize: '12px' }}>Referencia / Folio</label>
+                <input name="reference" className="input full" placeholder="Ej. TRANSF-8934" />
+              </div>
+              <div className="full" style={{ marginTop: '12px' }}>
+                <button type="submit" className="btn primary full">✅ Registrar Pago</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : (
+        /* Directorio de Proveedores */
+        <div className="card">
         <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <h3>Directorio de Proveedores y Cuentas por Pagar (CxP)</h3>
           <div style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '450px', justifyContent: 'flex-end' }}>
@@ -254,6 +249,7 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

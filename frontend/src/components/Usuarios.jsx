@@ -122,120 +122,122 @@ export default function Usuarios({ data, addUser, updateUser }) {
       <div className="glass" style={{ padding: '30px', borderRadius: '24px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900 }}>👥 Gestión de Usuarios y Permisos</h2>
-          <p className="muted">Controla acceso granular a cada módulo por usuario.</p>
+          <p className="muted" style={{ margin: 0 }}>Controla acceso granular a cada módulo por usuario.</p>
         </div>
       </div>
 
-      {showForm && (
-        <div className="modal">
-          <div className="modal-content" style={{maxWidth: '550px', width: '90%'}}>
-            <div className="card-h">
-              <h3 style={{ margin: 0 }}>{editing ? '📝 Editar Usuario' : '➕ Nuevo Usuario'}</h3>
-              <button className="btn secondary" onClick={() => { setEditing(null); setShowForm(false); }}>Cancelar</button>
+      {showForm ? (
+        <div className="card">
+          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>{editing ? '✏️ Editar Usuario' : '➕ Nuevo Usuario'}</h3>
+            <button className="btn secondary" onClick={() => { setEditing(null); setShowForm(false); }}>Cancelar</button>
+          </div>
+          <div className="card-b">
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
+              <button 
+                type="button"
+                className={`btn ${activeTab === 'basic' ? 'primary' : 'secondary'}`} 
+                onClick={() => setActiveTab('basic')}
+              >
+                Información Básica
+              </button>
+              <button 
+                type="button"
+                className={`btn ${activeTab === 'perms' ? 'primary' : 'secondary'}`} 
+                onClick={() => setActiveTab('perms')}
+              >
+                Permisos (ACL)
+              </button>
             </div>
-            <div className="card-b">
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
-                <button 
-                  type="button"
-                  className={`btn ${activeTab === 'basic' ? 'primary' : 'secondary'}`} 
-                  onClick={() => setActiveTab('basic')}
-                >
-                  Información Básica
-                </button>
-                <button 
-                  type="button"
-                  className={`btn ${activeTab === 'perms' ? 'primary' : 'secondary'}`} 
-                  onClick={() => setActiveTab('perms')}
-                >
-                  Permisos (ACL)
-                </button>
-              </div>
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                
-                {activeTab === 'basic' && (
-                  <>
-                    <div className="form-group">
-                      <label>Nombre Completo</label>
-                      <input name="name" className="input full" defaultValue={editing?.name} required />
-                    </div>
-                    <div className="form-group">
-                      <label>Email (Usuario)</label>
-                      <input name="email" type="email" className="input full" defaultValue={editing?.email} required />
-                    </div>
-                    <div className="form-group">
-                      <label>Contraseña {editing && '(dejar vacío para no cambiar)'}</label>
-                      <input name="password" type="password" className="input full" required={!editing} />
-                    </div>
-                    <div className="form-group">
-                      <label>Perfil Base (Pre-carga permisos)</label>
-                      <select name="role" className="input full" value={role} onChange={handleRoleChange}>
-                        <option value="Admin">Administrador</option>
-                        <option value="Vendedor">Vendedor</option>
-                        <option value="Almacenista">Almacenista</option>
-                        <option value="Chofer">Chofer</option>
-                        <option value="Cliente">Cliente</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Sucursal Asignada</label>
-                      <select name="sucursalId" className="input full" defaultValue={editing?.sucursalId || ''}>
-                        <option value="">Todas / Corporativo</option>
-                        {data.sucursales?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Vincular a Cliente (B2B)</label>
-                      <SearchableSelect
-                        name="clientId"
-                        options={(data.clientes && data.clientes.length > 0 ? data.clientes : data.rutas?.flatMap(r => r.clients || [])) || []}
-                        value={clientId}
-                        onChange={(val) => setClientId(val)}
-                        placeholder="🔍 Escribe o busca un Cliente..."
-                        getOptionLabel={(c) => c.name}
-                        getOptionValue={(c) => c.id}
-                        getOptionSubtext={(c) => (c.zone ? `Zona: ${c.zone}` : (c.rfc ? `RFC: ${c.rfc}` : ''))}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {activeTab === 'perms' && (
-                  <div className="form-group" style={{ background: '#f8fafc', padding: '15px', borderRadius: '14px', border: '1px solid #e2e8f0', overflowY: 'auto', maxHeight: '350px' }}>
-                    <label style={{ marginBottom: '10px', display: 'block', color: '#0f172a' }}>Permisos Específicos (ACL)</label>
-                    <div style={{ display: 'grid', gap: '15px' }}>
-                      {Object.keys(groupedModules).map(group => (
-                        <div key={group}>
-                          <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>{group}</div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                            {groupedModules[group].map(m => (
-                              <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 400 }}>
-                                <input 
-                                  type="checkbox" 
-                                  checked={selectedPerms.includes(m.id)}
-                                  onChange={() => togglePerm(m.id)}
-                                />
-                                {m.label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              
+              {activeTab === 'basic' && (
+                <>
+                  <div className="form-group">
+                    <label>Nombre Completo *</label>
+                    <input name="name" className="input full" defaultValue={editing?.name} required />
                   </div>
-                )}
-                
-                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                  <button type="submit" className="btn success" style={{flex: 1}}>{editing ? 'Guardar Cambios' : 'Crear Usuario'}</button>
+                  <div className="form-group">
+                    <label>Correo Electrónico (Login) *</label>
+                    <input name="email" type="email" className="input full" defaultValue={editing?.email} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Contraseña {editing && '(Dejar en blanco para conservar)'}</label>
+                    <input name="password" type="password" className="input full" placeholder={editing ? '••••••••' : 'Mínimo 6 caracteres'} required={!editing} />
+                  </div>
+                  <div className="form-group">
+                    <label>Rol / Perfil Base *</label>
+                    <select 
+                      className="select full" 
+                      value={role} 
+                      onChange={(e) => {
+                        const newRole = e.target.value;
+                        setRole(newRole);
+                        if (DEFAULT_ROLE_PERMS[newRole]) {
+                          setSelectedPerms(DEFAULT_ROLE_PERMS[newRole]);
+                        }
+                      }}
+                    >
+                      <option value="Admin">Administrador General (Todo el sistema)</option>
+                      <option value="Ventas">Ventas / Mostrador / Caja</option>
+                      <option value="Vendedor">Vendedor de Ruta (App móvil)</option>
+                      <option value="Almacen">Almacenista / Logística</option>
+                      <option value="Auditor">Auditor (Solo lectura)</option>
+                      <option value="Cliente">Portal Clientes (B2B)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Sucursal Asignada</label>
+                    <SearchableSelect
+                      options={data.sucursales || []}
+                      value={editing?.sucursalId || ''}
+                      name="sucursalId"
+                      getOptionLabel={s => `${s.name} (${s.zone})`}
+                      getOptionValue={s => s.id}
+                      placeholder="Seleccionar sucursal..."
+                    />
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'perms' && (
+                <div>
+                  <p className="muted" style={{ fontSize: '13px', marginBottom: '15px' }}>
+                    Personaliza los accesos específicos para este usuario. Las casillas marcadas habilitan el módulo correspondiente en el menú.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '15px' }}>
+                    {Object.entries(groupedModules).map(([group, mods]) => (
+                      <div key={group} style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontWeight: 800, fontSize: '12px', textTransform: 'uppercase', color: '#64748b', marginBottom: '8px' }}>
+                          {group}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {mods.map(m => (
+                            <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={selectedPerms.includes(m.id)} 
+                                onChange={() => togglePerm(m.id)}
+                              />
+                              <span>{m.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </form>
-            </div>
+              )}
+              
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button type="submit" className="btn success" style={{flex: 1}}>{editing ? '💾 Guardar Cambios' : '✅ Crear Usuario'}</button>
+              </div>
+            </form>
           </div>
         </div>
-      )}
-
-      <div>
-        <div className="glass" style={{ padding: '20px', borderRadius: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '15px' }}>
+      ) : (
+        <div className="card">
+          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <h3 style={{ margin: 0 }}>Directorio de Usuarios y Accesos</h3>
             <div style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '400px' }}>
               <input 
@@ -248,50 +250,52 @@ export default function Usuarios({ data, addUser, updateUser }) {
               <button className="btn success" onClick={startNew}>+ Nuevo Usuario</button>
             </div>
           </div>
-          <table className="table full">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Rol (Perfil)</th>
-                <th>Accesos</th>
-                <th>Sucursal</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsuarios.map(u => {
-                const permsArr = u.permissions ? u.permissions.split(',') : [];
-                return (
-                  <tr key={u.id}>
-                    <td style={{ fontWeight: 700 }}>{u.name}</td>
-                    <td>{u.email}</td>
-                    <td>
-                      <span className={`chip ${u.role === 'Admin' ? 'primary' : 'secondary'}`}>
-                        {u.role}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '12px', color: '#64748b' }}>
-                      {permsArr.length} módulos permitidos
-                    </td>
-                    <td>{data.sucursales?.find(s => s.id === u.sucursalId)?.name || 'N/A'}</td>
-                    <td>
-                      <button className="btn secondary small" onClick={() => startEdit(u)}>Editar</button>
+          <div className="card-b">
+            <table className="table full">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Email</th>
+                  <th>Rol (Perfil)</th>
+                  <th>Accesos</th>
+                  <th>Sucursal</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsuarios.map(u => {
+                  const permsArr = u.permissions ? u.permissions.split(',') : [];
+                  return (
+                    <tr key={u.id}>
+                      <td style={{ fontWeight: 700 }}>{u.name}</td>
+                      <td>{u.email}</td>
+                      <td>
+                        <span className={`chip ${u.role === 'Admin' ? 'primary' : 'secondary'}`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '12px', color: '#64748b' }}>
+                        {permsArr.length} módulos permitidos
+                      </td>
+                      <td>{data.sucursales?.find(s => s.id === u.sucursalId)?.name || 'N/A'}</td>
+                      <td>
+                        <button className="btn secondary small" onClick={() => startEdit(u)}>✏️ Editar</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredUsuarios.length === 0 && (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }} className="muted">
+                      No se encontraron usuarios.
                     </td>
                   </tr>
-                );
-              })}
-              {filteredUsuarios.length === 0 && (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }} className="muted">
-                    No se encontraron usuarios.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
