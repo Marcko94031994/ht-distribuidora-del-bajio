@@ -123,7 +123,7 @@ const Icons = {
     </svg>
   ),
   logout: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}>
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
     </svg>
   )
@@ -208,11 +208,12 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
     <div className="sidebar">
       {/* Sidebar Header with Brand Logo */}
       <div className="sidebar-header">
-        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
           <img 
             src="/logo.png" 
             alt="HT Distribuidora del Bajío" 
-            style={{ height: '42px', maxWidth: '100%', objectFit: 'contain' }}
+            className="brand-logo-img"
+            style={{ height: '58px', maxWidth: '200px', objectFit: 'contain' }}
             onError={(e) => {
               e.target.style.display = 'none';
               if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
@@ -306,7 +307,7 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
         <button 
           className="btn secondary full-width" 
           onClick={logout}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 14px', fontSize: '13px', fontWeight: 700 }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px 12px', fontSize: '12.5px', fontWeight: 600, borderRadius: '8px' }}
         >
           {Icons.logout}
           <span>Cerrar Sesión</span>
@@ -315,4 +316,5 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
     </div>
   );
 }
+
 

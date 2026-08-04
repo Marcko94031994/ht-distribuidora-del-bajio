@@ -9,7 +9,7 @@ export default function Login({ user, setUser, onLogin }) {
           <img 
             src="/logo.png" 
             alt="HT Distribuidora del Bajío" 
-            style={{ height: '48px', objectFit: 'contain' }}
+            style={{ height: '70px', objectFit: 'contain' }}
             onError={(e) => {
               e.target.style.display = 'none';
               if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
@@ -59,11 +59,11 @@ export default function Login({ user, setUser, onLogin }) {
         <div style={{ width: '100%', maxWidth: '440px' }}>
           <form className="login-card" onSubmit={e => { e.preventDefault(); onLogin(); }}>
             <div className="login-card-header">
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
                 <img 
                   src="/logo.png" 
                   alt="HT Logo" 
-                  style={{ height: '54px', objectFit: 'contain' }}
+                  style={{ height: '75px', objectFit: 'contain' }}
                   onError={(e) => {
                     e.target.style.display = 'none';
                     if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
