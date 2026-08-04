@@ -143,7 +143,7 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
                 />
               </div>
               <div className="full" style={{ marginTop: '12px' }}>
-                <button type="submit" className={`btn full ${editing ? 'warn' : 'primary'}`}>
+                <button type="submit" className={`btn success full ${editing ? 'warn' : ''}`}>
                   {editing ? '💾 Actualizar Proveedor' : '✅ Guardar Proveedor'}
                 </button>
               </div>
@@ -187,7 +187,7 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
                 <input name="reference" className="input full" placeholder="Ej. TRANSF-8934" />
               </div>
               <div className="full" style={{ marginTop: '12px' }}>
-                <button type="submit" className="btn primary full">✅ Registrar Pago</button>
+                <button type="submit" className="btn success full">✅ Registrar Pago</button>
               </div>
             </form>
           </div>

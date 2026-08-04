@@ -454,7 +454,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                 </div>
 
                 <div className="full" style={{ marginTop: '12px' }}>
-                  <button type="submit" className={`btn full ${editingProduct ? 'warn' : 'primary'}`}>
+                  <button type="submit" className={`btn success full ${editingProduct ? 'warn' : ''}`}>
                     {editingProduct ? '💾 Actualizar Producto' : '✅ Guardar Producto'}
                   </button>
                 </div>

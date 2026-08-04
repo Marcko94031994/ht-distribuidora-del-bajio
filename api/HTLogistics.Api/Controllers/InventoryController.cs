@@ -263,6 +263,79 @@ public class InventoryController : ControllerBase
             return Ok(po);
         }
 
+    [HttpPut("purchase-order/{id}")]
+        public async Task<IActionResult> UpdatePurchaseOrder(int id, [FromBody] PurchaseOrderInputModel input)
+        {
+            var po = await _context.PurchaseOrders.Include(p => p.Details).FirstOrDefaultAsync(p => p.Id == id);
+            if (po == null) return NotFound();
+
+            if (po.Status != "Borrador" && po.Status != "Pendiente")
+            {
+                return BadRequest("Solo se pueden editar órdenes en estado Borrador/Pendiente que no hayan sido recibidas en inventario.");
+            }
+
+            po.ProviderId = input.ProviderId;
+            po.Reference1 = input.Reference1;
+            po.Reference2 = input.Reference2;
+            po.Notes = input.Notes;
+
+            // Remove old details
+            _context.PurchaseOrderDetails.RemoveRange(po.Details);
+            po.Details.Clear();
+
+            decimal subtotal = 0;
+            decimal taxAmount = 0;
+            if (input.Detalles != null)
+            {
+                foreach (var det in input.Detalles)
+                {
+                    var lineSubtotal = det.Cantidad * det.Costo;
+                    var ivaRate = det.IvaPercent > 0 ? (det.IvaPercent / 100m) : 0m;
+                    var lineTax = lineSubtotal * ivaRate;
+                    var lineTotal = lineSubtotal + lineTax;
+
+                    po.Details.Add(new PurchaseOrderDetail
+                    {
+                        PurchaseOrderId = po.Id,
+                        ProductId = det.ProductoId,
+                        Quantity = det.Cantidad,
+                        UnitCost = det.Costo,
+                        IvaRate = ivaRate,
+                        Subtotal = lineSubtotal,
+                        TaxAmount = lineTax,
+                        Total = lineTotal,
+                        WarehouseId = det.WarehouseId,
+                        BatchNumber = det.Lote,
+                        ExpirationDate = det.Caducidad
+                    });
+                    subtotal += lineSubtotal;
+                    taxAmount += lineTax;
+                }
+            }
+            po.Subtotal = subtotal;
+            po.TaxAmount = taxAmount;
+            po.TotalAmount = subtotal + taxAmount;
+
+            await _context.SaveChangesAsync();
+            return Ok(po);
+        }
+
+    [HttpPost("purchase-order/{id}/cancel")]
+        public async Task<IActionResult> CancelPurchaseOrder(int id)
+        {
+            var po = await _context.PurchaseOrders.FirstOrDefaultAsync(p => p.Id == id);
+            if (po == null) return NotFound();
+
+            if (po.Status != "Borrador" && po.Status != "Pendiente")
+            {
+                return BadRequest("Solo se pueden cancelar órdenes en estado Borrador que no hayan sido recibidas en inventario.");
+            }
+
+            po.Status = "Cancelada";
+            await _context.SaveChangesAsync();
+            return Ok(po);
+        }
+
     [HttpPost("purchase-order/{id}/apply")]
         public async Task<IActionResult> ApplyPurchaseOrder(int id)
         {
@@ -341,7 +414,17 @@ public class InventoryController : ControllerBase
 
             foreach (var up in updates)
             {
-                var p = await _context.Products.FindAsync(up.Id);
+                Product? p = null;
+                if (up.Id.HasValue && up.Id.Value > 0)
+                {
+                    p = await _context.Products.FindAsync(up.Id.Value);
+                }
+                else if (!string.IsNullOrWhiteSpace(up.Sku))
+                {
+                    var cleanSku = up.Sku.Trim();
+                    p = await _context.Products.FirstOrDefaultAsync(x => x.SKU != null && x.SKU.ToLower() == cleanSku.ToLower());
+                }
+
                 if (p != null)
                 {
                     if (up.Price.HasValue) p.Price = up.Price.Value;

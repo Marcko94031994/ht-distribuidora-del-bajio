@@ -774,7 +774,8 @@ public class CashClosureDeclareInput
 
 public class ProductBulkUpdateModel
 {
-    public int Id { get; set; }
+    public int? Id { get; set; }
+    public string? Sku { get; set; }
     public decimal? Price { get; set; }
     public decimal? Price1 { get; set; }
     public decimal? Price2 { get; set; }
