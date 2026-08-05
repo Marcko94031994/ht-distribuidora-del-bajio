@@ -1,9 +1,23 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { pesos } from '../utils/helpers';
 
-export default function Reportes({ data, reports, producto, cliente }) {
+export default function Reportes({ data, reports: initialReports, producto, cliente }) {
+  const [reports, setReports] = useState(initialReports || { ventasMargen: [], riesgoMerma: [], valorInventario: [], totalUtilidad: 0 });
+  const [loading, setLoading] = useState(!initialReports?.valorInventario?.length);
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('all'); // all, month, week
+
+  useEffect(() => {
+    const token = localStorage.getItem('ht_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    fetch((import.meta.env.VITE_API_URL || '') + '/api/app/reports', { headers })
+      .then(res => res.ok ? res.json() : null)
+      .then(json => {
+        if (json) setReports(json);
+      })
+      .catch(err => console.error('Error fetching reports on demand:', err))
+      .finally(() => setLoading(false));
+  }, []);
 
   // Filtrado de Pedidos por fecha
   const filteredPedidos = useMemo(() => {

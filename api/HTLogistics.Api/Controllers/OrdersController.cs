@@ -31,8 +31,9 @@ public class OrdersController : ControllerBase
     [HttpGet("orders")]
     public async Task<IActionResult> GetOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        var total = await _context.Orders.CountAsync();
+        var total = await _context.Orders.AsNoTracking().CountAsync();
         var orders = await _context.Orders
+            .AsNoTracking()
             .Include(o => o.Items)
             .OrderByDescending(o => o.Id)
             .Skip((page - 1) * pageSize)

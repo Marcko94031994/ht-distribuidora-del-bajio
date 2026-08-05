@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { pesos } from '../utils/helpers';
 
-export default function Liquidacion({ data, ruta, vendedor }) {
+export default function Liquidacion({ data, ruta, vendedor, reloadState }) {
   const [selectedClosure, setSelectedClosure] = useState(null);
   const [expenses, setExpenses] = useState([]);
 
@@ -52,7 +52,10 @@ export default function Liquidacion({ data, ruta, vendedor }) {
 
     if (res.ok) {
       alert('Liquidación completada. Se ha calculado la diferencia.');
-      window.location.reload();
+      setSelectedClosure(null);
+      setExpenses([]);
+      if (reloadState) reloadState();
+      else window.location.reload();
     }
   };
 

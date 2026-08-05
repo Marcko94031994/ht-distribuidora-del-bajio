@@ -89,15 +89,8 @@ export default function ListaPrecios({ data, reloadState }) {
           return;
         }
 
-        // Determine if first row is header
+        // Determine header row within first 5 rows
         let startIndex = 0;
-        const firstRow = rows[0].map(c => String(c).trim().toLowerCase());
-        const hasHeader = firstRow.some(c => 
-          c.includes('sku') || c.includes('codigo') || c.includes('código') || 
-          c.includes('descripcion') || c.includes('descripción') || c.includes('producto') || 
-          c.includes('precio') || c.includes('costo')
-        );
-
         let colSku = 0;
         let colName = 1;
         let colPrice1 = 2;
@@ -106,16 +99,31 @@ export default function ListaPrecios({ data, reloadState }) {
         let colBoxPrice = 5;
         let colCost = 6;
 
-        if (hasHeader) {
-          startIndex = 1;
-          firstRow.forEach((h, idx) => {
-            if (h.includes('sku') || h.includes('codigo') || h.includes('código')) colSku = idx;
-            else if (h.includes('descrip') || h.includes('nombre') || h.includes('producto')) colName = idx;
-            else if (h.includes('precio 1') || h.includes('menudeo') || h === 'precio' || h === 'p1') colPrice1 = idx;
-            else if (h.includes('precio 2') || h.includes('medio mayoreo') || h === 'p2') colPrice2 = idx;
-            else if (h.includes('precio 3') || h.includes('mayoreo') || h === 'p3') colPrice3 = idx;
-            else if (h.includes('caja') || h.includes('precio caja')) colBoxPrice = idx;
-            else if (h.includes('costo') || h.includes('cost')) colCost = idx;
+        let headerRowIndex = -1;
+        for (let r = 0; r < Math.min(rows.length, 5); r++) {
+          const rowStrings = (rows[r] || []).map(c => String(c || '').trim().toLowerCase());
+          const isHeader = rowStrings.some(c => 
+            c.includes('sku') || c.includes('codigo') || c.includes('código') || c.includes('cod') ||
+            c.includes('descripcion') || c.includes('descripción') || c.includes('producto') || 
+            c.includes('precio') || c.includes('costo') || c.includes('caja')
+          );
+          if (isHeader) {
+            headerRowIndex = r;
+            break;
+          }
+        }
+
+        if (headerRowIndex !== -1) {
+          startIndex = headerRowIndex + 1;
+          const headerRow = rows[headerRowIndex].map(c => String(c || '').trim().toLowerCase());
+          headerRow.forEach((h, idx) => {
+            if (h.includes('sku') || h.includes('codigo') || h.includes('código') || h === 'cod' || h === 'clave' || h === 'cve') colSku = idx;
+            else if (h.includes('descrip') || h.includes('nombre') || h.includes('producto') || h.includes('concepto') || h.includes('articulo') || h.includes('artículo')) colName = idx;
+            else if (h.includes('precio 1') || h.includes('precio1') || h === 'precio' || h === 'p1' || h === 'l1' || h === '1' || h.includes('menudeo') || h.includes('publico') || h.includes('público')) colPrice1 = idx;
+            else if (h.includes('precio 2') || h.includes('precio2') || h === 'p2' || h === 'l2' || h === '2' || h.includes('medio mayoreo')) colPrice2 = idx;
+            else if (h.includes('precio 3') || h.includes('precio3') || h === 'p3' || h === 'l3' || h === '3' || h.includes('mayoreo')) colPrice3 = idx;
+            else if (h.includes('caja') || h.includes('precio caja') || h === 'cja') colBoxPrice = idx;
+            else if (h.includes('costo') || h.includes('cost') || h.includes('compra')) colCost = idx;
           });
         }
 
@@ -391,11 +399,11 @@ export default function ListaPrecios({ data, reloadState }) {
                             <td>{u.name}</td>
                             <td className="muted">
                               {[
-                                u.prices.price1 !== undefined && `P1: $${u.prices.price1}`,
-                                u.prices.price2 !== undefined && `P2: $${u.prices.price2}`,
-                                u.prices.price3 !== undefined && `P3: $${u.prices.price3}`,
-                                u.prices.boxPrice !== undefined && `Caja: $${u.prices.boxPrice}`,
-                                u.prices.cost !== undefined && `Costo: $${u.prices.cost}`
+                                u.prices.price1 !== undefined && `P1: ${pesos(u.prices.price1)}`,
+                                u.prices.price2 !== undefined && `P2: ${pesos(u.prices.price2)}`,
+                                u.prices.price3 !== undefined && `P3: ${pesos(u.prices.price3)}`,
+                                u.prices.boxPrice !== undefined && `Caja: ${pesos(u.prices.boxPrice)}`,
+                                u.prices.cost !== undefined && `Costo: ${pesos(u.prices.cost)}`
                               ].filter(Boolean).join(' | ') || 'Sin precio'}
                             </td>
                           </tr>
@@ -414,73 +422,73 @@ export default function ListaPrecios({ data, reloadState }) {
                 <table className="table full">
                   <thead>
                     <tr>
-                      <th>SKU</th>
-                      <th>Producto</th>
-                      <th>Precio 1 (Actual ➔ Nuevo)</th>
-                      <th>Precio 2 (Actual ➔ Nuevo)</th>
-                      <th>Precio 3 (Actual ➔ Nuevo)</th>
-                      <th>Caja (Actual ➔ Nuevo)</th>
-                      <th>Costo (Actual ➔ Nuevo)</th>
+                      <th style={{ width: '120px' }}>SKU</th>
+                      <th>PRODUCTO</th>
+                      <th style={{ textAlign: 'right' }}>PRECIO 1</th>
+                      <th style={{ textAlign: 'right' }}>PRECIO 2</th>
+                      <th style={{ textAlign: 'right' }}>PRECIO 3</th>
+                      <th style={{ textAlign: 'right' }}>PRECIO CAJA</th>
+                      <th style={{ textAlign: 'right' }}>COSTO</th>
                     </tr>
                   </thead>
                   <tbody>
                     {excelPreview.matched.map(item => (
                       <tr key={item.product.id}>
-                        <td><span className="chip secondary" style={{ fontSize: '11px' }}>{item.sku}</span></td>
+                        <td><span className="chip secondary" style={{ fontSize: '11px', fontWeight: 700 }}>{item.sku}</span></td>
                         <td><b>{item.name}</b></td>
                         
                         {/* P1 */}
-                        <td>
+                        <td style={{ textAlign: 'right' }}>
                           {item.newPrices.price1 !== undefined ? (
-                            <span style={{ color: '#16a34a', fontWeight: 700 }}>
-                              {pesos(item.currentPrices.price1)} ➔ {pesos(item.newPrices.price1)}
+                            <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '13px' }}>
+                              {pesos(item.newPrices.price1)}
                             </span>
                           ) : (
-                            <span className="muted">{pesos(item.currentPrices.price1)} (Sin cambio)</span>
+                            <span className="muted" style={{ fontSize: '11px' }}>—</span>
                           )}
                         </td>
 
                         {/* P2 */}
-                        <td>
+                        <td style={{ textAlign: 'right' }}>
                           {item.newPrices.price2 !== undefined ? (
-                            <span style={{ color: '#16a34a', fontWeight: 700 }}>
-                              {pesos(item.currentPrices.price2)} ➔ {pesos(item.newPrices.price2)}
+                            <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '13px' }}>
+                              {pesos(item.newPrices.price2)}
                             </span>
                           ) : (
-                            <span className="muted">{pesos(item.currentPrices.price2)} (Sin cambio)</span>
+                            <span className="muted" style={{ fontSize: '11px' }}>—</span>
                           )}
                         </td>
 
                         {/* P3 */}
-                        <td>
+                        <td style={{ textAlign: 'right' }}>
                           {item.newPrices.price3 !== undefined ? (
-                            <span style={{ color: '#16a34a', fontWeight: 700 }}>
-                              {pesos(item.currentPrices.price3)} ➔ {pesos(item.newPrices.price3)}
+                            <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '13px' }}>
+                              {pesos(item.newPrices.price3)}
                             </span>
                           ) : (
-                            <span className="muted">{pesos(item.currentPrices.price3)} (Sin cambio)</span>
+                            <span className="muted" style={{ fontSize: '11px' }}>—</span>
                           )}
                         </td>
 
                         {/* Caja */}
-                        <td>
+                        <td style={{ textAlign: 'right' }}>
                           {item.newPrices.boxPrice !== undefined ? (
-                            <span style={{ color: '#16a34a', fontWeight: 700 }}>
-                              {pesos(item.currentPrices.boxPrice)} ➔ {pesos(item.newPrices.boxPrice)}
+                            <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '13px' }}>
+                              {pesos(item.newPrices.boxPrice)}
                             </span>
                           ) : (
-                            <span className="muted">{pesos(item.currentPrices.boxPrice)} (Sin cambio)</span>
+                            <span className="muted" style={{ fontSize: '11px' }}>—</span>
                           )}
                         </td>
 
                         {/* Costo */}
-                        <td>
+                        <td style={{ textAlign: 'right' }}>
                           {item.newPrices.cost !== undefined ? (
-                            <span style={{ color: '#d97706', fontWeight: 700 }}>
-                              {pesos(item.currentPrices.cost)} ➔ {pesos(item.newPrices.cost)}
+                            <span style={{ color: '#d97706', fontWeight: 800, fontSize: '13px' }}>
+                              {pesos(item.newPrices.cost)}
                             </span>
                           ) : (
-                            <span className="muted">{pesos(item.currentPrices.cost)} (Sin cambio)</span>
+                            <span className="muted" style={{ fontSize: '11px' }}>—</span>
                           )}
                         </td>
                       </tr>
@@ -602,6 +610,7 @@ export default function ListaPrecios({ data, reloadState }) {
       )}
 
       {/* VISTA PRINCIPAL DE LISTA DE PRECIOS Y COSTOS */}
+      {!showExcelModal && (
       <div className="card">
         <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
@@ -838,6 +847,7 @@ export default function ListaPrecios({ data, reloadState }) {
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }

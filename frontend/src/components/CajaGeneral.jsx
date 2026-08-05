@@ -72,7 +72,7 @@ export default function CajaGeneral({ data }) {
   const todayHasClosure = closures.some(c => new Date(c.date).toDateString() === new Date().toDateString());
 
   return (
-    <div className="grid">
+    <div className="grid two">
       <div className="card">
         <div className="card-h">
           <h3>Arqueo de Caja (En vivo)</h3>

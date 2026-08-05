@@ -67,7 +67,7 @@ export default function Mermas({ data }) {
   };
 
   return (
-    <div className="grid">
+    <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
       <div className="card">
         <div className="card-h">
           <h3>Registrar Merma</h3>

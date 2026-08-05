@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { pesos } from '../utils/helpers';
 import SearchableSelect from './SearchableSelect';
 
-export default function Clientes({ data, addCliente, updateCliente, ruta }) {
+export default function Clientes({ data, addCliente, updateCliente, ruta, reloadState }) {
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [statementData, setStatementData] = useState(null);
@@ -575,7 +575,8 @@ export default function Clientes({ data, addCliente, updateCliente, ruta }) {
                         });
                         if (res.ok) { 
                           alert('Abono registrado correctamente'); 
-                          window.location.reload(); 
+                          if (reloadState) reloadState();
+                          else window.location.reload(); 
                         }
                       }}
                       title="Registrar Abono"

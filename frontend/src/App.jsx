@@ -34,8 +34,42 @@ function App() {
     const saved = localStorage.getItem('ht_user');
     return saved ? JSON.parse(saved) : {email:'demo@abarrotera.mx',pass:'123456',sucursalId:1};
   });
-  const [data,setData]=useState({sucursales:[], almacenes:[], vendedores:[], rutas:[], clientes:[], productos:[], pedidos:[], compras:[], proveedores:[], preciosEspeciales:[], devoluciones:[], gastos: [], categoriasGastos: [], unidades: [], cierresCaja: [], categorias: [], marcas: []}); 
-  const [reports,setReports]=useState({ventasMargen:[], riesgoMerma:[], valorInventario:[], totalUtilidad:0});
+  const defaultData = {
+    sucursales: [],
+    almacenes: [],
+    vendedores: [],
+    rutas: [],
+    clientes: [],
+    productos: [],
+    pedidos: [],
+    compras: [],
+    proveedores: [],
+    preciosEspeciales: [],
+    devoluciones: [],
+    gastos: [],
+    categoriasGastos: [],
+    unidades: [],
+    cierresCaja: [],
+    categorias: [],
+    marcas: [],
+    ubicaciones: [],
+    cxc: [],
+    cxp: []
+  };
+
+  const [data, setData] = useState(() => {
+    try {
+      const cached = localStorage.getItem('ht_cache_data');
+      if (cached) {
+        return { ...defaultData, ...JSON.parse(cached) };
+      }
+    } catch (e) {
+      console.warn('Error parsing cached data:', e);
+    }
+    return defaultData;
+  });
+
+  const [reports, setReports] = useState({ ventasMargen: [], riesgoMerma: [], valorInventario: [], totalUtilidad: 0 });
   const [kpiData, setKpiData] = useState({ suc: 0, alm: 0, ped: 0, pend: 0, rutas: 0 });
 
   const apiFetch = async (url, options = {}) => {
@@ -50,52 +84,95 @@ function App() {
     return res;
   };
 
+  const reloadState = async () => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+      const [resState, resKpi, resOrd, resProd, resCxc, resCxp] = await Promise.allSettled([
+        apiFetch(`${baseUrl}/api/app/state`),
+        apiFetch(`${baseUrl}/api/app/kpis`),
+        apiFetch(`${baseUrl}/api/app/orders?page=1`),
+        apiFetch(`${baseUrl}/api/app/products?page=1&pageSize=1000`),
+        apiFetch(`${baseUrl}/api/app/finance/cxc`),
+        apiFetch(`${baseUrl}/api/app/finance/cxp`)
+      ]);
+
+      let stateUpdates = {};
+
+      if (resState.status === 'fulfilled' && resState.value?.ok) {
+        const stateJson = await resState.value.json();
+        stateUpdates = { ...stateUpdates, ...stateJson };
+      }
+
+      if (resOrd.status === 'fulfilled' && resOrd.value?.ok) {
+        const ordJson = await resOrd.value.json();
+        stateUpdates.pedidos = ordJson.data || [];
+      }
+
+      if (resProd.status === 'fulfilled' && resProd.value?.ok) {
+        const prodJson = await resProd.value.json();
+        stateUpdates.productos = prodJson.data || [];
+      }
+
+      if (resCxc.status === 'fulfilled' && resCxc.value?.ok) {
+        stateUpdates.cxc = await resCxc.value.json();
+      }
+
+      if (resCxp.status === 'fulfilled' && resCxp.value?.ok) {
+        stateUpdates.cxp = await resCxp.value.json();
+      }
+
+      if (Object.keys(stateUpdates).length > 0) {
+        setData(prev => {
+          const next = { ...prev, ...stateUpdates };
+          try {
+            // Cache essential catalogs for instant next startup
+            const toCache = {
+              sucursales: next.sucursales,
+              almacenes: next.almacenes,
+              vendedores: next.vendedores,
+              rutas: next.rutas,
+              categorias: next.categorias,
+              marcas: next.marcas,
+              unidades: next.unidades,
+              proveedores: next.proveedores,
+              ubicaciones: next.ubicaciones
+            };
+            localStorage.setItem('ht_cache_data', JSON.stringify(toCache));
+          } catch (err) {}
+          return next;
+        });
+      }
+
+      if (resKpi.status === 'fulfilled' && resKpi.value?.ok) {
+        const kpiJson = await resKpi.value.json();
+        setKpiData(kpiJson);
+      }
+    } catch (e) {
+      console.error('Error in reloadState:', e);
+    }
+  };
+
   useEffect(() => {
     if (logged) {
-      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/state')
-        .then(res => res.ok ? res.json() : null)
-        .then(json => json && setData(prev => ({...prev, ...json})))
-        .catch(err => console.error('Error fetching API:', err));
-
-      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/kpis')
-        .then(res => res.ok ? res.json() : null)
-        .then(json => json && setKpiData(json))
-        .catch(err => console.error('Error fetching KPIs:', err));
-
-      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/orders?page=1')
-        .then(res => res.ok ? res.json() : null)
-        .then(json => json && setData(prev => ({...prev, pedidos: json.data})))
-        .catch(err => console.error('Error fetching Orders:', err));
-
-      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/products?page=1&pageSize=1000')
-        .then(res => res.ok ? res.json() : null)
-        .then(json => json && setData(prev => ({...prev, productos: json.data})))
-        .catch(err => console.error('Error fetching Products:', err));
-
-    if (user.role === 'Admin') {
-      apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/reports')
-        .then(res => res.ok ? res.json() : null)
-        .then(json => json && setReports(json))
-        .catch(err => console.error('Error fetching Reports:', err));
-    }
+      reloadState();
 
       // Sync offline orders
       const offlineOrders = JSON.parse(localStorage.getItem('ht_offline_orders') || '[]');
       if (offlineOrders.length > 0) {
         console.log('Syncing offline orders...', offlineOrders.length);
         offlineOrders.forEach(async (order, idx) => {
-           try {
-             const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/order', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify(order)
-             });
-             if (res.ok) {
-               const current = JSON.parse(localStorage.getItem('ht_offline_orders') || '[]');
-               localStorage.setItem('ht_offline_orders', JSON.stringify(current.filter((_, i) => i !== idx)));
-               reloadState();
-             }
-           } catch(e) {}
+          try {
+            const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(order)
+            });
+            if (res.ok) {
+              const current = JSON.parse(localStorage.getItem('ht_offline_orders') || '[]');
+              localStorage.setItem('ht_offline_orders', JSON.stringify(current.filter((_, i) => i !== idx)));
+              reloadState();
+            }
+          } catch(e) {}
         });
       }
     }
@@ -112,7 +189,6 @@ function App() {
         const payload = await res.json();
         localStorage.setItem('ht_token', payload.token);
         
-        // Use the API response for the user to get role, permissions, etc.
         const updatedUser = { ...user, ...payload.user };
         localStorage.setItem('ht_user', JSON.stringify(updatedUser));
         setUser(updatedUser);
@@ -152,46 +228,6 @@ function App() {
   const kpis=kpiData;
 
   if(!logged) return <Login user={user} setUser={setUser} onLogin={handleLogin}/>;
-
-  const reloadState = async () => {
-    try {
-      const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/state');
-      if (res.ok) {
-        const stateData = await res.json();
-        setData(prev => ({...prev, ...stateData}));
-      }
-
-      const resKpi = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/kpis');
-      if (resKpi.ok) setKpiData(await resKpi.json());
-
-      const resOrd = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/orders?page=1');
-      if (resOrd.ok) {
-        const ordData = await resOrd.json();
-        setData(prev => ({...prev, pedidos: ordData.data}));
-      }
-
-      const resProd = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/products?page=1&pageSize=1000');
-      if (resProd.ok) {
-        const prodData = await resProd.json();
-        setData(prev => ({...prev, productos: prodData.data}));
-      }
-
-      const resRep = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/reports');
-      if (resRep.ok) setReports(await resRep.json());
-
-      const resCxc = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/finance/cxc');
-      if (resCxc.ok) {
-        const cxcData = await resCxc.json();
-        setData(prev => ({...prev, cxc: cxcData}));
-      }
-
-      const resCxp = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/finance/cxp');
-      if (resCxp.ok) {
-        const cxpData = await resCxp.json();
-        setData(prev => ({...prev, cxp: cxpData}));
-      }
-    } catch (e) { console.error('Error fetching state:', e); }
-  };
 
   const addSucursal = async (payloadOrEvent) => {
     try {
@@ -646,24 +682,24 @@ function App() {
             <Dashboard data={data} sucursal={sucursal} vendedor={vendedor} producto={producto}/>
           </>
         } />
-        <Route path="/torre" element={<TorreControl data={data} vendedor={vendedor}/>} />
+        <Route path="/torre" element={<TorreControl data={data} vendedor={vendedor} reloadState={reloadState}/>} />
         <Route path="/reportes" element={<Reportes data={data} reports={reports} producto={producto} cliente={cliente}/>} />
         <Route path="/sucursales" element={<Sucursales data={data} sucursal={sucursal} addSucursal={addSucursal} updateSucursal={updateSucursal}/>} />
         <Route path="/almacenes" element={<AlmacenesCatalogo data={data} sucursal={sucursal} addAlmacen={addAlmacen} updateAlmacen={updateAlmacen} reloadState={reloadState} />} />
         <Route path="/vendedores" element={<VendedoresCatalogo data={data} sucursal={sucursal} addVendedor={addVendedor} updateVendedor={updateVendedor} />} />
         <Route path="/rutas" element={<Rutas data={data} sucursal={sucursal} vendedor={vendedor} addVendedor={addVendedor} updateVendedor={updateVendedor} addRuta={addRuta} updateRuta={updateRuta} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} setSelectedCliente={setSelectedCliente}/>} />
-        <Route path="/vendedor" element={<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo}/>} />
+        <Route path="/vendedor" element={<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo} reloadState={reloadState}/>} />
         <Route path="/remisiones" element={<Remisiones data={data} pedido={currentPedido} setSelectedPedido={setSelectedPedido} ruta={ruta} vendedor={vendedor} producto={producto} cambiarPedidoStatus={cambiarPedidoStatus} registrarDevolucion={registrarDevolucion}/>} />
         <Route path="/almacen" element={<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste}/>} />
         <Route path="/ordenes" element={<OrdenesCompra data={data} producto={producto} proveedor={proveedor} reloadState={reloadState} />} />
         <Route path="/mermas" element={<Mermas data={data} />} />
         <Route path="/productos" element={<Productos data={data} addProducto={addProducto} updateProducto={updateProducto} almacen={almacen}/>} />
         <Route path="/precios" element={<ListaPrecios data={data} reloadState={reloadState}/>} />
-        <Route path="/clientes" element={<Clientes data={data} addCliente={addCliente} updateCliente={updateCliente} ruta={ruta}/>} />
+        <Route path="/clientes" element={<Clientes data={data} addCliente={addCliente} updateCliente={updateCliente} ruta={ruta} reloadState={reloadState}/>} />
         <Route path="/proveedores" element={<Proveedores data={data} addProveedor={addProveedor} updateProveedor={updateProveedor} registrarPago={registrarPagoProveedor}/>} />
         <Route path="/vehiculos" element={<Vehiculos data={data} addVehiculo={addVehiculo} updateVehiculo={updateVehiculo} />} />
-        <Route path="/liquidacion" element={<Liquidacion data={data} ruta={ruta} vendedor={vendedor}/>} />
-        <Route path="/caja" element={<CajaGeneral data={data}/>} />
+        <Route path="/liquidacion" element={<Liquidacion data={data} ruta={ruta} vendedor={vendedor} reloadState={reloadState}/>} />
+        <Route path="/caja" element={<CajaGeneral data={data} reloadState={reloadState}/>} />
         <Route path="/masivos" element={<Masivos data={data} reloadState={reloadState}/>} />
         <Route path="/usuarios" element={<Usuarios data={data} addUser={addUser} updateUser={updateUser}/>} />
         <Route path="/cobranza" element={<Cobranza data={data} reloadState={reloadState}/>} />

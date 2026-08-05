@@ -357,7 +357,7 @@ public class PurchaseOrder
     public required string PoNumber { get; set; } 
     public int ProviderId { get; set; }
     public Provider? Provider { get; set; }
-    public required string Status { get; set; } // Borrador, Autorizada, Cancelada
+    public required string Status { get; set; } // Borrador, Autorizada, Recibida, Cancelada
     
     public string? Reference1 { get; set; } // Factura / Folio de Proveedor
     public string? Reference2 { get; set; } // Orden de Embarque / Cotización / Guía
@@ -366,12 +366,18 @@ public class PurchaseOrder
     public decimal Subtotal { get; set; }
     public decimal TaxAmount { get; set; } // IVA Total
     public decimal TotalAmount { get; set; }
+    public decimal OriginalTotalAmount { get; set; } // Trazabilidad: Monto total original en OC
     public decimal AmountPaid { get; set; }
     public DateTime Date { get; set; } = DateTime.Now;
     public DateTime? DueDate { get; set; }
     public DateTime? AuthorizedDate { get; set; }
     public int? AuthorizedById { get; set; }
     public User? AuthorizedBy { get; set; }
+
+    public DateTime? ReceivedDate { get; set; } // Fecha y hora de recepción física en almacén
+    public int? ReceivedById { get; set; }
+    public User? ReceivedBy { get; set; }
+    public string? ReceptionNotes { get; set; } // Observaciones / Trazabilidad al recibir
     
     public ICollection<PurchaseOrderDetail> Details { get; set; } = new List<PurchaseOrderDetail>();
 }
@@ -385,19 +391,28 @@ public class PurchaseOrderDetail
     public int ProductId { get; set; }
     public Product? Product { get; set; }
     
-    public int Quantity { get; set; }
-    public decimal UnitCost { get; set; }
+    public int Quantity { get; set; } // Cantidad en OC (compatibilidad)
+    public int OrderedQuantity { get; set; } // Cantidad original solicitada en OC
+    public int ReceivedQuantity { get; set; } // Cantidad física real recibida en almacén
+
+    public decimal UnitCost { get; set; } // Costo unitario en OC
+    public decimal OrderedUnitCost { get; set; } // Costo original solicitado en OC
+    public decimal ReceivedUnitCost { get; set; } // Costo unitario real recibido / facturado
     
     public decimal IvaRate { get; set; } // e.g., 0.16, 0.08, 0.00
-    public decimal Subtotal { get; set; } // Quantity * UnitCost
+    public decimal Subtotal { get; set; } // Subtotal calculado
     public decimal TaxAmount { get; set; } // Subtotal * IvaRate
     public decimal Total { get; set; } // Subtotal + TaxAmount
 
     public int? WarehouseId { get; set; }
     public Warehouse? Warehouse { get; set; }
+    public string? Location { get; set; } // Ubicación / Pasillo / Rack dentro del almacén
     
     public string? BatchNumber { get; set; }
     public DateTime? ExpirationDate { get; set; }
+
+    public string? VarianceReason { get; set; } // Justificación si cantidad o costo difieren de la OC
+    public bool IsAdditional { get; set; } // True si fue un producto extra añadido durante la recepción
 }
 
 public class LoginInputModel
@@ -460,6 +475,34 @@ public class PurchaseOrderDetailInputModel
     public string? Lote { get; set; }
     public DateTime? Caducidad { get; set; }
     public int? WarehouseId { get; set; }
+    public string? Location { get; set; }
+}
+
+public class ReceivePurchaseOrderInputModel
+{
+    public string? ReceptionNotes { get; set; }
+    public string? Reference1 { get; set; } // Factura del proveedor
+    public string? Reference2 { get; set; } // Guía / Embarque
+    public List<ReceivePurchaseOrderDetailModel> Items { get; set; } = new();
+}
+
+public class ReceivePurchaseOrderDetailModel
+{
+    public int? DetailId { get; set; }
+    public int? ProductId { get; set; }
+    public string? Sku { get; set; }
+    public string? ProductName { get; set; }
+    public int OrderedQuantity { get; set; }
+    public int ReceivedQuantity { get; set; }
+    public decimal OrderedUnitCost { get; set; }
+    public decimal ReceivedUnitCost { get; set; }
+    public decimal IvaPercent { get; set; }
+    public int? WarehouseId { get; set; }
+    public string? Location { get; set; }
+    public string? BatchNumber { get; set; }
+    public DateTime? ExpirationDate { get; set; }
+    public string? VarianceReason { get; set; }
+    public bool IsAdditional { get; set; }
 }
 
 public class Provider

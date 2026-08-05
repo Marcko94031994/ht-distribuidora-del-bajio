@@ -26,105 +26,115 @@ public class CatalogsController : ControllerBase
     }
 
     [HttpGet("state")]
-        public async Task<IActionResult> GetState()
+    public async Task<IActionResult> GetState()
+    {
+        var branches = await _context.Branches.AsNoTracking().ToListAsync();
+        var warehouses = await _context.Warehouses.AsNoTracking().ToListAsync();
+        var drivers = await _context.Drivers.AsNoTracking().ToListAsync();
+        
+        var routes = await _context.Routes
+            .AsNoTracking()
+            .Include(r => r.Clients)
+            .ToListAsync();
+            
+        var clients = await _context.Clients.AsNoTracking().ToListAsync();
+        var purchaseOrders = await _context.PurchaseOrders
+            .AsNoTracking()
+            .Include(po => po.Details)
+            .OrderByDescending(po => po.Id)
+            .Take(500)
+            .ToListAsync();
+
+        var providers = await _context.Providers.AsNoTracking().ToListAsync();
+        var clientPrices = await _context.ClientPrices.AsNoTracking().ToListAsync();
+        var returns = await _context.OrderReturns.AsNoTracking().ToListAsync();
+        var expenses = await _context.Expenses.AsNoTracking().OrderByDescending(e => e.Id).Take(500).ToListAsync();
+        var expenseCategories = await _context.ExpenseCategories.AsNoTracking().ToListAsync();
+        var vehicles = await _context.Vehicles.AsNoTracking().ToListAsync();
+        var cashClosures = await _context.CashClosures.AsNoTracking().OrderByDescending(c => c.Id).Take(200).ToListAsync();
+        var productCategories = await _context.ProductCategories.AsNoTracking().ToListAsync();
+        var productBrands = await _context.ProductBrands.AsNoTracking().ToListAsync();
+        var warehouseLocations = await _context.WarehouseLocations.AsNoTracking().ToListAsync();
+        
+        List<User>? users = null;
+        if (User.IsInRole("Admin"))
         {
-            var branches = await _context.Branches.ToListAsync();
-            var warehouses = await _context.Warehouses.ToListAsync();
-            var drivers = await _context.Drivers.ToListAsync();
-            
-            var routes = await _context.Routes
-                .Include(r => r.Clients)
-                .ToListAsync();
-                
-            var clients = await _context.Clients.ToListAsync();
-            var purchaseOrders = await _context.PurchaseOrders.Include(po => po.Details).ToListAsync();
-            var providers = await _context.Providers.ToListAsync();
-            var clientPrices = await _context.ClientPrices.Include(cp => cp.Product).ToListAsync();
-            var returns = await _context.OrderReturns.ToListAsync();
-            var expenses = await _context.Expenses.ToListAsync();
-            var expenseCategories = await _context.ExpenseCategories.ToListAsync();
-            var vehicles = await _context.Vehicles.ToListAsync();
-            var cashClosures = await _context.CashClosures.ToListAsync();
-            var productCategories = await _context.ProductCategories.ToListAsync();
-            var productBrands = await _context.ProductBrands.ToListAsync();
-            var warehouseLocations = await _context.WarehouseLocations.ToListAsync();
-            
-            List<User>? users = null;
-            if (User.IsInRole("Admin"))
-            {
-                users = await _context.Users.ToListAsync();
-            }
-    
-            return Ok(new
-            {
-                sucursales = branches,
-                almacenes = warehouses,
-                ubicaciones = warehouseLocations,
-                vendedores = drivers,
-                rutas = routes,
-                clientes = clients,
-                compras = purchaseOrders,
-                proveedores = providers,
-                preciosEspeciales = clientPrices,
-                devoluciones = returns,
-                gastos = expenses,
-                categoriasGastos = expenseCategories,
-                unidades = vehicles,
-                cierresCaja = cashClosures,
-                usuarios = users,
-                categorias = productCategories,
-                marcas = productBrands
-            });
+            users = await _context.Users.AsNoTracking().ToListAsync();
         }
+
+        return Ok(new
+        {
+            sucursales = branches,
+            almacenes = warehouses,
+            ubicaciones = warehouseLocations,
+            vendedores = drivers,
+            rutas = routes,
+            clientes = clients,
+            compras = purchaseOrders,
+            proveedores = providers,
+            preciosEspeciales = clientPrices,
+            devoluciones = returns,
+            gastos = expenses,
+            categoriasGastos = expenseCategories,
+            unidades = vehicles,
+            cierresCaja = cashClosures,
+            usuarios = users,
+            categorias = productCategories,
+            marcas = productBrands
+        });
+    }
 
     [HttpGet("kpis")]
     public async Task<IActionResult> GetKpis()
     {
-        var branches = await _context.Branches.CountAsync();
-        var warehouses = await _context.Warehouses.CountAsync();
-        var routes = await _context.Routes.CountAsync();
-        var orders = await _context.Orders.CountAsync();
-        var pendingOrders = await _context.Orders.CountAsync(o => o.Status == "Pendiente");
+        var branches = await _context.Branches.AsNoTracking().CountAsync();
+        var warehouses = await _context.Warehouses.AsNoTracking().CountAsync();
+        var routes = await _context.Routes.AsNoTracking().CountAsync();
+        var orders = await _context.Orders.AsNoTracking().CountAsync();
+        var pendingOrders = await _context.Orders.AsNoTracking().CountAsync(o => o.Status == "Pendiente");
         
         return Ok(new { suc = branches, alm = warehouses, rutas = routes, ped = orders, pend = pendingOrders });
     }
 
     [HttpGet("reports")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetReports()
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetReports()
+    {
+        var sales = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.Status == "Entregado" || o.Status == "Entregado con Devolución")
+            .Select(o => new {
+                o.OrderNumber,
+                o.TotalAmount,
+                o.TotalCost,
+                Margin = o.TotalAmount - o.TotalCost,
+                MarginPercentage = o.TotalAmount > 0 ? (o.TotalAmount - o.TotalCost) / o.TotalAmount * 100 : 0
+            }).ToListAsync();
+
+        var expiringSoon = await _context.ProductBatches
+            .AsNoTracking()
+            .Include(b => b.Product)
+            .Where(b => b.Quantity > 0 && b.ExpirationDate <= DateTime.Now.AddMonths(3))
+            .OrderBy(b => b.ExpirationDate)
+            .ToListAsync();
+
+        var inventoryValue = await _context.Products
+            .AsNoTracking()
+            .Select(p => new {
+                p.Name,
+                Stock = p.TotalStock,
+                p.Cost,
+                TotalValue = p.TotalStock * p.Cost
+            }).ToListAsync();
+
+        return Ok(new
         {
-            var sales = await _context.Orders
-                .Where(o => o.Status == "Entregado" || o.Status == "Entregado con Devolución")
-                .Select(o => new {
-                    o.OrderNumber,
-                    o.TotalAmount,
-                    o.TotalCost,
-                    Margin = o.TotalAmount - o.TotalCost,
-                    MarginPercentage = o.TotalAmount > 0 ? (o.TotalAmount - o.TotalCost) / o.TotalAmount * 100 : 0
-                }).ToListAsync();
-    
-            var expiringSoon = await _context.ProductBatches
-                .Include(b => b.Product)
-                .Where(b => b.Quantity > 0 && b.ExpirationDate <= DateTime.Now.AddMonths(3))
-                .OrderBy(b => b.ExpirationDate)
-                .ToListAsync();
-    
-            var inventoryValue = await _context.Products
-                .Select(p => new {
-                    p.Name,
-                    Stock = p.TotalStock,
-                    p.Cost,
-                    TotalValue = p.TotalStock * p.Cost
-                }).ToListAsync();
-    
-            return Ok(new
-            {
-                ventasMargen = sales,
-                riesgoMerma = expiringSoon,
-                valorInventario = inventoryValue,
-                totalUtilidad = sales.Sum(s => s.Margin)
-            });
-        }
+            ventasMargen = sales,
+            riesgoMerma = expiringSoon,
+            valorInventario = inventoryValue,
+            totalUtilidad = sales.Sum(s => s.Margin)
+        });
+    }
 
     [HttpPost("branch")]
     public async Task<IActionResult> CreateBranch([FromBody] BranchInputModel input)

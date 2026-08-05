@@ -28,7 +28,7 @@ public class InventoryController : ControllerBase
     [HttpGet("products")]
     public async Task<IActionResult> GetProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        var total = await _context.Products.CountAsync();
+        var total = await _context.Products.AsNoTracking().CountAsync();
         
         var products = await _context.Products
             .AsNoTracking()
@@ -39,19 +39,6 @@ public class InventoryController : ControllerBase
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
-            
-        var pendingOrders = await _context.Orders
-            .AsNoTracking()
-            .Include(o => o.Items)
-            .Where(o => o.Status == "Pendiente" || o.Status == "Esperando Autorización Admin")
-            .ToListAsync();
-            
-        var pendingQtyByProduct = pendingOrders
-            .SelectMany(o => o.Items)
-            .GroupBy(i => i.ProductId)
-            .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
-            
-        // Stock logic handled via TotalStock property based on inventories
             
         return Ok(new { data = products, total, page, pageSize });
     }
@@ -212,198 +199,345 @@ public class InventoryController : ControllerBase
         }
 
     [HttpPost("purchase-order")]
-        public async Task<IActionResult> CreatePurchaseOrder([FromBody] PurchaseOrderInputModel input)
+    public async Task<IActionResult> CreatePurchaseOrder([FromBody] PurchaseOrderInputModel input)
+    {
+        var po = new PurchaseOrder 
+        { 
+            PoNumber = "OC-" + new Random().Next(1000, 9999), 
+            ProviderId = input.ProviderId, 
+            Reference1 = input.Reference1,
+            Reference2 = input.Reference2,
+            Notes = input.Notes,
+            Status = "Borrador",
+            Date = DateTime.Now,
+            DueDate = DateTime.Now.AddDays(30) // Default 30 days for CxP
+        };
+        
+        decimal subtotal = 0;
+        decimal taxAmount = 0;
+        if(input.Detalles != null)
         {
-            var po = new PurchaseOrder 
-            { 
-                PoNumber = "OC-" + new Random().Next(1000, 9999), 
-                ProviderId = input.ProviderId, 
-                Reference1 = input.Reference1,
-                Reference2 = input.Reference2,
-                Notes = input.Notes,
-                Status = "Borrador",
-                Date = DateTime.Now,
-                DueDate = DateTime.Now.AddDays(30) // Default 30 days for CxP
-            };
-            
-            decimal subtotal = 0;
-            decimal taxAmount = 0;
-            if(input.Detalles != null)
+            foreach(var det in input.Detalles)
             {
-                foreach(var det in input.Detalles)
+                var lineSubtotal = det.Cantidad * det.Costo;
+                var ivaRate = det.IvaPercent > 0 ? (det.IvaPercent / 100m) : 0m;
+                var lineTax = Math.Round(lineSubtotal * ivaRate, 2);
+                var lineTotal = lineSubtotal + lineTax;
+
+                po.Details.Add(new PurchaseOrderDetail 
                 {
-                    var lineSubtotal = det.Cantidad * det.Costo;
-                    var ivaRate = det.IvaPercent > 0 ? (det.IvaPercent / 100m) : 0m;
-                    var lineTax = lineSubtotal * ivaRate;
-                    var lineTotal = lineSubtotal + lineTax;
-
-                    po.Details.Add(new PurchaseOrderDetail 
-                    {
-                        ProductId = det.ProductoId,
-                        Quantity = det.Cantidad,
-                        UnitCost = det.Costo,
-                        IvaRate = ivaRate,
-                        Subtotal = lineSubtotal,
-                        TaxAmount = lineTax,
-                        Total = lineTotal,
-                        WarehouseId = det.WarehouseId,
-                        BatchNumber = det.Lote,
-                        ExpirationDate = det.Caducidad
-                    });
-                    subtotal += lineSubtotal;
-                    taxAmount += lineTax;
-                }
+                    ProductId = det.ProductoId,
+                    Quantity = det.Cantidad,
+                    OrderedQuantity = det.Cantidad,
+                    ReceivedQuantity = det.Cantidad,
+                    UnitCost = det.Costo,
+                    OrderedUnitCost = det.Costo,
+                    ReceivedUnitCost = det.Costo,
+                    IvaRate = ivaRate,
+                    Subtotal = lineSubtotal,
+                    TaxAmount = lineTax,
+                    Total = lineTotal,
+                    WarehouseId = det.WarehouseId,
+                    Location = det.Location,
+                    BatchNumber = det.Lote,
+                    ExpirationDate = det.Caducidad,
+                    IsAdditional = false
+                });
+                subtotal += lineSubtotal;
+                taxAmount += lineTax;
             }
-            po.Subtotal = subtotal;
-            po.TaxAmount = taxAmount;
-            po.TotalAmount = subtotal + taxAmount;
-
-            _context.PurchaseOrders.Add(po);
-            await _context.SaveChangesAsync();
-            return Ok(po);
         }
+        po.Subtotal = subtotal;
+        po.TaxAmount = taxAmount;
+        po.TotalAmount = subtotal + taxAmount;
+        po.OriginalTotalAmount = po.TotalAmount; // Trazabilidad inicial
+
+        _context.PurchaseOrders.Add(po);
+        await _context.SaveChangesAsync();
+        return Ok(po);
+    }
 
     [HttpPut("purchase-order/{id}")]
-        public async Task<IActionResult> UpdatePurchaseOrder(int id, [FromBody] PurchaseOrderInputModel input)
+    public async Task<IActionResult> UpdatePurchaseOrder(int id, [FromBody] PurchaseOrderInputModel input)
+    {
+        var po = await _context.PurchaseOrders.Include(p => p.Details).FirstOrDefaultAsync(p => p.Id == id);
+        if (po == null) return NotFound();
+
+        if (po.Status != "Borrador" && po.Status != "Pendiente")
         {
-            var po = await _context.PurchaseOrders.Include(p => p.Details).FirstOrDefaultAsync(p => p.Id == id);
-            if (po == null) return NotFound();
-
-            if (po.Status != "Borrador" && po.Status != "Pendiente")
-            {
-                return BadRequest("Solo se pueden editar órdenes en estado Borrador/Pendiente que no hayan sido recibidas en inventario.");
-            }
-
-            po.ProviderId = input.ProviderId;
-            po.Reference1 = input.Reference1;
-            po.Reference2 = input.Reference2;
-            po.Notes = input.Notes;
-
-            // Remove old details
-            _context.PurchaseOrderDetails.RemoveRange(po.Details);
-            po.Details.Clear();
-
-            decimal subtotal = 0;
-            decimal taxAmount = 0;
-            if (input.Detalles != null)
-            {
-                foreach (var det in input.Detalles)
-                {
-                    var lineSubtotal = det.Cantidad * det.Costo;
-                    var ivaRate = det.IvaPercent > 0 ? (det.IvaPercent / 100m) : 0m;
-                    var lineTax = lineSubtotal * ivaRate;
-                    var lineTotal = lineSubtotal + lineTax;
-
-                    po.Details.Add(new PurchaseOrderDetail
-                    {
-                        PurchaseOrderId = po.Id,
-                        ProductId = det.ProductoId,
-                        Quantity = det.Cantidad,
-                        UnitCost = det.Costo,
-                        IvaRate = ivaRate,
-                        Subtotal = lineSubtotal,
-                        TaxAmount = lineTax,
-                        Total = lineTotal,
-                        WarehouseId = det.WarehouseId,
-                        BatchNumber = det.Lote,
-                        ExpirationDate = det.Caducidad
-                    });
-                    subtotal += lineSubtotal;
-                    taxAmount += lineTax;
-                }
-            }
-            po.Subtotal = subtotal;
-            po.TaxAmount = taxAmount;
-            po.TotalAmount = subtotal + taxAmount;
-
-            await _context.SaveChangesAsync();
-            return Ok(po);
+            return BadRequest("Solo se pueden editar órdenes en estado Borrador/Pendiente que no hayan sido recibidas en inventario.");
         }
+
+        po.ProviderId = input.ProviderId;
+        po.Reference1 = input.Reference1;
+        po.Reference2 = input.Reference2;
+        po.Notes = input.Notes;
+
+        // Remove old details
+        _context.PurchaseOrderDetails.RemoveRange(po.Details);
+        po.Details.Clear();
+
+        decimal subtotal = 0;
+        decimal taxAmount = 0;
+        if (input.Detalles != null)
+        {
+            foreach (var det in input.Detalles)
+            {
+                var lineSubtotal = det.Cantidad * det.Costo;
+                var ivaRate = det.IvaPercent > 0 ? (det.IvaPercent / 100m) : 0m;
+                var lineTax = Math.Round(lineSubtotal * ivaRate, 2);
+                var lineTotal = lineSubtotal + lineTax;
+
+                po.Details.Add(new PurchaseOrderDetail
+                {
+                    PurchaseOrderId = po.Id,
+                    ProductId = det.ProductoId,
+                    Quantity = det.Cantidad,
+                    OrderedQuantity = det.Cantidad,
+                    ReceivedQuantity = det.Cantidad,
+                    UnitCost = det.Costo,
+                    OrderedUnitCost = det.Costo,
+                    ReceivedUnitCost = det.Costo,
+                    IvaRate = ivaRate,
+                    Subtotal = lineSubtotal,
+                    TaxAmount = lineTax,
+                    Total = lineTotal,
+                    WarehouseId = det.WarehouseId,
+                    Location = det.Location,
+                    BatchNumber = det.Lote,
+                    ExpirationDate = det.Caducidad,
+                    IsAdditional = false
+                });
+                subtotal += lineSubtotal;
+                taxAmount += lineTax;
+            }
+        }
+        po.Subtotal = subtotal;
+        po.TaxAmount = taxAmount;
+        po.TotalAmount = subtotal + taxAmount;
+        po.OriginalTotalAmount = po.TotalAmount;
+
+        await _context.SaveChangesAsync();
+        return Ok(po);
+    }
 
     [HttpPost("purchase-order/{id}/cancel")]
-        public async Task<IActionResult> CancelPurchaseOrder(int id)
+    public async Task<IActionResult> CancelPurchaseOrder(int id)
+    {
+        var po = await _context.PurchaseOrders.FirstOrDefaultAsync(p => p.Id == id);
+        if (po == null) return NotFound();
+
+        if (po.Status != "Borrador" && po.Status != "Pendiente")
         {
-            var po = await _context.PurchaseOrders.FirstOrDefaultAsync(p => p.Id == id);
-            if (po == null) return NotFound();
-
-            if (po.Status != "Borrador" && po.Status != "Pendiente")
-            {
-                return BadRequest("Solo se pueden cancelar órdenes en estado Borrador que no hayan sido recibidas en inventario.");
-            }
-
-            po.Status = "Cancelada";
-            await _context.SaveChangesAsync();
-            return Ok(po);
+            return BadRequest("Solo se pueden cancelar órdenes en estado Borrador que no hayan sido recibidas en inventario.");
         }
 
-    [HttpPost("purchase-order/{id}/apply")]
-        public async Task<IActionResult> ApplyPurchaseOrder(int id)
-        {
-            var po = await _context.PurchaseOrders.Include(p => p.Details).FirstOrDefaultAsync(p => p.Id == id);
-            if (po == null) return NotFound();
-            
-            po.Status = "Autorizada"; // At authorizar, it receives the goods directly as requested
-            po.AuthorizedDate = DateTime.Now;
-            
-            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrEmpty(userIdString)) {
-                po.AuthorizedById = int.Parse(userIdString);
-            }
+        po.Status = "Cancelada";
+        await _context.SaveChangesAsync();
+        return Ok(po);
+    }
 
-            foreach(var detail in po.Details)
+    [HttpPost("purchase-order/{id}/receive")]
+    public async Task<IActionResult> ReceivePurchaseOrder(int id, [FromBody] ReceivePurchaseOrderInputModel input)
+    {
+        var po = await _context.PurchaseOrders.Include(p => p.Details).FirstOrDefaultAsync(p => p.Id == id);
+        if (po == null) return NotFound("Orden de compra no encontrada.");
+
+        if (po.Status != "Borrador" && po.Status != "Pendiente")
+        {
+            return BadRequest("Solo se pueden recibir órdenes en estado Borrador o Pendiente que no hayan sido recibidas previamente.");
+        }
+
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
+        if (po.OriginalTotalAmount == 0)
+        {
+            po.OriginalTotalAmount = po.TotalAmount;
+        }
+
+        po.Status = "Recibida";
+        po.ReceivedDate = DateTime.Now;
+        po.AuthorizedDate = DateTime.Now;
+        po.ReceivedById = userId;
+        po.AuthorizedById = userId;
+        po.ReceptionNotes = input.ReceptionNotes;
+        if (!string.IsNullOrWhiteSpace(input.Reference1)) po.Reference1 = input.Reference1;
+        if (!string.IsNullOrWhiteSpace(input.Reference2)) po.Reference2 = input.Reference2;
+
+        // Limpiar detalles anteriores para registrar los recibidos con trazabilidad
+        _context.PurchaseOrderDetails.RemoveRange(po.Details);
+        po.Details.Clear();
+
+        decimal subtotal = 0;
+        decimal taxAmount = 0;
+
+        if (input.Items != null && input.Items.Count > 0)
+        {
+            foreach (var item in input.Items)
             {
-                var product = await _context.Products.FindAsync(detail.ProductId);
-                if (product != null)
+                Product? product = null;
+                if (item.ProductId.HasValue && item.ProductId.Value > 0)
                 {
-                    product.Cost = detail.UnitCost; // Simplified weighted average using last cost
-                    
-                    var targetWarehouseId = detail.WarehouseId ?? 1; // Default to main warehouse if not specified
-                    
+                    product = await _context.Products.FindAsync(item.ProductId.Value);
+                }
+
+                // Si no se encuentra por Id o viene nuevo SKU, buscar por SKU o autocrear
+                if (product == null && !string.IsNullOrWhiteSpace(item.Sku))
+                {
+                    var skuClean = item.Sku.Trim();
+                    product = await _context.Products.FirstOrDefaultAsync(p => p.SKU != null && p.SKU.ToLower() == skuClean.ToLower());
+
+                    if (product == null)
+                    {
+                        // Autocrear en catálogo sin categoría para clasificación manual posterior
+                        product = new Product
+                        {
+                            SKU = skuClean,
+                            Name = !string.IsNullOrWhiteSpace(item.ProductName) ? item.ProductName.Trim() : $"Producto {skuClean}",
+                            CategoryId = null, // Sin Categoría (clasificación manual posterior)
+                            Cost = item.ReceivedUnitCost > 0 ? item.ReceivedUnitCost : (item.OrderedUnitCost > 0 ? item.OrderedUnitCost : 0),
+                            Price = item.ReceivedUnitCost > 0 ? Math.Round(item.ReceivedUnitCost * 1.25m, 2) : 0,
+                            Status = "Activo"
+                        };
+                        _context.Products.Add(product);
+                        await _context.SaveChangesAsync(); // Genera product.Id
+                    }
+                }
+
+                if (product == null) continue;
+
+                var recQty = item.ReceivedQuantity;
+                var recCost = item.ReceivedUnitCost > 0 ? item.ReceivedUnitCost : item.OrderedUnitCost;
+                var ordQty = item.OrderedQuantity > 0 ? item.OrderedQuantity : (item.IsAdditional ? 0 : recQty);
+                var ordCost = item.OrderedUnitCost > 0 ? item.OrderedUnitCost : recCost;
+
+                var lineSubtotal = recQty * recCost;
+                var ivaRate = item.IvaPercent > 0 ? (item.IvaPercent / 100m) : 0m;
+                var lineTax = Math.Round(lineSubtotal * ivaRate, 2);
+                var lineTotal = lineSubtotal + lineTax;
+
+                var targetWarehouseId = item.WarehouseId ?? 1;
+
+                var detail = new PurchaseOrderDetail
+                {
+                    PurchaseOrderId = po.Id,
+                    ProductId = product.Id,
+                    Quantity = ordQty,
+                    OrderedQuantity = ordQty,
+                    ReceivedQuantity = recQty,
+                    UnitCost = ordCost,
+                    OrderedUnitCost = ordCost,
+                    ReceivedUnitCost = recCost,
+                    IvaRate = ivaRate,
+                    Subtotal = lineSubtotal,
+                    TaxAmount = lineTax,
+                    Total = lineTotal,
+                    WarehouseId = targetWarehouseId,
+                    Location = item.Location,
+                    BatchNumber = item.BatchNumber,
+                    ExpirationDate = item.ExpirationDate,
+                    VarianceReason = item.VarianceReason,
+                    IsAdditional = item.IsAdditional
+                };
+
+                po.Details.Add(detail);
+                subtotal += lineSubtotal;
+                taxAmount += lineTax;
+
+                // Si se recibieron piezas físicas (> 0), aplicar entradas de inventario
+                if (recQty > 0)
+                {
+                    product.Cost = recCost; // Actualizar último costo
+
+                    // 1. Inventario por almacén
                     var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == product.Id && i.WarehouseId == targetWarehouseId);
-                    if (inventory == null) {
-                        inventory = new ProductInventory { ProductId = product.Id, WarehouseId = targetWarehouseId, Stock = 0, CommittedStock = 0 };
+                    if (inventory == null)
+                    {
+                        inventory = new ProductInventory 
+                        { 
+                            ProductId = product.Id, 
+                            WarehouseId = targetWarehouseId, 
+                            Stock = 0, 
+                            CommittedStock = 0 
+                        };
                         _context.ProductInventories.Add(inventory);
                     }
-                    inventory.Stock += detail.Quantity;
-        
-                    // Add to batch
+                    inventory.Stock += recQty;
+
+                    // 3. Crear lote físico
                     _context.ProductBatches.Add(new ProductBatch
                     {
                         ProductId = product.Id,
                         WarehouseId = targetWarehouseId,
-                        BatchNumber = detail.BatchNumber ?? "S/L",
-                        ExpirationDate = detail.ExpirationDate ?? DateTime.Now.AddMonths(12),
-                        Quantity = detail.Quantity,
+                        BatchNumber = !string.IsNullOrWhiteSpace(item.BatchNumber) ? item.BatchNumber : ("LOTE-" + DateTime.Now.ToString("yyyyMMdd")),
+                        ExpirationDate = item.ExpirationDate ?? DateTime.Now.AddMonths(12),
+                        Quantity = recQty,
                         EntryDate = DateTime.Now
                     });
-        
-                    // Log movement
-                    if (!string.IsNullOrEmpty(userIdString)) {
-                        _context.InventoryMovements.Add(new InventoryMovement
-                        {
-                            ProductId = product.Id,
-                            WarehouseId = targetWarehouseId,
-                            Quantity = detail.Quantity,
-                            Type = "Entrada",
-                            Reason = "Compra",
-                            Date = DateTime.Now,
-                            UserId = int.Parse(userIdString),
-                            Reference = po.PoNumber
-                        });
-                    }
+
+                    // 4. Movimiento en Kardex / Trazabilidad
+                    _context.InventoryMovements.Add(new InventoryMovement
+                    {
+                        ProductId = product.Id,
+                        WarehouseId = targetWarehouseId,
+                        Quantity = recQty,
+                        Type = "Entrada",
+                        Reason = "Recepción OC",
+                        Date = DateTime.Now,
+                        UserId = userId,
+                        Reference = $"{po.PoNumber} (Fact: {po.Reference1 ?? "S/F"})"
+                    });
                 }
             }
-
-            // Actualizar cuenta por pagar (CxP) del proveedor
-            var provider = await _context.Providers.FindAsync(po.ProviderId);
-            if (provider != null)
-            {
-                provider.CurrentBalance += po.TotalAmount;
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok(po);
         }
+
+        po.Subtotal = subtotal;
+        po.TaxAmount = taxAmount;
+        po.TotalAmount = subtotal + taxAmount;
+
+        // Actualizar saldo de cuenta por pagar (CxP) del proveedor con el monto real recibido
+        var provider = await _context.Providers.FindAsync(po.ProviderId);
+        if (provider != null)
+        {
+            provider.CurrentBalance += po.TotalAmount;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(po);
+    }
+
+    [HttpPost("purchase-order/{id}/apply")]
+    public async Task<IActionResult> ApplyPurchaseOrder(int id)
+    {
+        // Compatibilidad: Redirige o aplica la orden directa si se llama al endpoint legado
+        var po = await _context.PurchaseOrders.Include(p => p.Details).FirstOrDefaultAsync(p => p.Id == id);
+        if (po == null) return NotFound();
+
+        var receiveInput = new ReceivePurchaseOrderInputModel
+        {
+            ReceptionNotes = "Recepción rápida automática",
+            Reference1 = po.Reference1,
+            Reference2 = po.Reference2,
+            Items = po.Details.Select(d => new ReceivePurchaseOrderDetailModel
+            {
+                DetailId = d.Id,
+                ProductId = d.ProductId,
+                OrderedQuantity = d.Quantity > 0 ? d.Quantity : d.OrderedQuantity,
+                ReceivedQuantity = d.Quantity > 0 ? d.Quantity : d.OrderedQuantity,
+                OrderedUnitCost = d.UnitCost > 0 ? d.UnitCost : d.OrderedUnitCost,
+                ReceivedUnitCost = d.UnitCost > 0 ? d.UnitCost : d.OrderedUnitCost,
+                IvaPercent = d.IvaRate * 100m,
+                WarehouseId = d.WarehouseId,
+                Location = d.Location,
+                BatchNumber = d.BatchNumber,
+                ExpirationDate = d.ExpirationDate,
+                IsAdditional = false
+            }).ToList()
+        };
+
+        return await ReceivePurchaseOrder(id, receiveInput);
+    }
 
     [HttpPut("products/bulk")]
         [Authorize(Roles = "Admin,Almacenista")]

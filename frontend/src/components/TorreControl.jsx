@@ -85,7 +85,7 @@ const WeatherWidget = () => {
   );
 };
 
-export default function TorreControl({data,vendedor}){
+export default function TorreControl({ data, vendedor, reloadState }) {
   const center = { lat: 21.1213, lng: -101.6826 };
 
   return (
@@ -157,11 +157,34 @@ export default function TorreControl({data,vendedor}){
                     });
                     if(res.ok) {
                       alert('Crédito autorizado. El pedido ha sido liberado a Remisiones.');
-                      window.location.reload();
+                      if (reloadState) reloadState();
+                      else window.location.reload();
                     }
                   }}>Autorizar Crédito</button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {((data.productos || []).filter(p => p.minStock > 0 && (p.availableStock !== undefined ? p.availableStock : (p.stock || 0)) <= p.minStock)).length > 0 && (
+            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '2px dashed var(--line)' }}>
+              <h4 style={{ color: '#dc2626', marginBottom: '10px' }}>
+                ⚠️ Alertas de Reorden / Stock Mínimo ({((data.productos || []).filter(p => p.minStock > 0 && (p.availableStock !== undefined ? p.availableStock : (p.stock || 0)) <= p.minStock)).length})
+              </h4>
+              {(data.productos || []).filter(p => p.minStock > 0 && (p.availableStock !== undefined ? p.availableStock : (p.stock || 0)) <= p.minStock).slice(0, 10).map(prod => {
+                const stock = prod.availableStock !== undefined ? prod.availableStock : (prod.stock || 0);
+                return (
+                  <div className="item" key={prod.id} style={{ borderColor: '#fca5a5', background: '#fff5f5', padding: '10px', marginBottom: '8px' }}>
+                    <div className="row" style={{ alignItems: 'flex-start' }}>
+                      <strong style={{ fontSize: '0.85rem' }}>{prod.name}</strong>
+                      <span className="chip error" style={{ fontSize: '10px' }}>{stock <= 0 ? 'AGOTADO' : 'BAJO'}</span>
+                    </div>
+                    <div className="muted" style={{ fontSize: '0.75rem', marginTop: '4px' }}>
+                      SKU: {prod.sku || '-'} | Disponible: <b style={{ color: '#dc2626' }}>{stock}</b> / Mínimo: <b>{prod.minStock}</b>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

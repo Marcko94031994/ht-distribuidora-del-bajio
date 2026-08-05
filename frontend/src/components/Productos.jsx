@@ -6,6 +6,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
   const [editingProduct, setEditingProduct] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [search, setSearch] = useState('');
+  const [filterTab, setFilterTab] = useState('all'); // 'all', 'low_stock', 'perishable', 'blocked'
   
   const [kardexData, setKardexData] = useState(null);
   const [kardexProduct, setKardexProduct] = useState(null);
@@ -76,10 +77,28 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
     }
   };
 
-  const filtered = (data.productos || []).filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+  const lowStockCount = (data.productos || []).filter(p => (p.minStock > 0 && (p.availableStock !== undefined ? p.availableStock : (p.stock || 0)) <= p.minStock)).length;
+  const perishableCount = (data.productos || []).filter(p => p.isPerishable).length;
+  const blockedCount = (data.productos || []).filter(p => p.isBlocked).length;
+
+  const filtered = (data.productos || []).filter(p => {
+    const matchesSearch = (p.name || '').toLowerCase().includes(search.toLowerCase()) || 
+      (p.sku || '').toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+
+    const currentStock = p.availableStock !== undefined ? p.availableStock : (p.stock || 0);
+
+    if (filterTab === 'low_stock') {
+      return p.minStock > 0 && currentStock <= p.minStock;
+    }
+    if (filterTab === 'perishable') {
+      return p.isPerishable;
+    }
+    if (filterTab === 'blocked') {
+      return p.isBlocked;
+    }
+    return true;
+  });
 
   const handlePhotos = (e) => {
     const files = Array.from(e.target.files);
@@ -464,8 +483,40 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
       ) : (
       <div className="card">
         <div className="card-h" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
-          <h3>Catálogo de Productos</h3>
-          <div style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '400px' }}>
+          <div>
+            <h3>Catálogo de Productos</h3>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+              <button 
+                className={`btn ${filterTab === 'all' ? 'primary' : 'muted'}`} 
+                style={{ fontSize: '12px', padding: '4px 10px' }}
+                onClick={() => setFilterTab('all')}
+              >
+                Todos ({data.productos?.length || 0})
+              </button>
+              <button 
+                className={`btn ${filterTab === 'low_stock' ? 'danger' : 'muted'}`} 
+                style={{ fontSize: '12px', padding: '4px 10px', background: filterTab === 'low_stock' ? '#dc2626' : undefined, color: filterTab === 'low_stock' ? '#fff' : undefined }}
+                onClick={() => setFilterTab('low_stock')}
+              >
+                ⚠️ Stock Bajo ({lowStockCount})
+              </button>
+              <button 
+                className={`btn ${filterTab === 'perishable' ? 'warn' : 'muted'}`} 
+                style={{ fontSize: '12px', padding: '4px 10px', background: filterTab === 'perishable' ? '#d97706' : undefined, color: filterTab === 'perishable' ? '#fff' : undefined }}
+                onClick={() => setFilterTab('perishable')}
+              >
+                ⏳ Perecederos ({perishableCount})
+              </button>
+              <button 
+                className={`btn ${filterTab === 'blocked' ? 'secondary' : 'muted'}`} 
+                style={{ fontSize: '12px', padding: '4px 10px' }}
+                onClick={() => setFilterTab('blocked')}
+              >
+                🚫 Bloqueados ({blockedCount})
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '400px', alignItems: 'flex-start' }}>
             <input 
               type="text" 
               className="input full" 

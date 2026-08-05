@@ -35,7 +35,7 @@ function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,sucursal,producto,almacen,cart,setCart,addCart,enviarPedido,reportarContratiempo}){
+export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,sucursal,producto,almacen,cart,setCart,addCart,enviarPedido,reportarContratiempo,reloadState}){
   const [photoBase64, setPhotoBase64] = useState(null);
   const [isBox, setIsBox] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
@@ -107,7 +107,8 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
       
       if (res.ok) {
         alert('Abono registrado exitosamente. Ya puedes confirmar el pedido.');
-        window.location.reload();
+        if (reloadState) reloadState();
+        else window.location.reload();
       }
     });
   };
@@ -376,7 +377,8 @@ export default function Vendedor({data,ruta,cliente,setSelectedCliente,vendedor,
                    })
                 });
                 alert('Visita registrada');
-                window.location.reload(); 
+                if (reloadState) reloadState();
+                else window.location.reload(); 
               });
             }}>
               Registrar Visita sin Venta

@@ -212,6 +212,52 @@ using (var scope = app.Services.CreateScope())
             BEGIN
                 ALTER TABLE Products ADD IsPerishable BIT NOT NULL DEFAULT 0;
             END;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrders') AND name = 'OriginalTotalAmount')
+            BEGIN
+                ALTER TABLE PurchaseOrders ADD OriginalTotalAmount DECIMAL(18,2) NOT NULL DEFAULT 0;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrders') AND name = 'ReceivedDate')
+            BEGIN
+                ALTER TABLE PurchaseOrders ADD ReceivedDate DATETIME2 NULL;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrders') AND name = 'ReceivedById')
+            BEGIN
+                ALTER TABLE PurchaseOrders ADD ReceivedById INT NULL;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrders') AND name = 'ReceptionNotes')
+            BEGIN
+                ALTER TABLE PurchaseOrders ADD ReceptionNotes NVARCHAR(MAX) NULL;
+            END;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'OrderedQuantity')
+            BEGIN
+                ALTER TABLE PurchaseOrderDetails ADD OrderedQuantity INT NOT NULL DEFAULT 0;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'ReceivedQuantity')
+            BEGIN
+                ALTER TABLE PurchaseOrderDetails ADD ReceivedQuantity INT NOT NULL DEFAULT 0;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'OrderedUnitCost')
+            BEGIN
+                ALTER TABLE PurchaseOrderDetails ADD OrderedUnitCost DECIMAL(18,2) NOT NULL DEFAULT 0;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'ReceivedUnitCost')
+            BEGIN
+                ALTER TABLE PurchaseOrderDetails ADD ReceivedUnitCost DECIMAL(18,2) NOT NULL DEFAULT 0;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'Location')
+            BEGIN
+                ALTER TABLE PurchaseOrderDetails ADD Location NVARCHAR(100) NULL;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'VarianceReason')
+            BEGIN
+                ALTER TABLE PurchaseOrderDetails ADD VarianceReason NVARCHAR(500) NULL;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'IsAdditional')
+            BEGIN
+                ALTER TABLE PurchaseOrderDetails ADD IsAdditional BIT NOT NULL DEFAULT 0;
+            END;
         ");
     }
     catch { /* Column safety check */ }

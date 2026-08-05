@@ -17,45 +17,69 @@ export default function InventarioGrid({ data }) {
     
     // Convert to a flat list of inventories
     return data.productos.flatMap(p => {
+      const isPerish = p.isPerishable;
+      const min = p.minStock || 0;
+      
       // If the product has multiple inventories
       if (p.inventories && p.inventories.length > 0) {
         return p.inventories.map(inv => {
           const warehouse = data.almacenes.find(a => a.id === inv.warehouseId);
+          const stock = inv.stock || 0;
           return {
             id: `${p.id}-${inv.warehouseId}`,
             sku: p.sku,
             producto: p.name,
+            tipo: isPerish ? '⏳ Perecedero' : '📦 Estándar',
             almacen: warehouse ? warehouse.name : 'Desconocido',
-            existencia: inv.stock || 0
+            minStock: min,
+            existencia: stock,
+            alerta: (min > 0 && stock <= min) ? (stock <= 0 ? '🚫 Agotado' : '⚠️ Reorden') : '✅ Óptimo'
           };
         });
       }
       
       // Fallback for products that haven't been assigned to a warehouse yet (or old data format)
+      const stock = p.stock || 0;
       return [{
         id: `${p.id}-0`,
         sku: p.sku,
         producto: p.name,
+        tipo: isPerish ? '⏳ Perecedero' : '📦 Estándar',
         almacen: 'General',
-        existencia: p.stock || 0
+        minStock: min,
+        existencia: stock,
+        alerta: (min > 0 && stock <= min) ? (stock <= 0 ? '🚫 Agotado' : '⚠️ Reorden') : '✅ Óptimo'
       }];
     });
   }, [data]);
 
   const columnDefs = useMemo(() => [
-    { field: 'sku', headerName: 'SKU', width: 120, filter: 'agTextColumnFilter', sortable: true },
+    { field: 'sku', headerName: 'SKU', width: 110, filter: 'agTextColumnFilter', sortable: true },
     { field: 'producto', headerName: 'Producto', flex: 1, filter: 'agTextColumnFilter', sortable: true },
-    { field: 'almacen', headerName: 'Almacén', width: 200, filter: 'agTextColumnFilter', sortable: true },
+    { field: 'tipo', headerName: 'Tipo', width: 130, filter: 'agTextColumnFilter', sortable: true },
+    { field: 'almacen', headerName: 'Almacén', width: 160, filter: 'agTextColumnFilter', sortable: true },
+    { field: 'minStock', headerName: 'Mínimo', width: 100, type: 'numericColumn', filter: 'agNumberColumnFilter', sortable: true },
     { 
       field: 'existencia', 
       headerName: 'Físico (Existencia)', 
-      width: 150, 
+      width: 140, 
       type: 'numericColumn',
       filter: 'agNumberColumnFilter',
       sortable: true,
       cellStyle: params => ({
         fontWeight: 'bold',
-        color: params.value <= 0 ? 'red' : 'inherit'
+        color: params.value <= 0 ? '#dc2626' : (params.data.minStock > 0 && params.value <= params.data.minStock ? '#d97706' : '#15803d')
+      })
+    },
+    {
+      field: 'alerta',
+      headerName: 'Estatus Stock',
+      width: 130,
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      cellStyle: params => ({
+        fontWeight: 'bold',
+        color: params.value.includes('Agotado') ? '#dc2626' : params.value.includes('Reorden') ? '#d97706' : '#15803d'
       })
     }
   ], []);
