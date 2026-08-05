@@ -20,6 +20,7 @@ import Reportes from './components/Reportes';
 import Liquidacion from './components/Liquidacion';
 import Usuarios from './components/Usuarios';
 import Cobranza from './components/Cobranza';
+import CuentasPorPagar from './components/CuentasPorPagar';
 import Facturacion from './components/Facturacion';
 import Masivos from './components/Masivos';
 import TiendaB2B from './components/TiendaB2B';
@@ -703,6 +704,9 @@ function App() {
         <Route path="/masivos" element={<Masivos data={data} reloadState={reloadState}/>} />
         <Route path="/usuarios" element={<Usuarios data={data} addUser={addUser} updateUser={updateUser}/>} />
         <Route path="/cobranza" element={<Cobranza data={data} reloadState={reloadState}/>} />
+        <Route path="/cxp" element={<CuentasPorPagar data={data} reloadState={reloadState}/>} />
+        <Route path="/cxp/antiguedad" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="antiguedad"/>} />
+        <Route path="/cxp/estado-cuenta" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="edo_cuenta"/>} />
         <Route path="/facturacion" element={<Facturacion data={data} reloadState={reloadState}/>} />
         <Route path="/tienda" element={<TiendaB2B data={data} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido}/>} />
         <Route path="*" element={<Navigate to="/" replace />} />

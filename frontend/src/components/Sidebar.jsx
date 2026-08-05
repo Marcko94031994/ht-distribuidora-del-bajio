@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useDeviceMode } from '../utils/useDeviceMode';
 
 // Crisp SVG outline icons matching modern dashboard aesthetic
 const Icons = {
@@ -107,6 +108,11 @@ const Icons = {
       <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
     </svg>
   ),
+  cxp: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="12" y1="14" x2="12" y2="17"/><polyline points="10 15.5 12 14 14 15.5"/>
+    </svg>
+  ),
   liquidacion: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
@@ -130,6 +136,9 @@ const Icons = {
 };
 
 export default function Sidebar({tab,setTab,user,sucursal,logout}){
+  const { isMobile, isPWA } = useDeviceMode();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const menuGroups = [
     {
       title: 'Dashboards y Reportes',
@@ -170,6 +179,7 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
         ['tienda','Tienda B2B (Portal)', ['Admin', 'Cliente']],
         ['facturacion','Facturación SAT', ['Admin']],
         ['cobranza','Cobranza / CxC', ['Admin']],
+        ['cxp','Cuentas por Pagar (CxP)', ['Admin']],
         ['liquidacion','Liquidación', ['Admin']],
         ['caja','Corte de Caja', ['Admin']]
       ]
@@ -202,50 +212,18 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
     setOpenGroups(prev => ({ ...prev, [title]: !prev[title] }));
   };
 
+  const handleSelectTab = (t) => {
+    setTab(t);
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  };
+
   const userRole = user?.role || 'Admin';
 
-  return (
-    <div className="sidebar">
-      {/* Sidebar Header with Brand Logo */}
-      <div className="sidebar-header">
-        <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-          <img 
-            src="/logo.png" 
-            alt="HT Distribuidora del Bajío" 
-            className="brand-logo-img"
-            style={{ height: '58px', maxWidth: '200px', objectFit: 'contain' }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-            }}
-          />
-          <div className="brand-fallback" style={{ display: 'none', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              background: '#fff1f2',
-              border: '1.5px solid #fecdd3',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '18px',
-              letterSpacing: '-0.05em'
-            }}>
-              <span style={{ color: '#d81921' }}>H</span>
-              <span style={{ color: '#111111' }}>T</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-              <span style={{ fontSize: '14px', fontWeight: 900, color: '#111827', letterSpacing: '-0.02em' }}>HT DISTRIBUIDORA</span>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: '#d81921', letterSpacing: '0.04em' }}>DEL BAJÍO</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Navigation Menu */}
-      <div className="sidebar-nav">
+  const renderNavContent = () => (
+    <>
+      <div className="sidebar-nav" style={{ flex: 1, overflowY: 'auto' }}>
         {menuGroups.map(group => {
           const permissionsStr = user?.permissions || '';
           
@@ -278,7 +256,7 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
                     <button 
                       key={t[0]} 
                       className={`sidebar-item ${isActive ? 'active' : ''}`}
-                      onClick={() => setTab(t[0])}
+                      onClick={() => handleSelectTab(t[0])}
                     >
                       {icon}
                       <span>{t[1]}</span>
@@ -313,8 +291,148 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
           <span>Cerrar Sesión</span>
         </button>
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Top Navigation Bar */}
+      {isMobile ? (
+        <div style={{
+          width: '100%',
+          background: '#ffffff',
+          borderBottom: '1px solid #e2e8f0',
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          position: 'sticky',
+          top: 0,
+          zIndex: 1000,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.03)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button 
+              onClick={() => setMobileOpen(!mobileOpen)}
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                cursor: 'pointer',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              aria-label="Abrir Menú"
+            >
+              ☰
+            </button>
+            <img 
+              src="/logo.png" 
+              alt="HT" 
+              style={{ height: '32px', maxWidth: '120px', objectFit: 'contain' }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline-block';
+              }}
+            />
+            <span style={{ display: 'none', fontWeight: 900, fontSize: '14px', color: '#d81921' }}>HT DISTRIBUIDORA</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '3px 8px', borderRadius: '12px' }}>
+              {user?.role || 'Vendedor'}
+            </span>
+            <button 
+              onClick={logout} 
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
+              title="Cerrar Sesión"
+            >
+              {Icons.logout}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Mobile Drawer Overlay */}
+      {isMobile && mobileOpen && (
+        <div 
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            zIndex: 1050,
+            backdropFilter: 'blur(2px)'
+          }}
+        />
+      )}
+
+      {/* Drawer Container (Mobile or Desktop) */}
+      <div className={`sidebar ${isMobile ? 'mobile-drawer' : ''}`} style={isMobile ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        width: '280px',
+        zIndex: 1100,
+        background: '#ffffff',
+        boxShadow: '4px 0 16px rgba(0,0,0,0.15)',
+        transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s ease',
+        display: 'flex',
+        flexDirection: 'column'
+      } : {}}>
+        {/* Sidebar Header with Brand Logo */}
+        <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+            <img 
+              src="/logo.png" 
+              alt="HT Distribuidora del Bajío" 
+              className="brand-logo-img"
+              style={{ height: '54px', maxWidth: '190px', objectFit: 'contain' }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="brand-fallback" style={{ display: 'none', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                background: '#fff1f2',
+                border: '1.5px solid #fecdd3',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 900,
+                fontSize: '18px',
+                letterSpacing: '-0.05em'
+              }}>
+                <span style={{ color: '#d81921' }}>H</span>
+                <span style={{ color: '#111111' }}>T</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+                <span style={{ fontSize: '14px', fontWeight: 900, color: '#111827', letterSpacing: '-0.02em' }}>HT DISTRIBUIDORA</span>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#d81921', letterSpacing: '0.04em' }}>DEL BAJÍO</span>
+              </div>
+            </div>
+          </div>
+          {isMobile && (
+            <button 
+              onClick={() => setMobileOpen(false)}
+              style={{ background: 'none', border: 'none', fontSize: '20px', color: '#64748b', cursor: 'pointer', padding: '6px' }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        
+        {renderNavContent()}
+      </div>
+    </>
   );
 }
-
-

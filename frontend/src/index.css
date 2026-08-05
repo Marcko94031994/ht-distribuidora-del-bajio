@@ -222,14 +222,13 @@ button,input,select,textarea{font-family:inherit}
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-@media(max-width:1180px){
-  .login-wrap,.hero,.grid,.grid.two,.grid.three{grid-template-columns:1fr}
+@media(max-width:1024px){
+  .login-wrap,.hero,.grid.two,.grid.three{grid-template-columns:1fr}
   .form-grid,.warehouse{grid-template-columns:1fr}
   .app-layout { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; border-right: none; border-bottom: 1px solid var(--line); }
-  .sidebar-nav { flex-direction: row; overflow-x: auto; white-space: nowrap; padding: 10px 14px; }
-  .sidebar-footer { display: none; }
+  .app-content { padding: 14px; }
   .cart-row{grid-template-columns:1fr}
   .login-hero{padding:32px; border-right:none; border-bottom:1px solid var(--line)}
   .login-hero h1{font-size:32px}
 }
+

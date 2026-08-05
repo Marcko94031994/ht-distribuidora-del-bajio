@@ -273,27 +273,74 @@ public class FinanceController : ControllerBase
             return Ok(clientsWithDebt);
         }
 
+    [HttpGet("provider/{id}/statement")]
+        public async Task<IActionResult> GetProviderStatement(int id)
+        {
+            var provider = await _context.Providers.FindAsync(id);
+            if (provider == null) return NotFound("Proveedor no encontrado");
+
+            var purchaseOrders = await _context.PurchaseOrders
+                .Where(po => po.ProviderId == id && po.Status != "Cancelada")
+                .OrderByDescending(po => po.Id)
+                .Select(po => new {
+                    po.Id,
+                    po.PoNumber,
+                    po.Reference1,
+                    po.Reference2,
+                    po.Status,
+                    po.Date,
+                    po.DueDate,
+                    po.Subtotal,
+                    po.TaxAmount,
+                    po.TotalAmount,
+                    po.AmountPaid,
+                    Balance = po.TotalAmount - po.AmountPaid,
+                    IsOverdue = po.DueDate.HasValue && po.DueDate.Value < DateTime.Now && po.AmountPaid < po.TotalAmount,
+                    DaysOverdue = po.DueDate.HasValue && po.DueDate.Value < DateTime.Now && po.AmountPaid < po.TotalAmount
+                        ? (int)(DateTime.Now - po.DueDate.Value).TotalDays
+                        : 0
+                })
+                .ToListAsync();
+
+            var payments = await _context.ProviderPayments
+                .Where(p => p.ProviderId == id)
+                .OrderByDescending(p => p.Date)
+                .ToListAsync();
+
+            return Ok(new { provider, purchaseOrders, payments });
+        }
+
     [HttpGet("finance/cxp")]
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> GetAccountsPayable()
         {
+            var now = DateTime.Now;
             var providersWithDebt = await _context.Providers
                 .Where(p => p.CurrentBalance > 0)
                 .Select(p => new
                 {
                     p.Id,
                     p.Name,
+                    p.RFC,
+                    p.Contact,
+                    p.Phone,
+                    p.Address,
                     p.CurrentBalance,
                     UnpaidPOs = _context.PurchaseOrders
-                        .Where(po => po.ProviderId == p.Id && po.AmountPaid < po.TotalAmount)
+                        .Where(po => po.ProviderId == p.Id && po.AmountPaid < po.TotalAmount && po.Status != "Cancelada")
                         .Select(po => new {
                             po.Id,
                             po.PoNumber,
+                            po.Reference1,
+                            po.Reference2,
+                            po.Status,
                             po.Date,
                             po.DueDate,
-                            TotalAmount = po.TotalAmount,
+                            po.TotalAmount,
                             po.AmountPaid,
-                            IsOverdue = po.DueDate < DateTime.Now
+                            Balance = po.TotalAmount - po.AmountPaid,
+                            IsOverdue = po.DueDate.HasValue && po.DueDate.Value < now,
+                            DaysOverdue = po.DueDate.HasValue && po.DueDate.Value < now ? (int)(now - po.DueDate.Value).TotalDays : 0
                         })
                         .OrderBy(po => po.Date)
                         .ToList()
@@ -304,3 +351,4 @@ public class FinanceController : ControllerBase
         }
 
 }
+

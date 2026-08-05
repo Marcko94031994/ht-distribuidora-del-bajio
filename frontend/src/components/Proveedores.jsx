@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { pesos } from '../utils/helpers';
 
 export default function Proveedores({ data, addProveedor, updateProveedor, registrarPago }) {
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(null);
   const [paying, setPaying] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -196,17 +198,23 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
         /* Directorio de Proveedores */
         <div className="card">
         <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <h3>Directorio de Proveedores y Cuentas por Pagar (CxP)</h3>
-          <div style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '450px', justifyContent: 'flex-end' }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Directorio de Proveedores</h3>
+            <div className="muted" style={{ fontSize: '12px', marginTop: '2px' }}>Administración del padrón de proveedores y contactos</div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button className="btn primary" onClick={() => navigate('/cxp')} style={{ fontSize: '13px' }}>
+              💳 Módulo CxP (Saldos y Pagos)
+            </button>
             <input
               type="text"
-              className="input full"
-              placeholder="🔍 Buscar proveedor, RFC o teléfono..."
+              className="input"
+              placeholder="🔍 Buscar proveedor..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              style={{ flex: 1, minWidth: '180px' }}
+              style={{ width: '180px', fontSize: '13px' }}
             />
-            <button className="btn success" onClick={handleOpenAdd}>+ Nuevo Proveedor</button>
+            <button className="btn success" onClick={handleOpenAdd} style={{ fontSize: '13px' }}>+ Nuevo Proveedor</button>
           </div>
         </div>
         <div className="card-b list">
