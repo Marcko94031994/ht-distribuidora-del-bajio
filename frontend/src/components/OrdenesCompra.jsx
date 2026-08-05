@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { pesos } from '../utils/helpers';
 import SearchableSelect from './SearchableSelect';
+import LoadingOverlay from './LoadingOverlay';
 
 export default function OrdenesCompra({ data, producto, proveedor, reloadState }) {
   // Navigation & Filtering States
@@ -508,27 +509,34 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
+      {/* BLOQUEO DE PANTALLA EN ACCIONES DE ORDENES DE COMPRA */}
+      <LoadingOverlay 
+        show={loading}
+        title="Procesando Orden de Compra..."
+        message="Sincronizando movimientos de inventario y estado financiero de forma segura."
+      />
+
       {/* 1. MODAL DETALLE COMPLETO Y TRAZABILIDAD AUDITABLE DE ORDEN */}
       {viewingPo && (
         <div className="modal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div className="modal-content" style={{ maxWidth: '1050px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', borderRadius: '16px', overflow: 'hidden' }}>
             
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', color: '#fff', padding: '18px 24px' }}>
+            {/* Header: Clean Light Corporate */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '18px 24px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, color: '#38bdf8', fontSize: '1.3rem' }}>
+                  <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.3rem', fontWeight: 800 }}>
                     📦 Trazabilidad y Detalle: {viewingPo.poNumber}
                   </h3>
                   <span className={'chip ' + ((viewingPo.status === 'Autorizada' || viewingPo.status === 'Recibida') ? 'ok' : (viewingPo.status === 'Cancelada' ? 'danger' : 'warn'))} style={{ fontSize: '11px', fontWeight: 700 }}>
                     {viewingPo.status === 'Autorizada' || viewingPo.status === 'Recibida' ? '✅ Recibida en Almacén' : viewingPo.status}
                   </span>
                 </div>
-                <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>
-                  Generada: <b>{new Date(viewingPo.date).toLocaleDateString()}</b> · Proveedor: <b>{proveedor(viewingPo.providerId)?.name || 'N/A'}</b>
+                <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+                  Generada: <b style={{ color: '#334155' }}>{new Date(viewingPo.date).toLocaleDateString()}</b> · Proveedor: <b style={{ color: '#334155' }}>{proveedor(viewingPo.providerId)?.name || 'N/A'}</b>
                 </div>
               </div>
-              <button className="btn secondary small" onClick={() => setViewingPo(null)} style={{ background: '#334155', color: '#fff', border: 'none' }}>✕ Cerrar</button>
+              <button className="btn secondary small" onClick={() => setViewingPo(null)}>✕ Cerrar</button>
             </div>
 
             {/* Body */}
@@ -712,22 +720,22 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
         <div className="modal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
           <div className="modal-content" style={{ maxWidth: '1150px', width: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', borderRadius: '16px', overflow: 'hidden' }}>
             
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #15803d, #16a34a)', color: '#fff', padding: '18px 24px' }}>
+            {/* Header: Clean Light Corporate */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '18px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
                   📥
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, color: '#fff', fontSize: '1.3rem' }}>
-                    Recepción Física y Cotejo de Mercancía: <span style={{ color: '#fef08a' }}>{receivingPo.poNumber}</span>
+                  <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.3rem', fontWeight: 800 }}>
+                    Recepción Física y Cotejo: <span style={{ color: 'var(--primary, #d81921)' }}>{receivingPo.poNumber}</span>
                   </h3>
-                  <div style={{ fontSize: '12.5px', color: '#dcfce7', marginTop: '2px' }}>
-                    Proveedor: <b>{proveedor(receivingPo.providerId)?.name || 'N/A'}</b> · Verifica cantidades recibidas, costos, lotes y ubicaciones.
+                  <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
+                    Proveedor: <b style={{ color: '#334155' }}>{proveedor(receivingPo.providerId)?.name || 'N/A'}</b> · Verifica cantidades recibidas, costos, lotes y ubicaciones.
                   </div>
                 </div>
               </div>
-              <button className="btn secondary small" onClick={() => setReceivingPo(null)} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none' }}>✕ Cancelar</button>
+              <button className="btn secondary small" onClick={() => setReceivingPo(null)}>✕ Cancelar</button>
             </div>
 
             {/* Body */}
@@ -1082,17 +1090,17 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
 
       {/* 3. FORMULARIO DE CREACIÓN / EDICIÓN DE ORDEN DE COMPRA (BORRADOR) */}
       {showForm && (
-        <div className="card" style={{ width: '100%', border: '2px solid var(--success, #16a34a)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
-          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0fdf4', borderBottom: '1px solid #dcfce7', padding: '16px 20px' }}>
+        <div className="card" style={{ width: '100%', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
+          <div className="card-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '16px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--success, #16a34a)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#f1f5f9', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
                 {editingPo ? '✏️' : '🛒'}
               </div>
               <div>
-                <h3 style={{ margin: 0, color: '#166534' }}>
+                <h3 style={{ margin: 0, color: '#0f172a', fontWeight: 800 }}>
                   {editingPo ? `Editar Orden de Compra: ${editingPo.poNumber}` : 'Crear Nueva Orden de Compra'}
                 </h3>
-                <div style={{ fontSize: '12px', color: '#15803d' }}>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
                   {editingPo ? 'Modifica los proveedores, partidas o costos del borrador.' : 'Genera una orden en borrador lista para ser autorizada y recibida en almacén.'}
                 </div>
               </div>
