@@ -46,6 +46,7 @@ public class CatalogsController : ControllerBase
             .ToListAsync();
 
         var providers = await _context.Providers.AsNoTracking().ToListAsync();
+        var providerPayments = await _context.ProviderPayments.AsNoTracking().ToListAsync();
         var clientPrices = await _context.ClientPrices.AsNoTracking().ToListAsync();
         var returns = await _context.OrderReturns.AsNoTracking().ToListAsync();
         var expenses = await _context.Expenses.AsNoTracking().OrderByDescending(e => e.Id).Take(500).ToListAsync();
@@ -72,6 +73,7 @@ public class CatalogsController : ControllerBase
             clientes = clients,
             compras = purchaseOrders,
             proveedores = providers,
+            pagosProveedores = providerPayments,
             preciosEspeciales = clientPrices,
             devoluciones = returns,
             gastos = expenses,

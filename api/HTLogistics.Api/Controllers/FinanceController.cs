@@ -350,5 +350,139 @@ public class FinanceController : ControllerBase
             return Ok(providersWithDebt);
         }
 
+    [HttpGet("finance/cxp/aging")]
+    [Authorize(Roles = "Admin,Supervisor")]
+    public async Task<IActionResult> GetAccountsPayableAging([FromQuery] DateTime? cutoffDate, [FromQuery] int intervalDays = 15)
+    {
+        var targetCutoff = cutoffDate?.Date.AddDays(1).AddTicks(-1) ?? DateTime.Now;
+        if (intervalDays <= 0) intervalDays = 15;
+
+        var providers = await _context.Providers.AsNoTracking().ToListAsync();
+        var allPOs = await _context.PurchaseOrders
+            .Where(po => po.Status != "Cancelada" && po.Date <= targetCutoff)
+            .OrderBy(po => po.Date)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var allPayments = await _context.ProviderPayments
+            .Where(p => p.Date <= targetCutoff)
+            .OrderBy(p => p.Date)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var result = providers.Select(p => {
+            var providerPOs = allPOs.Where(po => po.ProviderId == p.Id).ToList();
+            var providerPayments = allPayments.Where(pm => pm.ProviderId == p.Id).ToList();
+
+            decimal totalPaidAtCutoff = providerPayments.Sum(pm => pm.Amount);
+            decimal remainingPaymentToAllocate = totalPaidAtCutoff;
+
+            decimal totalOriginal = 0;
+            decimal totalSaldoAlCorte = 0;
+            decimal aVencer = 0;
+            decimal b1 = 0;
+            decimal b2 = 0;
+            decimal b3 = 0;
+            decimal b4 = 0;
+            int maxDaysOverdue = 0;
+
+            var docs = new List<object>();
+
+            foreach (var po in providerPOs)
+            {
+                decimal poTotal = po.TotalAmount;
+                totalOriginal += poTotal;
+
+                // Allocate FIFO payment up to cutoff
+                decimal paidForThisPO = Math.Min(poTotal, Math.Max(0, remainingPaymentToAllocate));
+                remainingPaymentToAllocate -= paidForThisPO;
+
+                decimal balanceAtCutoff = Math.Max(0, poTotal - paidForThisPO);
+                if (balanceAtCutoff <= 0) continue; // Already paid at cutoff date
+
+                totalSaldoAlCorte += balanceAtCutoff;
+
+                DateTime due = po.DueDate ?? po.Date.AddDays(30);
+                int daysOverdue = 0;
+                if (targetCutoff > due)
+                {
+                    daysOverdue = (int)(targetCutoff.Date - due.Date).TotalDays;
+                    if (daysOverdue < 0) daysOverdue = 0;
+                }
+
+                if (daysOverdue > maxDaysOverdue) maxDaysOverdue = daysOverdue;
+
+                if (daysOverdue <= 0)
+                {
+                    aVencer += balanceAtCutoff;
+                }
+                else if (daysOverdue <= intervalDays)
+                {
+                    b1 += balanceAtCutoff;
+                }
+                else if (daysOverdue <= 2 * intervalDays)
+                {
+                    b2 += balanceAtCutoff;
+                }
+                else if (daysOverdue <= 3 * intervalDays)
+                {
+                    b3 += balanceAtCutoff;
+                }
+                else
+                {
+                    b4 += balanceAtCutoff;
+                }
+
+                docs.Add(new {
+                    po.Id,
+                    po.PoNumber,
+                    po.Reference1,
+                    po.Reference2,
+                    po.Date,
+                    DueDate = due,
+                    Total = poTotal,
+                    PaidAtCutoff = paidForThisPO,
+                    BalanceAtCutoff = balanceAtCutoff,
+                    DaysOverdue = daysOverdue
+                });
+            }
+
+            decimal vencidoTotal = b1 + b2 + b3 + b4;
+
+            return new {
+                p.Id,
+                p.Name,
+                p.RFC,
+                p.Contact,
+                p.Phone,
+                p.Address,
+                TotalOriginal = totalOriginal,
+                SaldoAlCorte = totalSaldoAlCorte,
+                AVencer = aVencer,
+                B1 = b1,
+                B2 = b2,
+                B3 = b3,
+                B4 = b4,
+                VencidoTotal = vencidoTotal,
+                MaxDaysOverdue = maxDaysOverdue,
+                Documents = docs
+            };
+        }).Where(r => r.SaldoAlCorte > 0 || r.TotalOriginal > 0).ToList();
+
+        return Ok(new {
+            CutoffDate = targetCutoff,
+            IntervalDays = intervalDays,
+            Providers = result,
+            GrandTotalOriginal = result.Sum(r => r.TotalOriginal),
+            GrandTotalSaldoAlCorte = result.Sum(r => r.SaldoAlCorte),
+            GrandTotalAVencer = result.Sum(r => r.AVencer),
+            GrandTotalB1 = result.Sum(r => r.B1),
+            GrandTotalB2 = result.Sum(r => r.B2),
+            GrandTotalB3 = result.Sum(r => r.B3),
+            GrandTotalB4 = result.Sum(r => r.B4),
+            GrandTotalVencido = result.Sum(r => r.VencidoTotal)
+        });
+    }
+
 }
 
