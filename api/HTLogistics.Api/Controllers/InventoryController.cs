@@ -581,16 +581,81 @@ public class InventoryController : ControllerBase
         }
 
     [HttpGet("product/{id}/kardex")]
-        [Authorize(Roles = "Admin,Almacenista,Supervisor")]
-        public async Task<IActionResult> GetProductKardex(int id)
-        {
-            var movements = await _context.InventoryMovements
-                .Where(m => m.ProductId == id)
-                .OrderByDescending(m => m.Date)
-                .ToListAsync();
-            
-            return Ok(movements);
-        }
+    public async Task<IActionResult> GetProductKardex(int id)
+    {
+        var movements = await _context.InventoryMovements
+            .Include(m => m.Product)
+            .Include(m => m.Warehouse)
+            .Where(m => m.ProductId == id)
+            .OrderByDescending(m => m.Date)
+            .Select(m => new {
+                m.Id,
+                m.ProductId,
+                ProductName = m.Product != null ? m.Product.Name : "Desconocido",
+                ProductSku = m.Product != null ? m.Product.SKU : "",
+                m.WarehouseId,
+                WarehouseName = m.Warehouse != null ? m.Warehouse.Name : "General",
+                m.Quantity,
+                m.Type,
+                m.Reason,
+                m.Date,
+                m.UserId,
+                m.Reference
+            })
+            .ToListAsync();
+        
+        return Ok(movements);
+    }
+
+    [HttpGet("kardex")]
+    public async Task<IActionResult> GetAllKardex(
+        [FromQuery] int? productId, 
+        [FromQuery] int? warehouseId, 
+        [FromQuery] string? type, 
+        [FromQuery] DateTime? startDate, 
+        [FromQuery] DateTime? endDate)
+    {
+        var query = _context.InventoryMovements
+            .Include(m => m.Product)
+            .Include(m => m.Warehouse)
+            .AsQueryable();
+
+        if (productId.HasValue && productId.Value > 0)
+            query = query.Where(m => m.ProductId == productId.Value);
+
+        if (warehouseId.HasValue && warehouseId.Value > 0)
+            query = query.Where(m => m.WarehouseId == warehouseId.Value);
+
+        if (!string.IsNullOrEmpty(type) && type != "ALL")
+            query = query.Where(m => m.Type == type);
+
+        if (startDate.HasValue)
+            query = query.Where(m => m.Date >= startDate.Value);
+
+        if (endDate.HasValue)
+            query = query.Where(m => m.Date <= endDate.Value.AddDays(1));
+
+        var list = await query
+            .OrderByDescending(m => m.Date)
+            .Take(500)
+            .Select(m => new {
+                m.Id,
+                m.ProductId,
+                ProductName = m.Product != null ? m.Product.Name : "Desconocido",
+                ProductSku = m.Product != null ? m.Product.SKU : "",
+                m.WarehouseId,
+                WarehouseName = m.Warehouse != null ? m.Warehouse.Name : "General",
+                m.Quantity,
+                m.Type,
+                m.Reason,
+                m.Date,
+                m.UserId,
+                m.Reference
+            })
+            .ToListAsync();
+
+        return Ok(list);
+    }
 
     [HttpPost("inventory/adjustment")]
         [Authorize(Roles = "Admin,Almacenista")]
