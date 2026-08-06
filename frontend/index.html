@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HT Distribuidora del Bajío</title>
     <script>
+      // Aggressive PWA / Service Worker / Cache purge to ensure immediate live updates
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(registrations) {
           for (var reg of registrations) {
