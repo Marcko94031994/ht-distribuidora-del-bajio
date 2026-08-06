@@ -356,19 +356,20 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
       return;
     }
 
-    // Validation for perishable products
-    for (const item of receptionItems) {
-      if (item.receivedQuantity > 0 && item.isPerishable && !item.expirationDate) {
-        alert(`⚠️ El producto "${item.productName}" es perecedero. Por favor especifica su fecha de caducidad antes de recibir.`);
-        return;
-      }
-      // Check if variance exists and warn
-      if (item.receivedQuantity !== item.orderedQuantity && !item.varianceReason && !item.isAdditional) {
-        if (!window.confirm(`El producto "${item.productName}" tiene diferencia entre lo pedido (${item.orderedQuantity}) y lo recibido (${item.receivedQuantity}) sin motivo especificado. ¿Deseas continuar?`)) {
-          return;
-        }
-      }
+    // Validation for perishable products (grouped in one single alert if any)
+    const missingPerishables = receptionItems.filter(
+      item => item.receivedQuantity > 0 && item.isPerishable && !item.expirationDate
+    );
+    if (missingPerishables.length > 0) {
+      const names = missingPerishables.map(i => `• ${i.productName}`).join('\n');
+      alert(`⚠️ Los siguientes productos perecederos requieren fecha de caducidad antes de recibir:\n\n${names}`);
+      return;
     }
+
+    // Check items with quantity differences
+    const itemsWithVariance = receptionItems.filter(
+      item => item.receivedQuantity !== item.orderedQuantity && !item.varianceReason && !item.isAdditional
+    );
 
     const totalRecCalculated = receptionItems.reduce((sum, item) => {
       const sub = (Number(item.receivedQuantity) || 0) * (Number(item.receivedUnitCost) || 0);
@@ -376,7 +377,13 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
       return sum + sub + tax;
     }, 0);
 
-    if (!window.confirm(`¿Confirmar recepción de la orden ${receivingPo.poNumber} por un total real recibido de ${pesos(totalRecCalculated)}?\n\nEsto ingresará físicamente el stock en los almacenes seleccionados y afectará el saldo del proveedor.`)) {
+    // Single unified confirmation prompt
+    let confirmMsg = `¿Confirmar recepción de la orden ${receivingPo.poNumber} por un total de ${pesos(totalRecCalculated)}?\n\nEsto ingresará físicamente el stock en los almacenes seleccionados y afectará el saldo del proveedor.`;
+    if (itemsWithVariance.length > 0) {
+      confirmMsg += `\n\n⚠️ Nota: Hay ${itemsWithVariance.length} producto(s) con diferencia entre lo pedido y lo recibido.`;
+    }
+
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
