@@ -9,7 +9,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Server=157.230.95.39;Port=3306;Database=htlogistics_prod;User=ht_user;Password=HtProdPassword2026!Secure;
     ports:
-      - "5000:8080"
+      - "5200:5200"
     volumes:
       - ht-data:/app/Data
     labels:
@@ -17,7 +17,7 @@ services:
       - "traefik.http.routers.backend.rule=Host(`ht.ggman.uk`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=myresolver"
-      - "traefik.http.services.backend.loadbalancer.server.port=8080"
+      - "traefik.http.services.backend.loadbalancer.server.port=5200"
 
   frontend:
     build:
