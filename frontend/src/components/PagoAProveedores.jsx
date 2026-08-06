@@ -1,8 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { pesos, pesosDecimals } from '../utils/helpers';
 
 export default function PagoAProveedores({ data, reloadState, preSelectedProviderId, onSelectProviderForStatement }) {
-  const [selectedProviderId, setSelectedProviderId] = useState(preSelectedProviderId || null);
+  const location = useLocation();
+  const initialProvId = preSelectedProviderId || location.state?.providerId || null;
+  const [selectedProviderId, setSelectedProviderId] = useState(initialProvId);
+
+  useEffect(() => {
+    if (preSelectedProviderId) {
+      setSelectedProviderId(preSelectedProviderId);
+    } else if (location.state?.providerId) {
+      setSelectedProviderId(location.state.providerId);
+    }
+  }, [preSelectedProviderId, location.state]);
   const [statement, setStatement] = useState(null);
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [submitting, setSubmitting] = useState(false);

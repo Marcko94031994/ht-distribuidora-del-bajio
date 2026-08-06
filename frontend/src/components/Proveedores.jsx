@@ -239,8 +239,12 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {(p.currentBalance || 0) > 0 && (
-                    <button className="btn primary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => setPaying(p)}>
-                      Abonar
+                    <button 
+                      className="btn success" 
+                      style={{ padding: '7px 14px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }} 
+                      onClick={() => navigate('/cxp/pagos', { state: { providerId: p.id } })}
+                    >
+                      💳 Pagar / Liquidar Facturas
                     </button>
                   )}
                   <button className="btn secondary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => handleOpenEdit(p)}>

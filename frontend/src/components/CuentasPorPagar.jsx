@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { pesos, pesosDecimals } from '../utils/helpers';
 import AntiguedadSaldosProveedores from './AntiguedadSaldosProveedores';
 import PagoAProveedores from './PagoAProveedores';
 
 export default function CuentasPorPagar({ data, reloadState, initialView }) {
+  const location = useLocation();
   // Main module sub-view: 'antiguedad', 'pagos', or 'edo_cuenta'
   const [mainView, setMainView] = useState(initialView || 'antiguedad');
 
@@ -17,6 +19,15 @@ export default function CuentasPorPagar({ data, reloadState, initialView }) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('debt'); // 'debt', 'overdue', 'all'
   const [selectedProvider, setSelectedProvider] = useState(null);
+
+  useEffect(() => {
+    if (location.state?.providerId && data.proveedores) {
+      const found = data.proveedores.find(p => p.id === Number(location.state.providerId));
+      if (found) {
+        setSelectedProvider(found);
+      }
+    }
+  }, [location.state, data.proveedores]);
   const [statement, setStatement] = useState(null);
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [paying, setPaying] = useState(false);
