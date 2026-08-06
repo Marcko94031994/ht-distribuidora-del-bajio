@@ -222,6 +222,33 @@ button,input,select,textarea{font-family:inherit}
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+@keyframes radarPulse {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  50% { transform: scale(1.6); opacity: 0.3; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.radar-pulse-effect {
+  animation: radarPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.custom-driver-marker, .custom-client-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  font-family: inherit;
+  padding: 4px;
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px;
+  line-height: 1.4;
+}
+
 @media(max-width:1024px){
   .login-wrap,.hero,.grid.two,.grid.three{grid-template-columns:1fr}
   .form-grid,.warehouse{grid-template-columns:1fr}
@@ -231,4 +258,3 @@ button,input,select,textarea{font-family:inherit}
   .login-hero{padding:32px; border-right:none; border-bottom:1px solid var(--line)}
   .login-hero h1{font-size:32px}
 }
-

@@ -47,6 +47,7 @@ public class CatalogsController : ControllerBase
 
         var providers = await _context.Providers.AsNoTracking().ToListAsync();
         var providerPayments = await _context.ProviderPayments.AsNoTracking().ToListAsync();
+        var clientPayments = await _context.ClientPayments.AsNoTracking().ToListAsync();
         var clientPrices = await _context.ClientPrices.AsNoTracking().ToListAsync();
         var returns = await _context.OrderReturns.AsNoTracking().ToListAsync();
         var expenses = await _context.Expenses.AsNoTracking().OrderByDescending(e => e.Id).Take(500).ToListAsync();
@@ -74,6 +75,7 @@ public class CatalogsController : ControllerBase
             compras = purchaseOrders,
             proveedores = providers,
             pagosProveedores = providerPayments,
+            pagosClientes = clientPayments,
             preciosEspeciales = clientPrices,
             devoluciones = returns,
             gastos = expenses,
@@ -300,40 +302,64 @@ public class CatalogsController : ControllerBase
             var provider = await _context.Providers.FindAsync(input.ProviderId);
             if (provider == null) return NotFound("Provider not found");
 
+            decimal totalPaidAmount = input.Amount;
+
+            if (input.PurchaseOrderPayments != null && input.PurchaseOrderPayments.Count > 0)
+            {
+                decimal sumAllocated = 0;
+                foreach (var item in input.PurchaseOrderPayments)
+                {
+                    if (item.Amount <= 0) continue;
+                    var po = await _context.PurchaseOrders.FirstOrDefaultAsync(p => p.Id == item.PurchaseOrderId && p.ProviderId == input.ProviderId);
+                    if (po != null)
+                    {
+                        po.AmountPaid += item.Amount;
+                        if (po.AmountPaid > po.TotalAmount) po.AmountPaid = po.TotalAmount;
+                        sumAllocated += item.Amount;
+                    }
+                }
+                if (totalPaidAmount <= 0 || sumAllocated > 0)
+                {
+                    totalPaidAmount = sumAllocated;
+                }
+            }
+            else
+            {
+                // FIFO logic fallback
+                var pendingPOs = await _context.PurchaseOrders
+                    .Where(po => po.ProviderId == input.ProviderId && po.AmountPaid < po.TotalAmount)
+                    .OrderBy(po => po.Date)
+                    .ToListAsync();
+
+                decimal remainingPayment = input.Amount;
+                foreach(var po in pendingPOs)
+                {
+                    if (remainingPayment <= 0) break;
+                    
+                    decimal debt = po.TotalAmount - po.AmountPaid;
+                    if (remainingPayment >= debt)
+                    {
+                        po.AmountPaid = po.TotalAmount;
+                        remainingPayment -= debt;
+                    }
+                    else
+                    {
+                        po.AmountPaid += remainingPayment;
+                        remainingPayment = 0;
+                    }
+                }
+            }
+
             var payment = new ProviderPayment
             {
                 ProviderId = input.ProviderId,
-                Amount = input.Amount,
+                Amount = totalPaidAmount,
                 Reference = input.Reference,
                 PaymentMethod = input.PaymentMethod,
                 Date = DateTime.Now
             };
 
-            // FIFO logic
-            var pendingPOs = await _context.PurchaseOrders
-                .Where(po => po.ProviderId == input.ProviderId && po.AmountPaid < po.TotalAmount)
-                .OrderBy(po => po.Date)
-                .ToListAsync();
-
-            decimal remainingPayment = input.Amount;
-            foreach(var po in pendingPOs)
-            {
-                if (remainingPayment <= 0) break;
-                
-                decimal debt = po.TotalAmount - po.AmountPaid;
-                if (remainingPayment >= debt)
-                {
-                    po.AmountPaid = po.TotalAmount;
-                    remainingPayment -= debt;
-                }
-                else
-                {
-                    po.AmountPaid += remainingPayment;
-                    remainingPayment = 0;
-                }
-            }
-
-            provider.CurrentBalance -= input.Amount;
+            provider.CurrentBalance -= totalPaidAmount;
             if (provider.CurrentBalance < 0) provider.CurrentBalance = 0;
             
             _context.ProviderPayments.Add(payment);
@@ -522,4 +548,156 @@ public class CatalogsController : ControllerBase
             return Ok(visit);
         }
 
+    [HttpPost("simulate-active-routes")]
+    public async Task<IActionResult> SimulateActiveRoutes()
+    {
+        // 1. Obtener o crear sucursal
+        var branch = await _context.Branches.FirstOrDefaultAsync();
+        if (branch == null)
+        {
+            branch = new Branch { Name = "Matriz Bajío", Zone = "León", Manager = "Gerencia Bajío" };
+            _context.Branches.Add(branch);
+            await _context.SaveChangesAsync();
+        }
+
+        // 2. Obtener o crear 3 Choferes / Vendedores
+        var d1 = await _context.Drivers.FirstOrDefaultAsync(d => d.Name.Contains("Juan Pérez"));
+        if (d1 == null)
+        {
+            d1 = new Driver { Name = "Juan Pérez (R-101)", Phone = "4771234567", Status = "En Ruta", BranchId = branch.Id, CommissionPercentage = 3.5m };
+            _context.Drivers.Add(d1);
+        }
+        d1.Latitude = 21.1218;
+        d1.Longitude = -101.6825;
+        d1.Status = "En Ruta";
+        d1.HasIncident = false;
+        d1.IncidentReason = null;
+
+        var d2 = await _context.Drivers.FirstOrDefaultAsync(d => d.Name.Contains("Carlos Mendoza"));
+        if (d2 == null)
+        {
+            d2 = new Driver { Name = "Carlos Mendoza (R-102)", Phone = "4779876543", Status = "En Ruta", BranchId = branch.Id, CommissionPercentage = 3.5m };
+            _context.Drivers.Add(d2);
+        }
+        d2.Latitude = 21.0985;
+        d2.Longitude = -101.6380;
+        d2.Status = "En Ruta";
+        d2.HasIncident = false;
+        d2.IncidentReason = null;
+
+        var d3 = await _context.Drivers.FirstOrDefaultAsync(d => d.Name.Contains("Roberto Ruiz"));
+        if (d3 == null)
+        {
+            d3 = new Driver { Name = "Roberto Ruiz (R-103)", Phone = "4775551234", Status = "En Ruta", BranchId = branch.Id, CommissionPercentage = 3.5m };
+            _context.Drivers.Add(d3);
+        }
+        d3.Latitude = 21.1520;
+        d3.Longitude = -101.6980;
+        d3.Status = "En Ruta";
+        d3.HasIncident = false;
+        d3.IncidentReason = null;
+
+        await _context.SaveChangesAsync();
+
+        // 3. Crear / Configurar 3 Rutas
+        var r1 = await _context.Routes.FirstOrDefaultAsync(r => r.Name.Contains("R-101"));
+        if (r1 == null)
+        {
+            r1 = new DeliveryRoute { Name = "R-101: Centro Histórico - San Juan", DayOfWeek = "Jueves", BranchId = branch.Id, DriverId = d1.Id };
+            _context.Routes.Add(r1);
+        }
+        else { r1.DriverId = d1.Id; }
+
+        var r2 = await _context.Routes.FirstOrDefaultAsync(r => r.Name.Contains("R-102"));
+        if (r2 == null)
+        {
+            r2 = new DeliveryRoute { Name = "R-102: Corredor Industrial Delta", DayOfWeek = "Jueves", BranchId = branch.Id, DriverId = d2.Id };
+            _context.Routes.Add(r2);
+        }
+        else { r2.DriverId = d2.Id; }
+
+        var r3 = await _context.Routes.FirstOrDefaultAsync(r => r.Name.Contains("R-103"));
+        if (r3 == null)
+        {
+            r3 = new DeliveryRoute { Name = "R-103: Zona Norte Campestre", DayOfWeek = "Jueves", BranchId = branch.Id, DriverId = d3.Id };
+            _context.Routes.Add(r3);
+        }
+        else { r3.DriverId = d3.Id; }
+
+        await _context.SaveChangesAsync();
+
+        // 4. Paradas secuenciales de clientes para cada ruta
+        var route1Stops = new[]
+        {
+            ("Abarrotes La Principal Centro", 21.1235, -101.6840, true, 4850m, 120m),
+            ("Super San Juan de Dios", 21.1210, -101.6795, true, 3200m, 80m),
+            ("Mini Super El Arco Triunfal", 21.1180, -101.6750, true, 6100m, 150m),
+            ("Comercializadora Madero", 21.1165, -101.6720, true, 2900m, 70m),
+            ("Tienda Don Pepe Belisario", 21.1140, -101.6690, false, 0m, 0m),
+            ("Abarrotes La Calzada", 21.1120, -101.6660, false, 0m, 0m),
+            ("Depósito San Pedro", 21.1100, -101.6630, false, 0m, 0m)
+        };
+
+        var route2Stops = new[]
+        {
+            ("Distribuidora Industrial Delta", 21.0920, -101.6320, true, 8900m, 240m),
+            ("Abarrotes San Miguel Sur", 21.0950, -101.6350, true, 4200m, 110m),
+            ("Super Carnicería Omega", 21.0990, -101.6400, true, 5500m, 130m),
+            ("Mini Super Blvd. Aeropuerto", 21.1030, -101.6450, false, 0m, 0m),
+            ("Abarrotes El Retiro Industrial", 21.1070, -101.6500, false, 0m, 0m),
+            ("Tienda Las Torres", 21.1110, -101.6550, false, 0m, 0m)
+        };
+
+        var route3Stops = new[]
+        {
+            ("Super Gourmet Campestre", 21.1580, -101.7050, true, 11500m, 290m),
+            ("Mini Super Paseo del Moral", 21.1540, -101.7010, true, 7300m, 180m),
+            ("Abarrotes Panorama", 21.1500, -101.6960, true, 4800m, 120m),
+            ("Comercial San Jerónimo", 21.1460, -101.6910, true, 5600m, 140m),
+            ("Depósito Hidalgo Norte", 21.1420, -101.6870, true, 3900m, 95m),
+            ("Tienda Valle del Campestre", 21.1380, -101.6830, false, 0m, 0m),
+            ("Mini Super Blvd. Insurgentes", 21.1340, -101.6790, false, 0m, 0m),
+            ("Abarrotes Jardines del Moral", 21.1300, -101.6750, false, 0m, 0m)
+        };
+
+        // Procesar clientes
+        async Task ProcessRouteClients(int routeId, (string name, double lat, double lng, bool visited, decimal amount, decimal weight)[] stops)
+        {
+            foreach (var stop in stops)
+            {
+                var client = await _context.Clients.FirstOrDefaultAsync(c => c.Name == stop.name);
+                if (client == null)
+                {
+                    client = new Client
+                    {
+                        Name = stop.name,
+                        Zone = "León",
+                        RouteId = routeId,
+                        Latitude = stop.lat,
+                        Longitude = stop.lng,
+                        IsVisited = stop.visited,
+                        CreditLimit = 25000m,
+                        CurrentBalance = 0m,
+                        CreditDays = 30
+                    };
+                    _context.Clients.Add(client);
+                }
+                else
+                {
+                    client.RouteId = routeId;
+                    client.Latitude = stop.lat;
+                    client.Longitude = stop.lng;
+                    client.IsVisited = stop.visited;
+                }
+            }
+        }
+
+        await ProcessRouteClients(r1.Id, route1Stops);
+        await ProcessRouteClients(r2.Id, route2Stops);
+        await ProcessRouteClients(r3.Id, route3Stops);
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Demostración de 3 rutas activas en León, Gto generada exitosamente.", r1Id = r1.Id, r2Id = r2.Id, r3Id = r3.Id });
+    }
 }

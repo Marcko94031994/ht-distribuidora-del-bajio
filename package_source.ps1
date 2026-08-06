@@ -17,7 +17,7 @@ $excludeFile = "exclude.txt"
 ".git" | Out-File $excludeFile -Encoding ASCII -Append
 "publish" | Out-File $excludeFile -Encoding ASCII -Append
 
-tar -czvf $tarFile -X $excludeFile api frontend docker-compose.yml
+tar -czvf $tarFile -X $excludeFile api frontend docker-compose.yml docker-compose.prod.yml
 
 Remove-Item $excludeFile -Force
 

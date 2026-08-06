@@ -99,7 +99,9 @@ public class OrdersController : ControllerBase
     
             foreach (var item in input.Items)
             {
-                var product = await _context.Products.FindAsync(item.ProductId);
+                var product = await _context.Products
+                    .Include(p => p.Inventories)
+                    .FirstOrDefaultAsync(p => p.Id == item.ProductId);
                 if (product != null)
                 {
                     if (product.TotalAvailableStock < item.Quantity)

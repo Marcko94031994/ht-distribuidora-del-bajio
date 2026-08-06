@@ -35,6 +35,7 @@ public class InventoryController : ControllerBase
             .Include(p => p.Images)
             .Include(p => p.Category)
             .Include(p => p.Brand)
+            .Include(p => p.Inventories)
             .OrderBy(p => p.Name)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

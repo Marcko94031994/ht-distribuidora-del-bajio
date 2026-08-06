@@ -5,8 +5,22 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HT Distribuidora del Bajío</title>
-    <script type="module" crossorigin src="/assets/index-Dsq5mMzJ.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DFWbhJEl.css">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (var reg of registrations) {
+            reg.unregister();
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (var name of names) caches.delete(name);
+        });
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-B46xnHob.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Cy6ibAfk.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
     <div id="root"></div>

@@ -449,12 +449,19 @@ public class RouteInputModel
     public required string ClientesText { get; set; }
 }
 
+public class PurchaseOrderPaymentItem
+{
+    public int PurchaseOrderId { get; set; }
+    public decimal Amount { get; set; }
+}
+
 public class ProviderPaymentInputModel
 {
     public int ProviderId { get; set; }
     public decimal Amount { get; set; }
     public string? Reference { get; set; }
     public string? PaymentMethod { get; set; }
+    public List<PurchaseOrderPaymentItem>? PurchaseOrderPayments { get; set; }
 }
 
 public class PurchaseOrderInputModel

@@ -113,6 +113,21 @@ const Icons = {
       <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="12" y1="14" x2="12" y2="17"/><polyline points="10 15.5 12 14 14 15.5"/>
     </svg>
   ),
+  'cxp/pagos': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8" cy="12" r="2"/><path d="m14 10 4 4m0-4-4 4"/>
+    </svg>
+  ),
+  'cxp/antiguedad': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20v-6M6 20V10M18 20V4"/>
+    </svg>
+  ),
+  'cxp/estado-cuenta': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+    </svg>
+  ),
   liquidacion: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
@@ -173,13 +188,20 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
       ]
     },
     {
+      title: 'Cuentas por Pagar (CxP)',
+      items: [
+        ['cxp/antiguedad', 'Antigüedad de Saldos', ['Admin']],
+        ['cxp/pagos', 'Pago a Proveedores', ['Admin']],
+        ['cxp/estado-cuenta', 'Cartera y Facturas', ['Admin']]
+      ]
+    },
+    {
       title: 'Ventas y Finanzas',
       items: [
         ['vendedor','App Vendedor', ['Admin', 'Vendedor']],
         ['tienda','Tienda B2B (Portal)', ['Admin', 'Cliente']],
         ['facturacion','Facturación SAT', ['Admin']],
-        ['cobranza','Cobranza / CxC', ['Admin']],
-        ['cxp','Cuentas por Pagar (CxP)', ['Admin']],
+        ['cobranza','Cuentas por Cobrar (CxC)', ['Admin']],
         ['liquidacion','Liquidación', ['Admin']],
         ['caja','Corte de Caja', ['Admin']]
       ]
@@ -197,6 +219,7 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
     'Dashboards y Reportes': true,
     'Catálogos': true,
     'Inventario y Logística': true,
+    'Cuentas por Pagar (CxP)': true,
     'Ventas y Finanzas': true,
     'Administración': true
   });
@@ -229,7 +252,8 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
           
           const visibleItems = group.items.filter(t => {
              if (userRole === 'Admin') return true; 
-             return permissionsStr.includes(t[0]);
+             const baseKey = t[0].split('/')[0];
+             return permissionsStr.includes(t[0]) || permissionsStr.includes(baseKey);
           });
           
           if (visibleItems.length === 0) return null;
@@ -250,8 +274,8 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
               
               <div className="sidebar-group-content" style={{ display: isOpen ? 'flex' : 'none' }}>
                 {visibleItems.map(t => {
-                  const isActive = tab === t[0];
-                  const icon = Icons[t[0]] || Icons.dashboard;
+                  const isActive = tab === t[0] || (tab.startsWith('cxp') && t[0] === 'cxp');
+                  const icon = Icons[t[0]] || Icons[t[0].split('/')[0]] || Icons.dashboard;
                   return (
                     <button 
                       key={t[0]} 

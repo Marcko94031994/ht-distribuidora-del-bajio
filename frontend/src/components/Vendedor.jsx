@@ -82,23 +82,57 @@ export default function Vendedor({
   }, [ruta]);
 
   const validateGeofence = (callback) => {
+    // Configuración de geovalidación configurable (Global / Vendedor)
+    let geoSettings = { enabled: true, toleranceMeters: 300, mode: 'auditoria' };
+    try {
+      const saved = localStorage.getItem('ht_geo_settings');
+      if (saved) geoSettings = { ...geoSettings, ...JSON.parse(saved) };
+    } catch(e){}
+
+    // Si la geovalidación está desactivada, proceder inmediatamente
+    if (!geoSettings.enabled) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => callback(pos.coords.latitude, pos.coords.longitude),
+          () => callback(0, 0),
+          { timeout: 3000 }
+        );
+      } else {
+        callback(0, 0);
+      }
+      return;
+    }
+
     if (!cliente || !cliente.latitude || !cliente.longitude) {
       callback(0, 0);
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const dist = getDistanceFromLatLonInM(pos.coords.latitude, pos.coords.longitude, cliente.latitude, cliente.longitude);
-        if (dist > 50) {
-          alert(`📍 Geocerca Activa: Estás a ${Math.round(dist)} metros del cliente.\n\nDebes acercarte a menos de 50m para realizar esta acción.`);
-          return;
+        const maxDist = geoSettings.toleranceMeters || 300;
+        
+        if (dist > maxDist) {
+          if (geoSettings.mode === 'estricto') {
+            alert(`📍 Geocerca Estricta: Estás a ${Math.round(dist)}m del cliente.\n\nTolerancia máxima: ${maxDist}m.\nAcércate al sitio para capturar esta acción.`);
+            return;
+          } else {
+            // Modo Auditoría: Permite la operación pero alerta al usuario
+            console.warn(`[GPS Auditoría] Captura fuera de rango: ${Math.round(dist)}m del cliente (Tolerancia: ${maxDist}m)`);
+          }
         }
         callback(pos.coords.latitude, pos.coords.longitude);
       },
       (err) => {
-        alert("Debes permitir el acceso al GPS para validar la ubicación.");
+        if (geoSettings.mode === 'estricto') {
+          alert("📍 Debes permitir el acceso al GPS para validar la ubicación del cliente.");
+        } else {
+          console.warn("GPS no disponible en modo auditoría, procediendo...");
+          callback(0, 0);
+        }
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
     );
   };
 

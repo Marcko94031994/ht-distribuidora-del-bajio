@@ -704,8 +704,12 @@ function App() {
         <Route path="/masivos" element={<Masivos data={data} reloadState={reloadState}/>} />
         <Route path="/usuarios" element={<Usuarios data={data} addUser={addUser} updateUser={updateUser}/>} />
         <Route path="/cobranza" element={<Cobranza data={data} reloadState={reloadState}/>} />
+        <Route path="/cxc" element={<Cobranza data={data} reloadState={reloadState}/>} />
+        <Route path="/cxc/antiguedad" element={<Cobranza data={data} reloadState={reloadState} initialView="antiguedad"/>} />
+        <Route path="/cxc/estado-cuenta" element={<Cobranza data={data} reloadState={reloadState} initialView="edo_cuenta"/>} />
         <Route path="/cxp" element={<CuentasPorPagar data={data} reloadState={reloadState}/>} />
         <Route path="/cxp/antiguedad" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="antiguedad"/>} />
+        <Route path="/cxp/pagos" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="pagos"/>} />
         <Route path="/cxp/estado-cuenta" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="edo_cuenta"/>} />
         <Route path="/facturacion" element={<Facturacion data={data} reloadState={reloadState}/>} />
         <Route path="/tienda" element={<TiendaB2B data={data} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido}/>} />
