@@ -10,6 +10,8 @@ const MODULES = [
   { id: 'clientes', label: 'Clientes', group: 'Catálogos' },
   { id: 'proveedores', label: 'Proveedores', group: 'Catálogos' },
   { id: 'productos', label: 'Productos', group: 'Catálogos' },
+  { id: 'cxp/antiguedad', label: 'Antigüedad de Saldos (CxP)', group: 'Cuentas por Pagar (CxP)' },
+  { id: 'cxp/pagos', label: 'Pago a Proveedores (CxP)', group: 'Cuentas por Pagar (CxP)' },
   { id: 'almacen', label: 'Compras e Inventario', group: 'Inventario' },
   { id: 'remisiones', label: 'Remisiones (Despacho)', group: 'Inventario' },
   { id: 'masivos', label: 'Cambios Masivos', group: 'Inventario' },

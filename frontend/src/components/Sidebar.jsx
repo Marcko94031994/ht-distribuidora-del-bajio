@@ -178,6 +178,13 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
       ]
     },
     {
+      title: 'Cuentas por Pagar (CxP)',
+      items: [
+        ['cxp/antiguedad', 'Antigüedad de Saldos', ['Admin']],
+        ['cxp/pagos', 'Pago a Proveedores', ['Admin']]
+      ]
+    },
+    {
       title: 'Inventario y Logística',
       items: [
         ['almacen','Kardex / Inventario', ['Admin', 'Almacenista']],
@@ -185,14 +192,6 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
         ['remisiones','Remisiones (Despacho)', ['Admin', 'Chofer', 'Almacenista']],
         ['mermas','Mermas y Caducados', ['Admin', 'Almacenista']],
         ['masivos','Cambios Masivos', ['Admin', 'Almacenista']]
-      ]
-    },
-    {
-      title: 'Cuentas por Pagar (CxP)',
-      items: [
-        ['cxp/antiguedad', 'Antigüedad de Saldos', ['Admin']],
-        ['cxp/pagos', 'Pago a Proveedores', ['Admin']],
-        ['cxp/estado-cuenta', 'Cartera y Facturas', ['Admin']]
       ]
     },
     {
@@ -225,7 +224,7 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
   });
 
   useEffect(() => {
-    const activeGroup = menuGroups.find(g => g.items.some(i => i[0] === tab));
+    const activeGroup = menuGroups.find(g => g.items.some(i => i[0] === tab || (tab.startsWith('cxp') && i[0].startsWith('cxp'))));
     if (activeGroup) {
       setOpenGroups(prev => ({ ...prev, [activeGroup.title]: true }));
     }
@@ -274,7 +273,7 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
               
               <div className="sidebar-group-content" style={{ display: isOpen ? 'flex' : 'none' }}>
                 {visibleItems.map(t => {
-                  const isActive = tab === t[0] || (tab.startsWith('cxp') && t[0] === 'cxp');
+                  const isActive = tab === t[0] || (tab === 'cxp' && t[0] === 'cxp/antiguedad');
                   const icon = Icons[t[0]] || Icons[t[0].split('/')[0]] || Icons.dashboard;
                   return (
                     <button 

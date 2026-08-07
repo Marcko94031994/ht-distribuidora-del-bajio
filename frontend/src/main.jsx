@@ -5,13 +5,18 @@ import App from './App.jsx'
 
 import { BrowserRouter } from 'react-router-dom'
 
-// Asegurar que el ServiceWorker se actualice sin quedar congelado en versiones viejas
+// Limpieza automática de ServiceWorkers y Caché obsoleto para que todos los navegadores reciban la versión actual
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(registrations => {
     for (const registration of registrations) {
-      registration.update();
+      registration.unregister();
     }
   });
+  if ('caches' in window) {
+    caches.keys().then(keys => {
+      keys.forEach(key => caches.delete(key));
+    });
+  }
 }
 
 createRoot(document.getElementById('root')).render(

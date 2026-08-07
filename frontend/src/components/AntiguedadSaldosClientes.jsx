@@ -107,7 +107,32 @@ export default function AntiguedadSaldosClientes({ data, onSelectClientForStatem
         creditLimit: c.creditLimit || 0,
         creditDays: c.creditDays || 30,
         docsCount: c.documents?.length || 0,
-        documents: c.documents || [],
+        documents: (c.documents || []).map(doc => {
+          const total = Number(doc.total ?? doc.Total ?? 0);
+          const paid = Number(doc.paid ?? doc.paidAtCutoff ?? doc.PaidAtCutoff ?? 0);
+          const balance = Number(doc.balance ?? doc.balanceAtCutoff ?? doc.BalanceAtCutoff ?? Math.max(0, total - paid));
+          const daysOverdue = Number(doc.daysOverdue ?? doc.DaysOverdue ?? 0);
+          let docBracket = 'b0';
+          if (daysOverdue <= 0) {
+            docBracket = 'b0';
+          } else if (daysOverdue >= bracketsConfig[1].min && daysOverdue <= bracketsConfig[1].max) {
+            docBracket = 'b1';
+          } else if (daysOverdue >= bracketsConfig[2].min && daysOverdue <= bracketsConfig[2].max) {
+            docBracket = 'b2';
+          } else if (daysOverdue >= bracketsConfig[3].min && daysOverdue <= bracketsConfig[3].max) {
+            docBracket = 'b3';
+          } else {
+            docBracket = 'b4';
+          }
+          return {
+            ...doc,
+            total,
+            paid,
+            balance,
+            daysOverdue,
+            docBracket
+          };
+        }),
         totalOriginal: c.totalOriginal || 0,
         saldoAlCorte: c.saldoAlCorte || 0,
         aVencer: c.aVencer || 0,

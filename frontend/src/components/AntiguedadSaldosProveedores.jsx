@@ -99,7 +99,32 @@ export default function AntiguedadSaldosProveedores({ data, onSelectProviderForS
         phone: p.phone,
         contact: p.contact,
         docsCount: p.documents?.length || 0,
-        documents: p.documents || [],
+        documents: (p.documents || []).map(doc => {
+          const total = Number(doc.total ?? doc.Total ?? 0);
+          const paid = Number(doc.paid ?? doc.paidAtCutoff ?? doc.PaidAtCutoff ?? 0);
+          const balance = Number(doc.balance ?? doc.balanceAtCutoff ?? doc.BalanceAtCutoff ?? Math.max(0, total - paid));
+          const daysOverdue = Number(doc.daysOverdue ?? doc.DaysOverdue ?? 0);
+          let docBracket = 'b0';
+          if (daysOverdue <= 0) {
+            docBracket = 'b0';
+          } else if (daysOverdue >= bracketsConfig[1].min && daysOverdue <= bracketsConfig[1].max) {
+            docBracket = 'b1';
+          } else if (daysOverdue >= bracketsConfig[2].min && daysOverdue <= bracketsConfig[2].max) {
+            docBracket = 'b2';
+          } else if (daysOverdue >= bracketsConfig[3].min && daysOverdue <= bracketsConfig[3].max) {
+            docBracket = 'b3';
+          } else {
+            docBracket = 'b4';
+          }
+          return {
+            ...doc,
+            total,
+            paid,
+            balance,
+            daysOverdue,
+            docBracket
+          };
+        }),
         totalOriginal: p.totalOriginal || 0,
         saldoAlCorte: p.saldoAlCorte || 0,
         aVencer: p.aVencer || 0,

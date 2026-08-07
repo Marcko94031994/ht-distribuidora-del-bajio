@@ -11,7 +11,8 @@ export default function Almacen({
   devoluciones,
   autorizarDevolucion,
   registrarAjuste,
-  reloadState
+  reloadState,
+  apiFetch
 }) {
   // Main tabs: 'kardex', 'stock', 'ajustes', 'devoluciones'
   const [activeTab, setActiveTab] = useState('kardex');
@@ -42,7 +43,6 @@ export default function Almacen({
   const fetchKardex = async () => {
     setLoadingKardex(true);
     try {
-      const token = localStorage.getItem('ht_token');
       const params = new URLSearchParams();
       if (selectedProductKardex) params.append('productId', selectedProductKardex);
       if (filterWarehouseKardex) params.append('warehouseId', filterWarehouseKardex);
@@ -51,12 +51,14 @@ export default function Almacen({
       if (kardexDateTo) params.append('endDate', kardexDateTo);
 
       const url = `${import.meta.env.VITE_API_URL || ''}/api/app/kardex?${params.toString()}`;
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
+      const token = localStorage.getItem('ht_token');
+      const res = apiFetch 
+        ? await apiFetch(url) 
+        : await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        
+      if (res && res.ok) {
         const json = await res.json();
-        setKardexList(json || []);
+        setKardexList(Array.isArray(json) ? json : []);
       }
     } catch (e) {
       console.error('Error fetching kardex:', e);

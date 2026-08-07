@@ -441,6 +441,8 @@ public class FinanceController : ControllerBase
                     po.Date,
                     DueDate = due,
                     Total = poTotal,
+                    Paid = paidForThisPO,
+                    Balance = balanceAtCutoff,
                     PaidAtCutoff = paidForThisPO,
                     BalanceAtCutoff = balanceAtCutoff,
                     DaysOverdue = daysOverdue
@@ -573,6 +575,8 @@ public class FinanceController : ControllerBase
                     ord.Date,
                     DueDate = due,
                     Total = ordTotal,
+                    Paid = paidForThisOrd,
+                    Balance = balanceAtCutoff,
                     PaidAtCutoff = paidForThisOrd,
                     BalanceAtCutoff = balanceAtCutoff,
                     DaysOverdue = daysOverdue,

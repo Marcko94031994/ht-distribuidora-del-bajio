@@ -113,7 +113,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// Forwarded Headers & HTTPS Configuration for Reverse Proxy (Traefik/Nginx)
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor |
+                               Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+builder.Services.AddHttpsRedirection(options =>
+{
+    options.HttpsPort = 443;
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // Global Exception Handler
 app.UseExceptionHandler(exceptionHandlerApp =>
@@ -158,6 +174,12 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
+
+    try
+    {
+        await context.Database.ExecuteSqlRawAsync("IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'Permissions') BEGIN ALTER TABLE Users ADD Permissions NVARCHAR(MAX) NULL; END;");
+    }
+    catch { }
 
     bool schemaExists = false;
     try
@@ -253,6 +275,10 @@ using (var scope = app.Services.CreateScope())
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'VarianceReason')
             BEGIN
                 ALTER TABLE PurchaseOrderDetails ADD VarianceReason NVARCHAR(500) NULL;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'Permissions')
+            BEGIN
+                ALTER TABLE Users ADD Permissions NVARCHAR(MAX) NULL;
             END;
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'IsAdditional')
             BEGIN
