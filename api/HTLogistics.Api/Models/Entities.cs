@@ -176,6 +176,7 @@ public class Product
 
     public decimal Cost { get; set; }
     public decimal Cogs { get; set; } // Costo de venta
+    public decimal AverageCost { get; set; } // Costo promedio ponderado histórico
 
     public decimal IvaRate { get; set; } // e.g., 0.16
     public decimal IepsRate { get; set; } // e.g., 0.08
@@ -270,6 +271,9 @@ public class InventoryMovement
     public DateTime Date { get; set; }
     public int UserId { get; set; }
     public string? Reference { get; set; } // Numero de pedido u OC
+    
+    public decimal UnitCost { get; set; } // Costo al que entró o salió
+    public decimal AverageCost { get; set; } // Costo promedio en el momento del movimiento
 }
 
 public class ProductImage

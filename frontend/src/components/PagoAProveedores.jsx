@@ -18,7 +18,9 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [onlyWithBalance, setOnlyWithBalance] = useState(true);
   const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [selectedPOForDetail, setSelectedPOForDetail] = useState(null);
 
   // Payment form state
   const [paymentHeader, setPaymentHeader] = useState({
@@ -63,6 +65,8 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
         hasOverdue: overduePOs.length > 0
       };
     }).filter(p => {
+      if (onlyWithBalance && (p.totalBalance || 0) <= 0) return false;
+      
       if (!searchTerm) return true;
       const term = searchTerm.toLowerCase();
       return (
@@ -90,10 +94,11 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
         });
         if (res.ok) {
           const json = await res.json();
-          setStatement(json);
+          const localPOs = purchaseOrders.filter(po => po.providerId === Number(selectedProviderId) && po.status !== 'Cancelada');
+          setStatement({ ...json, purchaseOrders: localPOs });
           // Initialize allocations with all unpaid POs
           const allocs = {};
-          (json.purchaseOrders || []).forEach(po => {
+          localPOs.forEach(po => {
             const balance = (Number(po.totalAmount) || 0) - (Number(po.amountPaid) || 0);
             if (balance > 0) {
               allocs[po.id] = {
@@ -497,7 +502,7 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
                 }}
               >
                 <span>💳</span>
-                <span>{submitting ? 'Procesando Pago...' : `Aplicar Pago (${pesos(paymentSummary.totalSelectedAmount)})`}</span>
+                <span>{submitting ? 'Procesando Pago...' : `Aplicar Pago (${pesosDecimals(paymentSummary.totalSelectedAmount)})`}</span>
               </button>
             </div>
 
@@ -668,9 +673,18 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
 
                         {/* Folio OC */}
                         <td style={{ padding: '12px 14px', fontWeight: 700, color: '#0f172a' }}>
-                          <span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', border: '1px solid #e2e8f0' }}>
-                            {po.poNumber || `OC-${po.id}`}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', border: '1px solid #e2e8f0' }}>
+                              {po.poNumber || `OC-${po.id}`}
+                            </span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedPOForDetail(po); }}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '4px', color: '#3b82f6' }}
+                              title="Ver detalles del documento"
+                            >
+                              ℹ️
+                            </button>
+                          </div>
                         </td>
 
                         {/* Factura / Ref */}
@@ -856,7 +870,7 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
                   }}
                 >
                   <span>💳</span>
-                  <span>{submitting ? 'Procesando...' : `Confirmar y Aplicar Pago (${pesos(paymentSummary.totalSelectedAmount)})`}</span>
+                  <span>{submitting ? 'Procesando...' : `Confirmar y Aplicar Pago (${pesosDecimals(paymentSummary.totalSelectedAmount)})`}</span>
                 </button>
               </div>
             </div>
@@ -880,19 +894,30 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
               Cartera de Proveedores con Pasivos Pendientes
             </h3>
-            <input
-              type="text"
-              placeholder="🔍 Buscar proveedor por nombre o RFC..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                width: '280px'
-              }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#475569', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={onlyWithBalance} 
+                  onChange={(e) => setOnlyWithBalance(e.target.checked)} 
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }} 
+                />
+                Solo con Saldo
+              </label>
+              <input
+                type="text"
+                placeholder="🔍 Buscar proveedor por nombre o RFC..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  width: '280px'
+                }}
+              />
+            </div>
           </div>
 
           <div className="table-responsive" style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
@@ -960,6 +985,75 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
         </div>
       )}
 
+      {/* PO Detail Modal */}
+      {selectedPOForDetail && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)' }}>
+          <div className="animate-fade-in-up" style={{ background: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+            
+            {/* Modal Header */}
+            <div style={{ background: '#f8fafc', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#e0e7ff', color: '#4338ca', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                  📑
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>Detalle de Documento</h3>
+                  <div style={{ fontSize: '13px', color: '#64748b' }}>{selectedPOForDetail.poNumber || `OC-${selectedPOForDetail.id}`}</div>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedPOForDetail(null)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#94a3b8', padding: '4px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px dashed #cbd5e1' }}>
+                  <span style={{ color: '#475569', fontSize: '14px', fontWeight: 600 }}>Total Original del Documento:</span>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>{pesos(selectedPOForDetail.totalAmount || 0)}</span>
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px dashed #cbd5e1' }}>
+                  <span style={{ color: '#475569', fontSize: '14px', fontWeight: 600 }}>Total de Pagos Aplicados:</span>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#16a34a' }}>- {pesos(selectedPOForDetail.amountPaid || 0)}</span>
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f1f5f9', borderRadius: '8px' }}>
+                  <span style={{ color: '#0f172a', fontSize: '15px', fontWeight: 800 }}>Saldo Actual Pendiente:</span>
+                  <span style={{ fontSize: '20px', fontWeight: 800, color: '#dc2626' }}>
+                    {pesos((selectedPOForDetail.totalAmount || 0) - (selectedPOForDetail.amountPaid || 0))}
+                  </span>
+                </div>
+
+                <div style={{ marginTop: '8px', padding: '12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', display: 'flex', gap: '10px' }}>
+                  <span style={{ fontSize: '16px' }}>💡</span>
+                  <div style={{ fontSize: '12px', color: '#92400e', lineHeight: '1.4' }}>
+                    <strong>Nota sobre el historial de pagos:</strong> El sistema consolida el monto total abonado en el documento (Arriba). El detalle línea por línea de qué abonos específicos formaron este monto no se guarda en el modelo actual de la base de datos (se maneja como un estado de cuenta global por proveedor).
+                  </div>
+                </div>
+
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn primary" 
+                onClick={() => setSelectedPOForDetail(null)}
+                style={{ padding: '8px 24px' }}
+              >
+                Cerrar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

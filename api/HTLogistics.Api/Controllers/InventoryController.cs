@@ -325,12 +325,64 @@ public class InventoryController : ControllerBase
     [HttpPost("purchase-order/{id}/cancel")]
     public async Task<IActionResult> CancelPurchaseOrder(int id)
     {
-        var po = await _context.PurchaseOrders.FirstOrDefaultAsync(p => p.Id == id);
+        var po = await _context.PurchaseOrders.Include(p => p.Details).FirstOrDefaultAsync(p => p.Id == id);
         if (po == null) return NotFound();
 
-        if (po.Status != "Borrador" && po.Status != "Pendiente")
+        if (po.Status == "Cancelada") return BadRequest("La orden ya se encuentra cancelada.");
+
+        if (po.Status == "Recibida")
         {
-            return BadRequest("Solo se pueden cancelar órdenes en estado Borrador que no hayan sido recibidas en inventario.");
+            if (po.AmountPaid > 0)
+            {
+                return BadRequest("No se puede cancelar una orden recibida que ya tiene pagos o abonos aplicados.");
+            }
+
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
+            // Validar inventario para cada detalle
+            foreach (var detail in po.Details)
+            {
+                if (detail.ReceivedQuantity > 0)
+                {
+                    var wp = await _context.ProductInventories.FirstOrDefaultAsync(w => w.ProductId == detail.ProductId && w.WarehouseId == detail.WarehouseId);
+                    if (wp == null || wp.Stock < detail.ReceivedQuantity)
+                    {
+                        var prod = await _context.Products.FindAsync(detail.ProductId);
+                        return BadRequest($"No se puede cancelar. El producto {prod?.Name ?? detail.ProductId.ToString()} no tiene suficiente inventario en el almacén para revertir la entrada. (Existencia actual: {wp?.Stock ?? 0}, Requerido: {detail.ReceivedQuantity})");
+                    }
+                }
+            }
+
+            // Si pasa la validación, procedemos a descontar el inventario y registrar transacciones
+            foreach (var detail in po.Details)
+            {
+                if (detail.ReceivedQuantity > 0)
+                {
+                    var wp = await _context.ProductInventories.FirstOrDefaultAsync(w => w.ProductId == detail.ProductId && w.WarehouseId == detail.WarehouseId);
+                    if (wp != null)
+                    {
+                        wp.Stock -= detail.ReceivedQuantity;
+
+                        var transaction = new InventoryMovement
+                        {
+                            ProductId = detail.ProductId,
+                            WarehouseId = detail.WarehouseId,
+                            Type = "Salida",
+                            Reason = "Cancelación OC",
+                            Quantity = detail.ReceivedQuantity,
+                            Reference = $"Cancelación OC-{po.Id} Fact:{po.Reference1 ?? "N/A"}",
+                            Date = DateTime.Now,
+                            UserId = userId
+                        };
+                        _context.InventoryMovements.Add(transaction);
+                    }
+                }
+            }
+        }
+        else if (po.Status != "Borrador" && po.Status != "Pendiente")
+        {
+            return BadRequest("El estado actual de la orden no permite su cancelación.");
         }
 
         po.Status = "Cancelada";
@@ -449,7 +501,21 @@ public class InventoryController : ControllerBase
                 // Si se recibieron piezas físicas (> 0), aplicar entradas de inventario
                 if (recQty > 0)
                 {
+                    // Calcular costo promedio ponderado
+                    int currentTotalStock = await _context.ProductInventories
+                        .Where(i => i.ProductId == product.Id)
+                        .SumAsync(i => i.Stock);
+
+                    decimal currentAvgCost = product.AverageCost > 0 ? product.AverageCost : product.Cost;
+                    
+                    decimal newAvgCost = recCost;
+                    if (currentTotalStock + recQty > 0)
+                    {
+                        newAvgCost = ((currentTotalStock * currentAvgCost) + (recQty * recCost)) / (currentTotalStock + recQty);
+                    }
+
                     product.Cost = recCost; // Actualizar último costo
+                    product.AverageCost = newAvgCost; // Actualizar costo promedio
 
                     // 1. Inventario por almacén
                     var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == product.Id && i.WarehouseId == targetWarehouseId);
@@ -487,7 +553,9 @@ public class InventoryController : ControllerBase
                         Reason = "Recepción OC",
                         Date = DateTime.Now,
                         UserId = userId,
-                        Reference = $"{po.PoNumber} (Fact: {po.Reference1 ?? "S/F"})"
+                        Reference = $"{po.PoNumber} (Fact: {po.Reference1 ?? "S/F"})",
+                        UnitCost = recCost,
+                        AverageCost = newAvgCost
                     });
                 }
             }
@@ -683,7 +751,9 @@ public class InventoryController : ControllerBase
                 Reason = $"{input.AdjustmentType}: {input.Reason}",
                 Date = DateTime.Now,
                 UserId = userId,
-                Reference = $"Ajuste-{DateTime.Now.Ticks}"
+                Reference = $"Ajuste-{DateTime.Now.Ticks}",
+                UnitCost = product.AverageCost > 0 ? product.AverageCost : product.Cost,
+                AverageCost = product.AverageCost > 0 ? product.AverageCost : product.Cost
             };
 
             _context.InventoryMovements.Add(movement);

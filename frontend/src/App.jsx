@@ -28,6 +28,7 @@ import CajaGeneral from './components/CajaGeneral';
 import Mermas from './components/Mermas';
 import OrdenesCompra from './components/OrdenesCompra';
 import Vehiculos from './components/Vehiculos';
+import PwaMobileLayout from './components/pwa/PwaMobileLayout';
 
 function App() {
   const [logged,setLogged]=useState(!!localStorage.getItem('ht_token')); 
@@ -219,11 +220,11 @@ function App() {
   const almacen=id=>data.almacenes.find(x=>x.id==id); 
   const producto=id=>data.productos.find(x=>x.id==id); 
   const ruta=id=>data.rutas.find(x=>x.id==id); 
-  const cliente=id=>data.rutas.flatMap(r=>r.clientes||[]).find(c=>c.id==id);
+  const cliente=id=>data.rutas.flatMap(r=>r.clientes||r.clients||[]).find(c=>c.id==id);
   const proveedor=id=>data.proveedores?.find(x=>x.id==id);
 
   const currentRuta=ruta(selectedRuta)||data.rutas[0]; 
-  const currentCliente=currentRuta?.clientes?.find(c=>c.id===selectedCliente)||currentRuta?.clientes?.[0]; 
+  const currentCliente=(currentRuta?.clientes||currentRuta?.clients)?.find(c=>c.id===selectedCliente)||(currentRuta?.clientes||currentRuta?.clients)?.[0]; 
   const currentPedido=data.pedidos?.find(p=>p.id===selectedPedido)||data.pedidos?.[0];
 
   const kpis=kpiData;
@@ -532,16 +533,16 @@ function App() {
       });
       if (!res.ok) throw new Error();
       
+      const result = await res.json();
       setCart([]);
-      setTab('remisiones');
       reloadState();
+      return { success: true, orderId: result.orderId || result.id || 'NUEVO' };
     } catch(e) { 
       // Save offline
       const current = JSON.parse(localStorage.getItem('ht_offline_orders') || '[]');
       localStorage.setItem('ht_offline_orders', JSON.stringify([...current, payload]));
-      alert('Sin conexión. Pedido guardado localmente; se enviará automáticamente al recuperar señal.');
       setCart([]);
-      setTab('dashboard');
+      return { success: true, orderId: 'OFFLINE-' + Date.now(), offline: true };
     }
   };
 
@@ -663,11 +664,14 @@ function App() {
   };
 
   return (
-    <div className="app-layout">
-      <Sidebar tab={tab} setTab={setTab} user={user} sucursal={sucursal(user.sucursalId)} logout={handleLogout}/>
-      <div className="app-content">
-        <div style={{ background: 'var(--brand-beige)', height: '4px', borderRadius: '10px', marginBottom: '10px', width: '100%' }}></div>
-      <Routes>
+    <Routes>
+      <Route path="/pwa/*" element={<PwaMobileLayout data={data} user={user} sucursal={sucursal(user.sucursalId)} producto={producto} reloadState={reloadState} />} />
+      <Route path="*" element={
+        <div className="app-layout">
+          <Sidebar tab={tab} setTab={setTab} user={user} sucursal={sucursal(user.sucursalId)} logout={handleLogout}/>
+          <div className="app-content">
+            <div style={{ background: 'var(--brand-beige)', height: '4px', borderRadius: '10px', marginBottom: '10px', width: '100%' }}></div>
+            <Routes>
         <Route path="/" element={
           <>
             <section className="hero">
@@ -688,8 +692,8 @@ function App() {
         <Route path="/sucursales" element={<Sucursales data={data} sucursal={sucursal} addSucursal={addSucursal} updateSucursal={updateSucursal}/>} />
         <Route path="/almacenes" element={<AlmacenesCatalogo data={data} sucursal={sucursal} addAlmacen={addAlmacen} updateAlmacen={updateAlmacen} reloadState={reloadState} />} />
         <Route path="/vendedores" element={<VendedoresCatalogo data={data} sucursal={sucursal} addVendedor={addVendedor} updateVendedor={updateVendedor} />} />
-        <Route path="/rutas" element={<Rutas data={data} sucursal={sucursal} vendedor={vendedor} addVendedor={addVendedor} updateVendedor={updateVendedor} addRuta={addRuta} updateRuta={updateRuta} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} setSelectedCliente={setSelectedCliente}/>} />
         <Route path="/vendedor" element={<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo} reloadState={reloadState}/>} />
+        <Route path="/rutas" element={<Rutas data={data} sucursal={sucursal} vendedor={vendedor} addVendedor={addVendedor} updateVendedor={updateVendedor} addRuta={addRuta} updateRuta={updateRuta} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} setSelectedCliente={setSelectedCliente}/>} />
         <Route path="/almacen" element={<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste} reloadState={reloadState} apiFetch={apiFetch}/>} />
         <Route path="/kardex" element={<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste} reloadState={reloadState} apiFetch={apiFetch}/>} />
         <Route path="/ordenes" element={<OrdenesCompra data={data} producto={producto} proveedor={proveedor} reloadState={reloadState} />} />
@@ -713,10 +717,12 @@ function App() {
         <Route path="/cxp/estado-cuenta" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="edo_cuenta"/>} />
         <Route path="/facturacion" element={<Facturacion data={data} reloadState={reloadState}/>} />
         <Route path="/tienda" element={<TiendaB2B data={data} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido}/>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      </div>
-    </div>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          </div>
+        </div>
+      } />
+    </Routes>
   );
 }
 

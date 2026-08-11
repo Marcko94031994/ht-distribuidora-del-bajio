@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { pesosDecimals } from '../utils/helpers';
 
 export default function AntiguedadSaldosProveedores({ data, onSelectProviderForStatement }) {
+  const navigate = useNavigate();
   // Fecha de corte (por defecto hoy en formato YYYY-MM-DD)
   const todayStr = new Date().toISOString().split('T')[0];
   const [cutoffDate, setCutoffDate] = useState(todayStr);
@@ -151,17 +153,6 @@ export default function AntiguedadSaldosProveedores({ data, onSelectProviderForS
         })
         .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0)); // Orden cronológico (FIFO)
 
-      // 2. Filtrar abonos/pagos realizados en o antes de la fecha de corte
-      const pPaymentsAtCutoff = providerPayments
-        .filter(pm => {
-          if (pm.providerId !== p.id) return false;
-          if (pm.date && new Date(pm.date) > cutoff) return false; // Pagado después de la fecha de corte
-          return true;
-        });
-
-      const totalPaidAtCutoff = pPaymentsAtCutoff.reduce((acc, pay) => acc + (Number(pay.amount) || 0), 0);
-      let remainingAbonosToAllocate = totalPaidAtCutoff;
-
       let totalOriginal = 0;
       let totalSaldoAlCorte = 0;
       let aVencer = 0;
@@ -175,15 +166,8 @@ export default function AntiguedadSaldosProveedores({ data, onSelectProviderForS
         const poTotal = Number(po.totalAmount) || 0;
         totalOriginal += poTotal;
 
-        // Asignación de abonos FIFO hasta la fecha de corte
-        let paidForThisPO = 0;
-        if (remainingAbonosToAllocate > 0) {
-          paidForThisPO = Math.min(poTotal, remainingAbonosToAllocate);
-          remainingAbonosToAllocate -= paidForThisPO;
-        } else if (providerPayments.length === 0) {
-          // Si no hay tabla histórica de pagos cargada, usar po.amountPaid
-          paidForThisPO = Number(po.amountPaid) || 0;
-        }
+        // Usar la cantidad pagada específica de esta orden
+        const paidForThisPO = Number(po.amountPaid) || 0;
 
         const balanceAtCutoff = Math.max(0, poTotal - paidForThisPO);
 
@@ -879,7 +863,9 @@ export default function AntiguedadSaldosProveedores({ data, onSelectProviderForS
                                   {r.documents.map(doc => (
                                     <tr key={doc.id || doc.poNumber} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                       <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                                        {doc.poNumber}
+                                        <a href="#" onClick={(e) => { e.preventDefault(); navigate('/ordenes', { state: { search: doc.poNumber } }); }} style={{ color: '#2563eb', textDecoration: 'none' }} title="Ir al detalle de esta Orden de Compra">
+                                          {doc.poNumber}
+                                        </a>
                                         {doc.reference1 && <span className="muted" style={{ fontWeight: 400, marginLeft: '6px' }}>(Fact: {doc.reference1})</span>}
                                       </td>
                                       <td style={{ padding: '8px 10px', color: '#64748b' }}>

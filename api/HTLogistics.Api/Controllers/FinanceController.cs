@@ -393,12 +393,12 @@ public class FinanceController : ControllerBase
                 decimal poTotal = po.TotalAmount;
                 totalOriginal += poTotal;
 
-                // Allocate FIFO payment up to cutoff
-                decimal paidForThisPO = Math.Min(poTotal, Math.Max(0, remainingPaymentToAllocate));
-                remainingPaymentToAllocate -= paidForThisPO;
+                // Use the exact AmountPaid recorded in the database for this specific order
+                decimal paidForThisPO = po.AmountPaid;
 
                 decimal balanceAtCutoff = Math.Max(0, poTotal - paidForThisPO);
-                if (balanceAtCutoff <= 0) continue; // Already paid at cutoff date
+                if (balanceAtCutoff <= 0) continue; // Already paid
+
 
                 totalSaldoAlCorte += balanceAtCutoff;
 
@@ -529,12 +529,12 @@ public class FinanceController : ControllerBase
                 decimal ordTotal = ord.TotalAmount;
                 totalOriginal += ordTotal;
 
-                // Allocate FIFO payment up to cutoff
-                decimal paidForThisOrd = Math.Min(ordTotal, Math.Max(0, remainingPaymentToAllocate));
-                remainingPaymentToAllocate -= paidForThisOrd;
+                // Use the exact AmountPaid recorded in the database for this specific order
+                decimal paidForThisOrd = ord.AmountPaid;
 
                 decimal balanceAtCutoff = Math.Max(0, ordTotal - paidForThisOrd);
-                if (balanceAtCutoff <= 0) continue; // Already fully paid at cutoff date
+                if (balanceAtCutoff <= 0) continue; // Already fully paid
+
 
                 totalSaldoAlCorte += balanceAtCutoff;
 

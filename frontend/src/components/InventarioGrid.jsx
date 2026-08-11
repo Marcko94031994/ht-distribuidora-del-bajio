@@ -18,41 +18,27 @@ export default function InventarioGrid({ data }) {
   const rowData = useMemo(() => {
     if (!data || !data.productos || !data.almacenes) return [];
     
-    // Convert to a flat list of inventories
     return data.productos.flatMap(p => {
       const isPerish = p.isPerishable;
       const min = p.minStock || 0;
       
-      // If the product has multiple inventories
-      if (p.inventories && p.inventories.length > 0) {
-        return p.inventories.map(inv => {
-          const warehouse = data.almacenes.find(a => a.id === inv.warehouseId);
-          const stock = inv.stock || 0;
-          return {
-            id: `${p.id}-${inv.warehouseId}`,
-            sku: p.sku,
-            producto: p.name,
-            tipo: isPerish ? '⏳ Perecedero' : '📦 Estándar',
-            almacen: warehouse ? warehouse.name : 'Desconocido',
-            minStock: min,
-            existencia: stock,
-            alerta: (min > 0 && stock <= min) ? (stock <= 0 ? '🚫 Agotado' : '⚠️ Reorden') : '✅ Óptimo'
-          };
-        });
-      }
+      const warehouses = data.almacenes && data.almacenes.length > 0 ? data.almacenes : [{ id: 0, name: 'General' }];
       
-      // Fallback for products that haven't been assigned to a warehouse yet (or old data format)
-      const stock = p.stock || 0;
-      return [{
-        id: `${p.id}-0`,
-        sku: p.sku,
-        producto: p.name,
-        tipo: isPerish ? '⏳ Perecedero' : '📦 Estándar',
-        almacen: 'General',
-        minStock: min,
-        existencia: stock,
-        alerta: (min > 0 && stock <= min) ? (stock <= 0 ? '🚫 Agotado' : '⚠️ Reorden') : '✅ Óptimo'
-      }];
+      return warehouses.map(a => {
+        const inv = p.inventories?.find(i => i.warehouseId === a.id);
+        const stock = inv ? (inv.stock || 0) : (a.id === 0 ? (p.stock || 0) : 0);
+        
+        return {
+          id: `${p.id}-${a.id}`,
+          sku: p.sku,
+          producto: p.name,
+          tipo: isPerish ? '⏳ Perecedero' : '📦 Estándar',
+          almacen: a.name,
+          minStock: min,
+          existencia: stock,
+          alerta: (min > 0 && stock <= min) ? (stock <= 0 ? '🚫 Agotado' : '⚠️ Reorden') : '✅ Óptimo'
+        };
+      });
     });
   }, [data]);
 

@@ -1,0 +1,598 @@
+.pwa-mobile-container {
+  /* Scope everything to this container to avoid polluting admin styles */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #f7f5f0;
+  color: #3b2011;
+  min-height: 100vh;
+  width: 100vw;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 80px; /* Space for bottom nav */
+}
+
+/* Reset inside PWA */
+.pwa-mobile-container * {
+  box-sizing: border-box;
+}
+
+.pwa-mobile-container h1, 
+.pwa-mobile-container h2, 
+.pwa-mobile-container h3, 
+.pwa-mobile-container p {
+  margin: 0;
+  color: #3b2011;
+}
+
+/* Common Layout */
+.pwa-header {
+  padding: 20px 20px 10px 20px;
+}
+
+.pwa-header-subtitle {
+  font-size: 0.85rem;
+  color: #78685e;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pwa-header-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+/* Metrics Card */
+.pwa-metrics-card {
+  background: linear-gradient(135deg, #875c46, #6b4735);
+  border-radius: 20px;
+  padding: 20px;
+  margin: 10px 20px 24px 20px;
+  color: white;
+  box-shadow: 0 8px 20px rgba(107, 71, 53, 0.2);
+}
+
+.pwa-metrics-card h1, .pwa-metrics-card p, .pwa-metrics-card div {
+  color: white;
+}
+
+.pwa-metrics-subtitle {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-bottom: 4px;
+}
+
+.pwa-metrics-value {
+  font-size: 1.8rem;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.pwa-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.pwa-metrics-item {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 12px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.pwa-metrics-item strong {
+  font-size: 1.2rem;
+  display: block;
+}
+
+.pwa-metrics-item span {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+/* Section Title */
+.pwa-section-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0 20px 12px 20px;
+}
+
+/* Search Input */
+.pwa-search-container {
+  margin: 0 20px 16px 20px;
+}
+
+.pwa-search-input {
+  width: 100%;
+  padding: 14px 16px 14px 40px;
+  border-radius: 14px;
+  border: 1px solid #eae5de;
+  background: white;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: #3b2011;
+  background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="%2378685e" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>');
+  background-repeat: no-repeat;
+  background-position: 12px center;
+  background-size: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.pwa-search-input:focus {
+  outline: none;
+  border-color: #875c46;
+}
+
+/* Cards (Clients, Products) */
+.pwa-list {
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pwa-card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  border: 1px solid #f0ebe4;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.pwa-card:active {
+  transform: scale(0.98);
+}
+
+.pwa-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.pwa-card-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.pwa-card-subtitle {
+  font-size: 0.8rem;
+  color: #78685e;
+}
+
+.pwa-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: #78685e;
+}
+
+.pwa-card-action {
+  font-weight: 800;
+  color: #875c46;
+}
+
+/* Pills / Tags */
+.pwa-pill {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.pwa-pill.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.pwa-pill.success {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.pwa-pill.warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.pwa-pill.default {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* Bottom Nav */
+.pwa-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: white;
+  display: flex;
+  justify-content: space-around;
+  padding: 12px 10px 20px 10px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+  border-top: 1px solid #f0ebe4;
+  z-index: 10100;
+}
+
+.pwa-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #a3958d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-decoration: none;
+}
+
+.pwa-nav-item.active {
+  color: #875c46;
+}
+
+.pwa-nav-icon {
+  font-size: 1.4rem;
+}
+
+/* Buttons */
+.pwa-btn {
+  background: #875c46;
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(135, 92, 70, 0.3);
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.pwa-btn.secondary {
+  background: white;
+  color: #3b2011;
+  box-shadow: none;
+  border: 1px solid #eae5de;
+}
+
+/* Product Row */
+.pwa-product-row {
+  display: flex;
+  gap: 16px;
+  background: white;
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  border: 1px solid #f0ebe4;
+}
+
+.pwa-product-img {
+  width: 70px;
+  height: 70px;
+  border-radius: 12px;
+  background: #f7f5f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  font-size: 1.5rem;
+  color: white;
+  font-weight: bold;
+}
+
+.pwa-product-img img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.pwa-product-details {
+  flex: 1;
+}
+
+.pwa-product-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.pwa-product-sku {
+  font-size: 0.75rem;
+  color: #a3958d;
+  margin-bottom: 6px;
+}
+
+.pwa-product-stock {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #047857;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.pwa-product-stock.low {
+  color: #b45309;
+}
+
+.pwa-product-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pwa-product-price {
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.pwa-product-price span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #a3958d;
+}
+
+/* Stepper (Quantity) */
+.pwa-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border: 1px solid #eae5de;
+  border-radius: 20px;
+  padding: 4px 8px;
+}
+
+.pwa-stepper-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #3b2011;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.pwa-stepper-value {
+  font-weight: 900;
+  font-size: 1rem;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Categories Bar */
+.pwa-categories {
+  display: flex;
+  gap: 10px;
+  padding: 0 20px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pwa-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.pwa-category-pill {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: white;
+  border: 1px solid #eae5de;
+  white-space: nowrap;
+  color: #3b2011;
+  cursor: pointer;
+}
+
+.pwa-category-pill.active {
+  background: #875c46;
+  color: white;
+  border-color: #875c46;
+}
+
+/* Back Button Header */
+.pwa-back-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #f7f5f0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.pwa-back-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  cursor: pointer;
+  color: #3b2011;
+  text-decoration: none;
+}
+
+.pwa-back-title {
+  flex: 1;
+}
+
+/* Alert Banner */
+.pwa-alert {
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: 0 20px 16px 20px;
+  display: flex;
+  gap: 8px;
+}
+
+/* Totals Box */
+.pwa-totals-box {
+  background: #2b170c;
+  color: white;
+  padding: 20px;
+  border-radius: 20px;
+  margin: 20px;
+  box-shadow: 0 8px 24px rgba(59, 32, 17, 0.3);
+}
+
+.pwa-total-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.pwa-total-final {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.pwa-total-final span:first-child {
+  font-size: 1.2rem;
+}
+
+/* Action Area Fixed */
+.pwa-fixed-action {
+  position: fixed;
+  bottom: 80px; /* Above bottom nav */
+  left: 0;
+  width: 100%;
+  padding: 16px 20px;
+  background: linear-gradient(to top, #f7f5f0 80%, rgba(247, 245, 240, 0));
+  z-index: 10050;
+  display: flex;
+  gap: 12px;
+}
+
+/* Conditions Cards */
+.pwa-conditions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 20px 20px 20px;
+}
+
+.pwa-condition-card {
+  background: #f0ebe4;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.pwa-condition-label {
+  font-size: 0.7rem;
+  color: #78685e;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.pwa-condition-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+/* Status Screen */
+.pwa-success-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.pwa-success-icon {
+  width: 80px;
+  height: 80px;
+  background: #d1fae5;
+  color: #047857;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  margin-bottom: 24px;
+}
+
+.pwa-success-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  margin-bottom: 12px;
+}
+
+.pwa-success-subtitle {
+  font-size: 0.95rem;
+  color: #78685e;
+  line-height: 1.5;
+  margin-bottom: 32px;
+}
+
+.pwa-summary-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  border: 1px solid #f0ebe4;
+  margin-bottom: 32px;
+}
+
+.pwa-summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px dashed #eae5de;
+  font-size: 0.95rem;
+}
+
+.pwa-summary-row:last-child {
+  border-bottom: none;
+}
+
+.pwa-summary-label {
+  color: #78685e;
+}
+
+.pwa-summary-val {
+  font-weight: 800;
+}

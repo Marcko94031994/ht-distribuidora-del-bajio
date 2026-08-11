@@ -4,7 +4,8 @@ export default function LoadingOverlay({
   show = false, 
   title = "Procesando Datos...", 
   message = "Por favor espere un momento mientras se actualizan los registros de forma segura.",
-  progressText = null 
+  progressText = null,
+  isSuccess = false
 }) {
   if (!show) return null;
 
@@ -48,31 +49,52 @@ export default function LoadingOverlay({
           animation: 'scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
         }}
       >
-        {/* Animated Spinner Ring */}
+        {/* Animated Spinner Ring or Success Icon */}
         <div style={{ position: 'relative', width: '64px', height: '64px', margin: '4px 0 8px' }}>
-          <div 
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              border: '4px solid #e2e8f0',
-              borderTopColor: '#d81921',
-              borderRightColor: '#d81921',
-              animation: 'spin 0.85s linear infinite'
-            }}
-          />
-          <div 
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '22px'
-            }}
-          >
-            ⚡
-          </div>
+          {!isSuccess ? (
+            <>
+              <div 
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  border: '4px solid #e2e8f0',
+                  borderTopColor: '#d81921',
+                  borderRightColor: '#d81921',
+                  animation: 'spin 0.85s linear infinite'
+                }}
+              />
+              <div 
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '22px'
+                }}
+              >
+                ⚡
+              </div>
+            </>
+          ) : (
+            <div 
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: '#16a34a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '32px',
+                color: 'white',
+                animation: 'scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+              }}
+            >
+              ✓
+            </div>
+          )}
         </div>
 
         {/* Text */}
@@ -91,23 +113,25 @@ export default function LoadingOverlay({
         </div>
 
         {/* Security Badge */}
-        <div 
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '11.5px',
-            fontWeight: 600,
-            color: '#475569',
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            padding: '6px 14px',
-            borderRadius: '999px',
-            marginTop: '4px'
-          }}
-        >
-          <span>🔒</span> Bloqueo de seguridad de pantalla activo
-        </div>
+        {!isSuccess && (
+          <div 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              color: '#475569',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              padding: '6px 14px',
+              borderRadius: '999px',
+              marginTop: '4px'
+            }}
+          >
+            <span>🔒</span> Bloqueo de seguridad de pantalla activo
+          </div>
+        )}
       </div>
 
       <style>{`

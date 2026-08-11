@@ -293,7 +293,9 @@ public class OrdersController : ControllerBase
                         Reason = "Venta",
                         Date = DateTime.Now,
                         UserId = userId,
-                        Reference = $"Pedido: {order.OrderNumber}"
+                        Reference = $"Pedido: {order.OrderNumber}",
+                        UnitCost = product.AverageCost > 0 ? product.AverageCost : product.Cost,
+                        AverageCost = product.AverageCost > 0 ? product.AverageCost : product.Cost
                     });
                 }
             }

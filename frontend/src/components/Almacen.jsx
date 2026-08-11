@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { pesos, pesosDecimals } from '../utils/helpers';
+import KardexGrid from './KardexGrid';
 import SearchableSelect from './SearchableSelect';
 
 export default function Almacen({
@@ -126,71 +127,41 @@ export default function Almacen({
       const isPerish = p.isPerishable;
       const min = p.minStock || 0;
       
-      if (p.inventories && p.inventories.length > 0) {
-        return p.inventories.map(inv => {
-          const warehouse = data.almacenes.find(a => a.id === inv.warehouseId);
-          const stock = inv.stock || 0;
-          let statusText = 'Óptimo';
-          let statusColor = '#15803d';
-          let statusBg = '#dcfce7';
+      const warehouses = data.almacenes && data.almacenes.length > 0 ? data.almacenes : [{ id: 0, name: 'General' }];
+      
+      return warehouses.map(a => {
+        const inv = p.inventories?.find(i => i.warehouseId === a.id);
+        const stock = inv ? (inv.stock || 0) : (a.id === 0 ? (p.stock || 0) : 0);
+        
+        let statusText = 'Óptimo';
+        let statusColor = '#15803d';
+        let statusBg = '#dcfce7';
 
-          if (stock <= 0) {
-            statusText = 'Agotado';
-            statusColor = '#dc2626';
-            statusBg = '#fee2e2';
-          } else if (min > 0 && stock <= min) {
-            statusText = 'Punto Reorden';
-            statusColor = '#d97706';
-            statusBg = '#fef3c7';
-          }
+        if (stock <= 0) {
+          statusText = 'Agotado';
+          statusColor = '#dc2626';
+          statusBg = '#fee2e2';
+        } else if (min > 0 && stock <= min) {
+          statusText = 'Punto Reorden';
+          statusColor = '#d97706';
+          statusBg = '#fef3c7';
+        }
 
-          return {
-            productId: p.id,
-            sku: p.sku || 'S/SKU',
-            name: p.name,
-            category: p.category || 'General',
-            tipo: isPerish ? '⏳ Perecedero' : '📦 Estándar',
-            warehouseId: inv.warehouseId,
-            warehouseName: warehouse ? warehouse.name : 'General',
-            minStock: min,
-            stock: stock,
-            statusText,
-            statusColor,
-            statusBg
-          };
-        });
-      }
-
-      // Default stock format
-      const stock = p.stock || 0;
-      let statusText = 'Óptimo';
-      let statusColor = '#15803d';
-      let statusBg = '#dcfce7';
-
-      if (stock <= 0) {
-        statusText = 'Agotado';
-        statusColor = '#dc2626';
-        statusBg = '#fee2e2';
-      } else if (min > 0 && stock <= min) {
-        statusText = 'Punto Reorden';
-        statusColor = '#d97706';
-        statusBg = '#fef3c7';
-      }
-
-      return [{
-        productId: p.id,
-        sku: p.sku || 'S/SKU',
-        name: p.name,
-        category: p.category || 'General',
-        tipo: isPerish ? '⏳ Perecedero' : '📦 Estándar',
-        warehouseId: 0,
-        warehouseName: 'General',
-        minStock: min,
-        stock: stock,
-        statusText,
-        statusColor,
-        statusBg
-      }];
+        return {
+          productId: p.id,
+          sku: p.sku || 'S/SKU',
+          name: p.name,
+          category: (typeof p.category === 'object' && p.category !== null ? p.category.name : p.category) || 'General',
+          tipo: isPerish ? '⏳ Perecedero' : '📦 Estándar',
+          warehouseId: a.id,
+          warehouseName: a.name,
+          minStock: min,
+          stock: stock,
+          statusText,
+          statusColor,
+          statusBg
+        };
+      });
     });
   }, [data]);
 
@@ -259,52 +230,46 @@ export default function Almacen({
       {/* 1. ENCABEZADO PRINCIPAL DE ALMACÉN Y NAVEGACIÓN DE TABS */}
       <div 
         style={{
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-          color: '#ffffff',
-          borderRadius: '16px',
-          padding: '24px 28px',
-          marginBottom: '22px',
-          boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.25)',
+          background: '#ffffff', 
+          borderRadius: '12px', 
+          padding: '16px 24px', 
+          marginBottom: '20px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '16px',
-          width: '100%'
+          gap: '16px'
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '28px' }}>🏢</span>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-                Control de Almacén y Kárdex Integral
-              </h2>
-              <div style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
-                Trazabilidad completa de entradas, salidas, mermas, existencias físicas y cuarentena
-              </div>
-            </div>
-          </div>
+          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🏢</span> Control de Almacén y Kárdex Integral
+          </h2>
+          <p className="muted" style={{ margin: '3px 0 0 0', fontSize: '13px' }}>
+            Trazabilidad completa de entradas, salidas, mermas, existencias físicas y cuarentena
+          </p>
         </div>
 
         {/* Pestañas / Sub-módulos */}
-        <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.1)', padding: '6px', borderRadius: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px', gap: '4px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveTab('kardex')}
             style={{
-              padding: '10px 18px',
-              borderRadius: '8px',
+              padding: '9px 16px',
+              borderRadius: '6px',
               border: 'none',
               cursor: 'pointer',
               fontWeight: 700,
-              fontSize: '13.5px',
+              fontSize: '13px',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s ease',
+              gap: '6px',
+              transition: 'all 0.15s ease',
               background: activeTab === 'kardex' ? '#d81921' : 'transparent',
-              color: '#ffffff',
-              boxShadow: activeTab === 'kardex' ? '0 4px 12px rgba(216,25,33,0.4)' : 'none'
+              color: activeTab === 'kardex' ? '#ffffff' : '#64748b',
+              boxShadow: activeTab === 'kardex' ? '0 2px 6px rgba(216,25,33,0.3)' : 'none'
             }}
           >
             <span>📋</span> Kárdex de Movimientos
@@ -313,19 +278,19 @@ export default function Almacen({
           <button
             onClick={() => setActiveTab('stock')}
             style={{
-              padding: '10px 18px',
-              borderRadius: '8px',
+              padding: '9px 16px',
+              borderRadius: '6px',
               border: 'none',
               cursor: 'pointer',
               fontWeight: 700,
-              fontSize: '13.5px',
+              fontSize: '13px',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s ease',
+              gap: '6px',
+              transition: 'all 0.15s ease',
               background: activeTab === 'stock' ? '#d81921' : 'transparent',
-              color: '#ffffff',
-              boxShadow: activeTab === 'stock' ? '0 4px 12px rgba(216,25,33,0.4)' : 'none'
+              color: activeTab === 'stock' ? '#ffffff' : '#64748b',
+              boxShadow: activeTab === 'stock' ? '0 2px 6px rgba(216,25,33,0.3)' : 'none'
             }}
           >
             <span>📦</span> Existencias por Almacén
@@ -334,19 +299,19 @@ export default function Almacen({
           <button
             onClick={() => setActiveTab('ajustes')}
             style={{
-              padding: '10px 18px',
-              borderRadius: '8px',
+              padding: '9px 16px',
+              borderRadius: '6px',
               border: 'none',
               cursor: 'pointer',
               fontWeight: 700,
-              fontSize: '13.5px',
+              fontSize: '13px',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s ease',
+              gap: '6px',
+              transition: 'all 0.15s ease',
               background: activeTab === 'ajustes' ? '#d81921' : 'transparent',
-              color: '#ffffff',
-              boxShadow: activeTab === 'ajustes' ? '0 4px 12px rgba(216,25,33,0.4)' : 'none'
+              color: activeTab === 'ajustes' ? '#ffffff' : '#64748b',
+              boxShadow: activeTab === 'ajustes' ? '0 2px 6px rgba(216,25,33,0.3)' : 'none'
             }}
           >
             <span>⚖️</span> Salidas / Mermas / Ajustes
@@ -355,19 +320,19 @@ export default function Almacen({
           <button
             onClick={() => setActiveTab('devoluciones')}
             style={{
-              padding: '10px 18px',
-              borderRadius: '8px',
+              padding: '9px 16px',
+              borderRadius: '6px',
               border: 'none',
               cursor: 'pointer',
               fontWeight: 700,
-              fontSize: '13.5px',
+              fontSize: '13px',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s ease',
+              gap: '6px',
+              transition: 'all 0.15s ease',
               background: activeTab === 'devoluciones' ? '#d81921' : 'transparent',
-              color: '#ffffff',
-              boxShadow: activeTab === 'devoluciones' ? '0 4px 12px rgba(216,25,33,0.4)' : 'none'
+              color: activeTab === 'devoluciones' ? '#ffffff' : '#64748b',
+              boxShadow: activeTab === 'devoluciones' ? '0 2px 6px rgba(216,25,33,0.3)' : 'none'
             }}
           >
             <span>🔄</span> Cuarentena / Devoluciones {devoluciones?.filter(d => d.status === 'Pendiente').length > 0 && `(${devoluciones.filter(d => d.status === 'Pendiente').length})`}
@@ -558,143 +523,10 @@ export default function Almacen({
               </div>
             )}
           </div>
-
-          {/* Tabla de Movimientos del Kárdex */}
-          <div style={{ background: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.02)', width: '100%' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
-                  Libro Mayor de Movimientos (Kárdex)
-                </h3>
-                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                  Mostrando {filteredKardex.length} movimiento(s)
-                </div>
-              </div>
-
-              {loadingKardex && (
-                <span style={{ fontSize: '13px', color: '#3b82f6', fontWeight: 600 }}>
-                  🔄 Actualizando kárdex...
-                </span>
-              )}
-            </div>
-
-            <div className="table-responsive" style={{ width: '100%', overflowX: 'auto' }}>
-              <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
-                <thead>
-                  <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', borderBottom: '2px solid #cbd5e1' }}>
-                    <th style={{ padding: '12px 14px', width: '140px' }}>Fecha y Hora</th>
-                    <th style={{ padding: '12px 14px', width: '110px' }}>Tipo</th>
-                    <th style={{ padding: '12px 14px', width: '130px' }}>Folio / Ref</th>
-                    <th style={{ padding: '12px 14px', width: '110px' }}>SKU</th>
-                    <th style={{ padding: '12px 14px' }}>Producto</th>
-                    <th style={{ padding: '12px 14px', width: '130px' }}>Almacén</th>
-                    <th style={{ padding: '12px 14px', width: '110px', textAlign: 'right' }}>Entrada</th>
-                    <th style={{ padding: '12px 14px', width: '110px', textAlign: 'right' }}>Salida</th>
-                    <th style={{ padding: '12px 14px' }}>Motivo / Justificación</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedKardex.map(m => {
-                    const isEntrada = m.type === 'Entrada';
-                    const isMerma = m.reason && m.reason.toLowerCase().includes('merma');
-                    const isDevolucion = m.reason && m.reason.toLowerCase().includes('devol');
-
-                    return (
-                      <tr 
-                        key={m.id} 
-                        style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <td style={{ padding: '12px 14px', color: '#475569', whiteSpace: 'nowrap' }}>
-                          {m.date ? new Date(m.date).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span 
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 10px',
-                              borderRadius: '20px',
-                              fontSize: '12px',
-                              fontWeight: 700,
-                              background: isEntrada ? '#dcfce7' : (isMerma ? '#fee2e2' : (isDevolucion ? '#ede9fe' : '#fee2e2')),
-                              color: isEntrada ? '#15803d' : (isMerma ? '#dc2626' : (isDevolucion ? '#6d28d9' : '#b91c1c')),
-                              border: `1px solid ${isEntrada ? '#bbf7d0' : (isMerma ? '#fca5a5' : '#fecaca')}`
-                            }}
-                          >
-                            {isEntrada ? '📥 Entrada' : (isMerma ? '🗑️ Merma' : (isDevolucion ? '🔄 Devolución' : '📤 Salida'))}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 14px', fontWeight: 600, color: '#1e293b' }}>
-                          {m.reference || `FOL-${m.id}`}
-                        </td>
-                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>
-                          {m.productSku || '—'}
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <b style={{ color: '#0f172a' }}>{m.productName}</b>
-                        </td>
-                        <td style={{ padding: '12px 14px', color: '#475569' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', fontSize: '12px' }}>
-                            🏢 {m.warehouseName || 'General'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#16a34a', fontSize: '14px' }}>
-                          {isEntrada ? `+${m.quantity}` : '—'}
-                        </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#dc2626', fontSize: '14px' }}>
-                          {!isEntrada ? `-${m.quantity}` : '—'}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: '#64748b', fontSize: '12.5px' }}>
-                          {m.reason || 'Sin observaciones'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {paginatedKardex.length === 0 && (
-                    <tr>
-                      <td colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>📭</div>
-                        <div style={{ fontWeight: 600 }}>No hay movimientos de inventario que coincidan con los filtros.</div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Paginación */}
-            {totalKardexPages > 1 && (
-              <div style={{ padding: '14px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', flexWrap: 'wrap', gap: '10px' }}>
-                <div style={{ fontSize: '13px', color: '#64748b' }}>
-                  Página <b>{kardexPage}</b> de <b>{totalKardexPages}</b> ({filteredKardex.length} registros totales)
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    className="btn secondary"
-                    disabled={kardexPage === 1}
-                    onClick={() => setKardexPage(p => Math.max(1, p - 1))}
-                    style={{ padding: '6px 12px', fontSize: '12.5px' }}
-                  >
-                    ◀ Anterior
-                  </button>
-                  <button
-                    className="btn secondary"
-                    disabled={kardexPage === totalKardexPages}
-                    onClick={() => setKardexPage(p => Math.min(totalKardexPages, p + 1))}
-                    style={{ padding: '6px 12px', fontSize: '12.5px' }}
-                  >
-                    Siguiente ▶
-                  </button>
-                </div>
-              </div>
-            )}
-
+          {/* Tabla de Movimientos del Kárdex con AG Grid */}
+          <div style={{ background: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.02)', width: '100%', marginTop: '16px' }}>
+            <KardexGrid data={filteredKardex} />
           </div>
-
         </div>
       )}
 

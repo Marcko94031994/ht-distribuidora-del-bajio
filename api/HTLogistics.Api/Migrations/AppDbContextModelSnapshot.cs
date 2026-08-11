@@ -524,6 +524,10 @@ namespace HTLogisticsV2.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("AverageCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
@@ -543,6 +547,10 @@ namespace HTLogisticsV2.Api.Migrations
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -739,6 +747,10 @@ namespace HTLogisticsV2.Api.Migrations
 
                     b.Property<string>("AlternativeCode")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("AverageCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("BoxPrice")
                         .HasPrecision(18, 2)
@@ -1091,12 +1103,25 @@ namespace HTLogisticsV2.Api.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("OriginalTotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("PoNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("ProviderId")
                         .HasColumnType("int");
+
+                    b.Property<int?>("ReceivedById")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReceivedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReceptionNotes")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Reference1")
                         .HasColumnType("nvarchar(max)");
@@ -1126,6 +1151,8 @@ namespace HTLogisticsV2.Api.Migrations
 
                     b.HasIndex("ProviderId");
 
+                    b.HasIndex("ReceivedById");
+
                     b.ToTable("PurchaseOrders");
                 });
 
@@ -1143,7 +1170,20 @@ namespace HTLogisticsV2.Api.Migrations
                     b.Property<DateTime?>("ExpirationDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsAdditional")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("IvaRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Location")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OrderedQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("OrderedUnitCost")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -1155,6 +1195,13 @@ namespace HTLogisticsV2.Api.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
+
+                    b.Property<int>("ReceivedQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("ReceivedUnitCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(18, 2)
@@ -1171,6 +1218,9 @@ namespace HTLogisticsV2.Api.Migrations
                     b.Property<decimal>("UnitCost")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("VarianceReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("WarehouseId")
                         .HasColumnType("int");
@@ -1668,9 +1718,16 @@ namespace HTLogisticsV2.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("HTLogistics.Api.Models.User", "ReceivedBy")
+                        .WithMany()
+                        .HasForeignKey("ReceivedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("AuthorizedBy");
 
                     b.Navigation("Provider");
+
+                    b.Navigation("ReceivedBy");
                 });
 
             modelBuilder.Entity("HTLogistics.Api.Models.PurchaseOrderDetail", b =>

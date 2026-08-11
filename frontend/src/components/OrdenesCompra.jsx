@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { pesos } from '../utils/helpers';
 import SearchableSelect from './SearchableSelect';
 import LoadingOverlay from './LoadingOverlay';
 
 export default function OrdenesCompra({ data, producto, proveedor, reloadState }) {
+  const routerLocation = useLocation();
   // Navigation & Filtering States
   const [statusFilter, setStatusFilter] = useState('Pendientes'); // 'Pendientes' | 'Recibidas' | 'Canceladas' | 'Todas'
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,6 +14,19 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
   const [viewingPo, setViewingPo] = useState(null);
   const [receivingPo, setReceivingPo] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [successOverlay, setSuccessOverlay] = useState(null);
+  useEffect(() => {
+    if (routerLocation.state?.search && data.ordenesCompra) {
+      setSearchTerm(routerLocation.state.search);
+      setStatusFilter('Todas');
+      
+      // Intentar auto-abrir si coincide exacto
+      const exactMatch = data.ordenesCompra.find(po => po.poNumber === routerLocation.state.search);
+      if (exactMatch) {
+        setViewingPo(exactMatch);
+      }
+    }
+  }, [routerLocation.state, data.ordenesCompra]);
 
   // Form States (Create / Edit Draft OC)
   const [providerId, setProviderId] = useState('');
@@ -208,18 +223,25 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
       });
 
       if (res.ok) {
-        alert(editingPo ? "✅ Orden de compra actualizada con éxito" : "✅ Orden de compra generada exitosamente en Borrador");
-        resetForm();
-        setShowForm(false);
-        if (reloadState) reloadState();
+        setSuccessOverlay({
+          title: editingPo ? "Orden Actualizada" : "Orden Generada",
+          message: editingPo ? "✅ Orden de compra actualizada con éxito" : "✅ Orden de compra generada exitosamente en Borrador"
+        });
+        setTimeout(() => {
+          setSuccessOverlay(null);
+          setLoading(false);
+          resetForm();
+          setShowForm(false);
+          if (reloadState) reloadState();
+        }, 2000);
       } else {
         const errorMsg = await res.text();
         alert("Error al procesar orden: " + errorMsg);
+        setLoading(false);
       }
     } catch (e) {
       console.error(e);
       alert("Error de conexión al servidor");
-    } finally {
       setLoading(false);
     }
   };
@@ -439,11 +461,15 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
   };
 
   const handleCancelOrder = async (oc) => {
-    if (oc.status !== 'Borrador' && oc.status !== 'Pendiente') {
-      alert("No se puede cancelar una orden que ya fue recibida en inventario.");
+    if (oc.status !== 'Borrador' && oc.status !== 'Pendiente' && oc.status !== 'Recibida') {
+      alert("El estado actual de la orden no permite su cancelación.");
       return;
     }
-    if (!window.confirm(`¿Estás seguro de cancelar la orden ${oc.poNumber}?`)) return;
+    if (oc.status === 'Recibida' && (oc.amountPaid || 0) > 0) {
+      alert("No se puede cancelar una orden recibida que ya tiene pagos o abonos aplicados.");
+      return;
+    }
+    if (!window.confirm(`¿Estás seguro de cancelar la orden ${oc.poNumber}?${oc.status === 'Recibida' ? ' Esta acción revertirá el inventario.' : ''}`)) return;
 
     setLoading(true);
     try {
@@ -518,9 +544,10 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
       
       {/* BLOQUEO DE PANTALLA EN ACCIONES DE ORDENES DE COMPRA */}
       <LoadingOverlay 
-        show={loading}
-        title="Procesando Orden de Compra..."
-        message="Sincronizando movimientos de inventario y estado financiero de forma segura."
+        show={loading || !!successOverlay}
+        title={successOverlay ? successOverlay.title : "Procesando Orden de Compra..."}
+        message={successOverlay ? successOverlay.message : "Sincronizando movimientos de inventario y estado financiero de forma segura."}
+        isSuccess={!!successOverlay}
       />
 
       {/* 1. MODAL DETALLE COMPLETO Y TRAZABILIDAD AUDITABLE DE ORDEN */}
@@ -1498,14 +1525,27 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
                             </>
                           )}
                           {!isPending && (
-                            <button 
-                              className="btn secondary small" 
-                              onClick={() => setViewingPo(oc)} 
-                              title="Ver trazabilidad completa"
-                              style={{ padding: '6px 12px', fontSize: '12px' }}
-                            >
-                              👁️ Trazabilidad
-                            </button>
+                            <>
+                              <button 
+                                className="btn secondary small" 
+                                onClick={() => setViewingPo(oc)} 
+                                title="Ver trazabilidad completa"
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                              >
+                                👁️ Trazabilidad
+                              </button>
+                              {isReceived && (
+                                <button 
+                                  className="btn danger small" 
+                                  onClick={() => handleCancelOrder(oc)} 
+                                  disabled={loading || (oc.amountPaid || 0) > 0}
+                                  title={((oc.amountPaid || 0) > 0) ? "No se puede cancelar porque ya tiene abonos aplicados." : "Cancelar orden de compra y revertir inventario"}
+                                  style={{ padding: '6px 10px', opacity: ((oc.amountPaid || 0) > 0) ? 0.5 : 1 }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
