@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 function PwaCatalog({ clients, data, cart, setCart, producto }) {
@@ -11,7 +11,7 @@ function PwaCatalog({ clients, data, cart, setCart, producto }) {
   const getCategoryName = (p) => typeof p.category === 'object' && p.category !== null ? p.category.name : p.category;
 
   const client = clients.find(c => c.id === Number(id));
-  if (!client) return <div style={{padding: '20px'}}>Cliente no encontrado.</div>;
+  // if (!client) return <div style={{padding: '20px'}}>Cliente no encontrado.</div>;
 
   // Filter products
   const filteredProducts = useMemo(() => {

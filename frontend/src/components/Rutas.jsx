@@ -5,13 +5,17 @@ export default function Rutas({ data, sucursal, vendedor, addRuta, updateRuta, s
   const [showRutaModal, setShowRutaModal] = useState(false);
   const [editingRuta, setEditingRuta] = useState(null);
   const [searchRuta, setSearchRuta] = useState('');
+  const [clientSearch, setClientSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
 
   const [form, setForm] = useState({
     nombre: '',
     dia: 'Lunes',
     sucursalId: '',
     vendedorId: '',
-    clientesText: ''
+    clientesText: '',
+    clientIds: []
   });
 
   const handleOpenAdd = () => {
@@ -21,8 +25,10 @@ export default function Rutas({ data, sucursal, vendedor, addRuta, updateRuta, s
       dia: 'Lunes',
       sucursalId: data.sucursales?.[0]?.id ? String(data.sucursales[0].id) : '',
       vendedorId: data.vendedores?.[0]?.id ? String(data.vendedores[0].id) : '',
-      clientesText: ''
+      clientesText: '',
+      clientIds: []
     });
+    setClientSearch('');
     setShowRutaModal(true);
   };
 
@@ -33,28 +39,42 @@ export default function Rutas({ data, sucursal, vendedor, addRuta, updateRuta, s
       dia: r.dayOfWeek || 'Lunes',
       sucursalId: r.branchId ? String(r.branchId) : '',
       vendedorId: r.driverId ? String(r.driverId) : '',
-      clientesText: (r.clientes || []).map(c => c.name).join(', ')
+      clientesText: '',
+      clientIds: (r.clientes || r.clients || []).map(c => c.id)
     });
+    setClientSearch('');
     setShowRutaModal(true);
-  };
+      };
 
-  const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      nombre: form.nombre,
-      dia: form.dia,
-      sucursalId: Number(form.sucursalId),
-      vendedorId: Number(form.vendedorId),
-      clientesText: form.clientesText
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        nombre: form.nombre,
+        dia: form.dia,
+        sucursalId: Number(form.sucursalId),
+        vendedorId: Number(form.vendedorId),
+        clientesText: form.clientesText,
+        clientIds: form.clientIds
+      };
 
-    if (editingRuta) {
-      if (updateRuta) updateRuta(editingRuta.id, payload);
-    } else {
-      if (addRuta) addRuta(payload);
+      if (editingRuta) {
+        if (updateRuta) await updateRuta(editingRuta.id, payload);
+      } else {
+        if (addRuta) await addRuta(payload);
+      }
+      setSuccessMsg(true);
+      setTimeout(() => {
+        setShowRutaModal(false);
+        setEditingRuta(null);
+        setSuccessMsg(false);
+      }, 1500);
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    setShowRutaModal(false);
-    setEditingRuta(null);
   };
 
   const filteredRutas = (data.rutas || []).filter(r => {
@@ -133,21 +153,42 @@ export default function Rutas({ data, sucursal, vendedor, addRuta, updateRuta, s
                   required
                 />
               </div>
-              {!editingRuta && (
-                <div className="full">
-                  <label className="muted" style={{ fontSize: '12px' }}>Clientes Iniciales (Opcional, separados por coma)</label>
-                  <textarea
-                    name="clientes"
-                    className="textarea full"
-                    placeholder="Ej. Tienda Doña Mary, Abarrotes San Juan, Super Express"
-                    value={form.clientesText}
-                    onChange={e => setForm({ ...form, clientesText: e.target.value })}
-                  />
+              <div className="full" style={{ border: '1px solid var(--line)', borderRadius: '12px', padding: '16px', background: '#f8fafc', marginTop: '10px' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>👥 Asignar Clientes a la Ruta</h4>
+                <input
+                  type="text"
+                  className="input full"
+                  placeholder="🔍 Buscar cliente por nombre, colonia o RFC..."
+                  value={clientSearch}
+                  onChange={e => setClientSearch(e.target.value)}
+                  style={{ marginBottom: '10px' }}
+                />
+                <div style={{ maxHeight: '200px', overflowY: 'auto', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px' }}>
+                  {data.clientes?.filter(c => !clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase()) || c.colonia?.toLowerCase().includes(clientSearch.toLowerCase())).map(c => (
+                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={form.clientIds.includes(c.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setForm({ ...form, clientIds: [...form.clientIds, c.id] });
+                          } else {
+                            setForm({ ...form, clientIds: form.clientIds.filter(id => id !== c.id) });
+                          }
+                        }}
+                      />
+                      <span style={{ fontSize: '13px' }}>{c.name} {c.colonia ? <span className="muted">({c.colonia})</span> : ''}</span>
+                    </label>
+                  ))}
+                  {(!data.clientes || data.clientes.length === 0) && <div className="muted" style={{ fontSize: '12px', textAlign: 'center' }}>No hay clientes registrados</div>}
                 </div>
-              )}
+                <div className="muted" style={{ fontSize: '11px', marginTop: '6px' }}>
+                  Seleccionados: {form.clientIds.length} clientes
+                </div>
+              </div>
               <div className="full" style={{ marginTop: '12px' }}>
-                <button type="submit" className={`btn full ${editingRuta ? 'warn' : 'primary'}`}>
-                  {editingRuta ? '💾 Actualizar ruta' : '✅ Guardar ruta'}
+                                <button type="submit" disabled={saving || successMsg} className={`btn full ${successMsg ? 'success' : (editingRuta ? 'warn' : 'primary')}`}>
+                  {successMsg ? '✅ ¡Guardado exitosamente!' : (saving ? '⏳ Guardando...' : (editingRuta ? '📝 Actualizar ruta' : '💾 Guardar ruta'))}
                 </button>
               </div>
             </form>
@@ -176,7 +217,7 @@ export default function Rutas({ data, sucursal, vendedor, addRuta, updateRuta, s
                 style={{ flex: 1, minWidth: '220px', cursor: 'pointer' }}
                 onClick={() => {
                   if (setSelectedRuta) setSelectedRuta(r.id);
-                  if (setSelectedCliente && r.clientes?.[0]?.id) setSelectedCliente(r.clientes[0].id);
+                  if (setSelectedCliente && (r.clients || r.clientes)?.[0]?.id) setSelectedCliente((r.clients || r.clientes)[0].id);
                 }}
               >
                 <div className="row" style={{ alignItems: 'center', gap: '8px' }}>
@@ -187,7 +228,7 @@ export default function Rutas({ data, sucursal, vendedor, addRuta, updateRuta, s
                   🏢 <b>Sucursal:</b> {sucursal(r.branchId)?.name || 'Sin asignar'} &nbsp;·&nbsp; 👤 <b>Vendedor/Chofer:</b> {vendedor(r.driverId)?.name || 'Sin asignar'}
                 </div>
                 <div className="muted" style={{ marginTop: '2px', fontSize: '12px' }}>
-                  👥 <b>Clientes asignados:</b> {(r.clientes || []).length} clientes en esta ruta
+                  👥 <b>Clientes asignados:</b> {(r.clients || r.clientes || []).length} clientes en esta ruta
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

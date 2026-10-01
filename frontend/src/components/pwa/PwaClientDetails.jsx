@@ -1,4 +1,4 @@
-import React from 'react';
+// No default React import needed
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 function PwaClientDetails({ clients, data, user }) {

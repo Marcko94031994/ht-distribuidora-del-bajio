@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { pesos, pesosDecimals } from '../utils/helpers';
 import KardexGrid from './KardexGrid';
 import SearchableSelect from './SearchableSelect';
 
 export default function Almacen({
+  initialView = 'kardex',
   data,
   sucursal,
   almacen,
@@ -16,7 +17,12 @@ export default function Almacen({
   apiFetch
 }) {
   // Main tabs: 'kardex', 'stock', 'ajustes', 'devoluciones'
-  const [activeTab, setActiveTab] = useState('kardex');
+  const [activeTab, setActiveTab] = useState(initialView);
+
+  // When route changes, update tab if it's passed down
+  useEffect(() => {
+    setActiveTab(initialView);
+  }, [initialView]);
 
   // Kardex state
   const [kardexList, setKardexList] = useState([]);
@@ -25,6 +31,8 @@ export default function Almacen({
   const [filterWarehouseKardex, setFilterWarehouseKardex] = useState('');
   const [filterTypeKardex, setFilterTypeKardex] = useState('');
   const [searchKardexText, setSearchKardexText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
   const [kardexDateFrom, setKardexDateFrom] = useState('');
   const [kardexDateTo, setKardexDateTo] = useState('');
 
@@ -253,7 +261,7 @@ export default function Almacen({
         </div>
 
         {/* Pestañas / Sub-módulos */}
-        <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px', gap: '4px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'none', background: '#f1f5f9', padding: '4px', borderRadius: '8px', gap: '4px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveTab('kardex')}
             style={{
@@ -760,9 +768,9 @@ export default function Almacen({
                 </div>
 
                 <div className="full" style={{ marginTop: '10px' }}>
-                  <button type="submit" className="btn warn full" style={{ padding: '12px', fontSize: '15px', fontWeight: 800 }}>
-                    ⚠️ Registrar Salida y Asentar en Kárdex
-                  </button>
+                  <button type="submit" disabled={saving || successMsg} className={`btn full ${successMsg ? 'success' : 'warn'}`} style={{ padding: '12px', fontSize: '15px', fontWeight: 800 }}>
+                      {successMsg ? '✅ ¡Guardado exitosamente!' : (saving ? '⏳ Guardando...' : '📉 Registrar Salida y Asentar en Kárdex')}
+                    </button>
                 </div>
               </form>
             </div>

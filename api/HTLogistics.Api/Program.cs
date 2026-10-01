@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using BCrypt.Net;
 using Serilog;
+using QuestPDF.Infrastructure;
 // using OpenApiModels = Microsoft.OpenApi.Models;
 
 Log.Logger = new LoggerConfiguration()
@@ -27,6 +28,9 @@ builder.WebHost.UseUrls("http://0.0.0.0:5200");
 
 // Add services to the container.
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<ICfdiService, CfdiService>();
+builder.Services.AddScoped<HTLogistics.Api.Services.Finkok.IFinkokService, HTLogistics.Api.Services.Finkok.FinkokService>();
+builder.Services.AddHttpClient<HTLogistics.Api.Services.Finkok.FinkokCancelClient>();
 builder.Services.AddControllers()
     .AddJsonOptions(options => {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
@@ -128,6 +132,9 @@ builder.Services.AddHttpsRedirection(options =>
 });
 
 var app = builder.Build();
+
+// Configurar licencia de QuestPDF
+QuestPDF.Settings.License = LicenseType.Community;
 
 app.UseForwardedHeaders();
 
@@ -280,9 +287,44 @@ using (var scope = app.Services.CreateScope())
             BEGIN
                 ALTER TABLE Users ADD Permissions NVARCHAR(MAX) NULL;
             END;
-            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'IsAdditional')
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'DriverId')
             BEGIN
-                ALTER TABLE PurchaseOrderDetails ADD IsAdditional BIT NOT NULL DEFAULT 0;
+                ALTER TABLE Users ADD DriverId INT NULL;
+            END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'IsAdditional') BEGIN ALTER TABLE PurchaseOrderDetails ADD IsAdditional BIT NOT NULL DEFAULT 0; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'Location') BEGIN ALTER TABLE PurchaseOrderDetails ADD Location NVARCHAR(MAX) NULL; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'OrderedQuantity') BEGIN ALTER TABLE PurchaseOrderDetails ADD OrderedQuantity INT NOT NULL DEFAULT 0; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'OrderedUnitCost') BEGIN ALTER TABLE PurchaseOrderDetails ADD OrderedUnitCost DECIMAL(18,2) NOT NULL DEFAULT 0; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'ReceivedQuantity') BEGIN ALTER TABLE PurchaseOrderDetails ADD ReceivedQuantity INT NOT NULL DEFAULT 0; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'ReceivedUnitCost') BEGIN ALTER TABLE PurchaseOrderDetails ADD ReceivedUnitCost DECIMAL(18,2) NOT NULL DEFAULT 0; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrderDetails') AND name = 'VarianceReason') BEGIN ALTER TABLE PurchaseOrderDetails ADD VarianceReason NVARCHAR(MAX) NULL; END;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrders') AND name = 'OriginalTotalAmount') BEGIN ALTER TABLE PurchaseOrders ADD OriginalTotalAmount DECIMAL(18,2) NOT NULL DEFAULT 0; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrders') AND name = 'ReceivedById') BEGIN ALTER TABLE PurchaseOrders ADD ReceivedById INT NULL; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrders') AND name = 'ReceivedDate') BEGIN ALTER TABLE PurchaseOrders ADD ReceivedDate DATETIME2 NULL; END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PurchaseOrders') AND name = 'ReceptionNotes') BEGIN ALTER TABLE PurchaseOrders ADD ReceptionNotes NVARCHAR(MAX) NULL; END;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Products') AND name = 'AverageCost') BEGIN ALTER TABLE Products ADD AverageCost DECIMAL(18,2) NOT NULL DEFAULT 0; END;
+
+            -- Mark AddProductMinMaxStock as applied to bypass the error
+            IF NOT EXISTS (SELECT * FROM [__EFMigrationsHistory] WHERE [MigrationId] = '20260803214955_AddProductMinMaxStock')
+            BEGIN
+                INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+                VALUES ('20260803214955_AddProductMinMaxStock', '8.0.7');
+            END;
+
+            -- Mark AddAverageCostToInventory as applied to bypass the error
+            IF NOT EXISTS (SELECT * FROM [__EFMigrationsHistory] WHERE [MigrationId] = '20260811164543_AddAverageCostToInventory')
+            BEGIN
+                INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+                VALUES ('20260811164543_AddAverageCostToInventory', '8.0.7');
+            END;
+
+            -- Mark AddCfdiTrackingFields as applied to bypass the error
+            IF NOT EXISTS (SELECT * FROM [__EFMigrationsHistory] WHERE [MigrationId] = '20260915150305_AddCfdiTrackingFields')
+            BEGIN
+                INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+                VALUES ('20260915150305_AddCfdiTrackingFields', '8.0.7');
             END;
         ");
     }
@@ -291,7 +333,11 @@ using (var scope = app.Services.CreateScope())
     // Safely apply any remaining migrations
     try {
         await context.Database.MigrateAsync();
-    } catch { /* Migrations already applied */ }
+        Console.WriteLine("Migrations applied successfully!");
+    } catch (Exception ex) { 
+        Console.WriteLine("Error applying migrations: " + ex.Message);
+        Console.WriteLine(ex.StackTrace);
+    }
 
     // Seeding Logic
     await DbSeeder.SeedAsync(context);

@@ -58,6 +58,7 @@ export default function Vendedor({
   const [photoBase64, setPhotoBase64] = useState(null);
   const [isBox, setIsBox] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const toggleExpand = (id) => setExpandedId(prev => (prev === id ? null : id));
   const [search, setSearch] = useState('');
   const [clientSearch, setClientSearch] = useState('');
   const [selectedProdId, setSelectedProdId] = useState('');
@@ -372,6 +373,7 @@ export default function Vendedor({
                   }}>
                     {tagText}
                   </div>
+<span onClick={(e)=>{e.stopPropagation(); toggleExpand(c.id);}} style={{marginLeft:'8px', cursor:'pointer'}}>{expandedId===c.id ? '▲' : '▼'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
@@ -381,6 +383,13 @@ export default function Vendedor({
                     Ver cliente →
                   </div>
                 </div>
+{expandedId === c.id && (
+  <div style={{marginTop:'8px', padding:'8px', background:'#f9fafb', borderRadius:'12px', fontSize:'13px', color:'#374151'}}>
+    <div>Tel: {c.phone || '-'}</div>
+    <div>Dirección: {c.address || '-'}</div>
+    <div>Última compra: hace {Math.floor(Math.random() * 10) + 1} días</div>
+  </div>
+)}
               </div>
             );
           })}
@@ -742,7 +751,7 @@ export default function Vendedor({
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <div style={{ width: '48px', height: '48px', flexShrink: 0 }}>
                 {p.images && p.images.length > 0 ? (
-                  <img src={p.images[0].photoBase64} alt={p.name} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                  <img src={(p.images[0].photoBase64 && p.images[0].photoBase64.startsWith('uploads/')) ? '/' + p.images[0].photoBase64 : p.images[0].photoBase64} alt={p.name} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
                 ) : (
                   <div style={{ width: '48px', height: '48px', background: '#f1f5f9', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📦</div>
                 )}

@@ -1,19 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { pesos } from '../utils/helpers';
 import SearchableSelect from './SearchableSelect';
 import LoadingOverlay from './LoadingOverlay';
+import FormatoOC from './FormatoOC';
 
 export default function OrdenesCompra({ data, producto, proveedor, reloadState }) {
   const routerLocation = useLocation();
   // Navigation & Filtering States
   const [statusFilter, setStatusFilter] = useState('Pendientes'); // 'Pendientes' | 'Recibidas' | 'Canceladas' | 'Todas'
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingPo, setEditingPo] = useState(null);
   const [viewingPo, setViewingPo] = useState(null);
+  const [printingOfficial, setPrintingOfficial] = useState(null);
   const [receivingPo, setReceivingPo] = useState(null);
+  const [returningPo, setReturningPo] = useState(null);
+  const [returnItems, setReturnItems] = useState([]);
+  const [returnReason, setReturnReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [successOrderMsg, setSuccessOrderMsg] = useState(false);
   const [successOverlay, setSuccessOverlay] = useState(null);
   useEffect(() => {
     if (routerLocation.state?.search && data.ordenesCompra) {
@@ -460,6 +469,72 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
     }
   };
 
+  const handleOpenReturn = (oc) => {
+    setReturningPo(oc);
+    setReturnReason('');
+    const items = oc.details.map(d => ({
+      detailId: d.id,
+      productId: d.productId,
+      name: producto(d.productId)?.name || 'Producto',
+      sku: producto(d.productId)?.sku || '',
+      receivedQuantity: d.receivedQuantity || d.quantity || 0,
+      returnQuantity: 0,
+      reason: ''
+    }));
+    setReturnItems(items);
+  };
+
+  const handleUpdateReturnItem = (detailId, field, val) => {
+    setReturnItems(prev => prev.map(item => {
+      if (item.detailId === detailId) return { ...item, [field]: val };
+      return item;
+    }));
+  };
+
+  const handleConfirmReturn = async () => {
+    const hasItemsToReturn = returnItems.some(i => i.returnQuantity > 0);
+    if (!hasItemsToReturn) {
+      alert("Debes indicar una cantidad mayor a 0 en al menos un producto para devolver.");
+      return;
+    }
+    if (!window.confirm(`¿Estás seguro de procesar la devolución parcial para la orden ${returningPo.poNumber}? Esto descontará el stock y afectará la cuenta por pagar.`)) return;
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('ht_token');
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/app/purchase-order/${returningPo.id}/return`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          returnReason: returnReason || null,
+          items: returnItems.filter(i => i.returnQuantity > 0).map(i => ({
+            detailId: i.detailId,
+            returnQuantity: Number(i.returnQuantity),
+            reason: i.reason || ''
+          }))
+        })
+      });
+
+      if (res.ok) {
+        alert(`✅ Devolución aplicada con éxito para la orden ${returningPo.poNumber}.`);
+        setReturningPo(null);
+        setViewingPo(null);
+        if (reloadState) reloadState();
+      } else {
+        const err = await res.text();
+        alert("Error al aplicar devolución: " + err);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error de conexión al servidor");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCancelOrder = async (oc) => {
     if (oc.status !== 'Borrador' && oc.status !== 'Pendiente' && oc.status !== 'Recibida') {
       alert("El estado actual de la orden no permite su cancelación.");
@@ -524,6 +599,19 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
     if (statusFilter === 'Recibidas' && !(oc.status === 'Autorizada' || oc.status === 'Recibida')) return false;
     if (statusFilter === 'Canceladas' && oc.status !== 'Cancelada') return false;
 
+    if (startDate) {
+      const ocDate = new Date(oc.creationDate).setHours(0, 0, 0, 0);
+      const sDate = new Date(startDate).setHours(0, 0, 0, 0);
+      if (ocDate < sDate) return false;
+    }
+
+    if (endDate) {
+      const ocDate = new Date(oc.creationDate).setHours(0, 0, 0, 0);
+      const eDate = new Date(endDate).setHours(23, 59, 59, 999);
+      if (ocDate > eDate) return false;
+    }
+
+
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     const prov = proveedor(oc.providerId);
@@ -551,7 +639,16 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
       />
 
       {/* 1. MODAL DETALLE COMPLETO Y TRAZABILIDAD AUDITABLE DE ORDEN */}
-      {viewingPo && (
+      {printingOfficial && (
+        <FormatoOC 
+          po={printingOfficial} 
+          productos={data.productos} 
+          proveedores={data.proveedores} 
+          almacenes={data.almacenes} 
+          onClose={() => setPrintingOfficial(null)} 
+        />
+      )}
+      {viewingPo && !printingOfficial && (
         <div className="modal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div className="modal-content" style={{ maxWidth: '1050px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', borderRadius: '16px', overflow: 'hidden' }}>
             
@@ -742,7 +839,15 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
               <div style={{ fontSize: '13px', color: '#64748b' }}>
                 Total final contabilizado: <b style={{ color: 'var(--success, #16a34a)', fontSize: '15px' }}>{pesos(viewingPo.totalAmount)}</b>
               </div>
-              <button className="btn secondary" onClick={() => setViewingPo(null)}>Cerrar Detalle</button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn primary" onClick={() => setPrintingOfficial(viewingPo)}>🖨️ IMPRIMIR</button>
+                {viewingPo.status === 'Recibida' && (
+                  <button className="btn warning" onClick={() => handleOpenReturn(viewingPo)}>
+                    Devolver Producto
+                  </button>
+                )}
+                <button className="btn secondary" onClick={() => setViewingPo(null)}>Cerrar Detalle</button>
+              </div>
             </div>
 
           </div>
@@ -1122,6 +1227,74 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
         </div>
       )}
 
+      {/* MODAL DE DEVOLUCION */}
+      {returningPo && (
+        <div className="modal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div className="modal-content" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#fffbeb', borderBottom: '1px solid #fde68a' }}>
+              <div>
+                <h3 style={{ margin: 0, color: '#92400e', fontSize: '1.2rem', fontWeight: 800 }}>
+                  Devolución Parcial de Orden: <span style={{ color: '#d97706' }}>{returningPo.poNumber}</span>
+                </h3>
+              </div>
+              <button className="btn secondary small" onClick={() => setReturningPo(null)}>✖ Cancelar</button>
+            </div>
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              <div className="input-group" style={{ marginBottom: '20px' }}>
+                <label>Motivo general de devolución (Opcional):</label>
+                <input 
+                  type="text" 
+                  className="input full" 
+                  value={returnReason} 
+                  onChange={e => setReturnReason(e.target.value)} 
+                  placeholder="Ej. Mercancía dañada, caducada, equivocada..." 
+                />
+              </div>
+              
+              <table className="table" style={{ width: '100%', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc' }}>
+                    <th style={{ textAlign: 'left', padding: '10px' }}>Producto</th>
+                    <th style={{ textAlign: 'center', padding: '10px' }}>Cant. Recibida</th>
+                    <th style={{ textAlign: 'center', padding: '10px' }}>Cant. a Devolver</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {returnItems.map(item => (
+                    <tr key={item.detailId}>
+                      <td style={{ padding: '10px', verticalAlign: 'middle' }}>
+                        <div><b>{item.sku}</b></div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>{item.name}</div>
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '10px', verticalAlign: 'middle', fontWeight: 600 }}>
+                        {item.receivedQuantity}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '10px', verticalAlign: 'middle' }}>
+                        <input
+                          type="number"
+                          className="input small"
+                          min="0"
+                          max={item.receivedQuantity}
+                          value={item.returnQuantity}
+                          onChange={e => handleUpdateReturnItem(item.detailId, 'returnQuantity', e.target.value)}
+                          style={{ width: '80px', textAlign: 'center' }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+              <button className="btn secondary" onClick={() => setReturningPo(null)}>Cancelar</button>
+              <button className="btn warning" onClick={handleConfirmReturn} disabled={loading}>
+                {loading ? 'Procesando...' : 'Aplicar Devolución'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 3. FORMULARIO DE CREACIÓN / EDICIÓN DE ORDEN DE COMPRA (BORRADOR) */}
       {showForm && (
         <div className="card" style={{ width: '100%', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
@@ -1385,6 +1558,27 @@ export default function OrdenesCompra({ data, producto, proveedor, reloadState }
             >
               📋 Todas ({allCompras.length})
             </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>Fechas:</span>
+            <input 
+              type="date" 
+              className="input small" 
+              value={startDate} 
+              onChange={(e) => setStartDate(e.target.value)} 
+              title="Fecha Inicio"
+              style={{ width: '125px', padding: '6px 10px' }}
+            />
+            <span style={{ color: '#cbd5e1' }}>-</span>
+            <input 
+              type="date" 
+              className="input small" 
+              value={endDate} 
+              onChange={(e) => setEndDate(e.target.value)} 
+              title="Fecha Fin"
+              style={{ width: '125px', padding: '6px 10px' }}
+            />
           </div>
 
           <div style={{ flex: 1, minWidth: '260px', maxWidth: '380px' }}>

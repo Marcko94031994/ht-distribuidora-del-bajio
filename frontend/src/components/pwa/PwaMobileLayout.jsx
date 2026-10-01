@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import './pwa-styles.css';
 
@@ -41,7 +41,7 @@ function PwaMobileLayout({ data, reloadState, user, sucursal, producto }) {
         <Route path="/cliente/:id" element={<PwaClientDetails clients={clients} data={data} user={user} />} />
         <Route path="/cliente/:id/catalogo" element={<PwaCatalog clients={clients} data={data} cart={pwaCart} setCart={saveCart} producto={producto} />} />
         <Route path="/carrito/:clientId" element={<PwaCart clients={clients} cart={pwaCart} setCart={saveCart} data={data} user={user} route={assignedRoute} reloadState={reloadState} />} />
-        <Route path="/exito/:orderId" element={<PwaSuccess />} />
+        <Route path="/exito/:orderId" element={<PwaSuccess data={data} />} />
       </Routes>
 
       {/* Bottom Navigation */}

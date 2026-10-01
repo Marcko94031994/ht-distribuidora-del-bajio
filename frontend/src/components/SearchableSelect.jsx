@@ -53,7 +53,7 @@ export default function SearchableSelect({
     const normSearch = normalizeStr(searchTerm);
     
     // If the search term exactly equals the selected option label, return all options
-    if (selectedOption && normalizeStr(getOptionLabel(selectedOption)) === normSearch && !isOpen) {
+    if (selectedOption && normalizeStr(getOptionLabel(selectedOption)) === normSearch) {
       return options;
     }
 
@@ -190,7 +190,7 @@ export default function SearchableSelect({
           disabled={disabled}
           required={required && !value}
           onChange={handleInputChange}
-          onFocus={handleInputFocus}
+          onFocus={(e) => { handleInputFocus(); e.target.select(); }}
           onKeyDown={handleKeyDown}
           style={{
             width: '100%',

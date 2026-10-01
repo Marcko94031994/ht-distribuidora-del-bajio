@@ -6,6 +6,7 @@ export default function Reportes({ data, reports: initialReports, producto, clie
   const [loading, setLoading] = useState(!initialReports?.valorInventario?.length);
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('all'); // all, month, week
+  const [focusedCard, setFocusedCard] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('ht_token');
@@ -142,6 +143,7 @@ export default function Reportes({ data, reports: initialReports, producto, clie
         </div>
       </div>
 
+      {!focusedCard && (
       <div className="kpi-row" style={{ gridColumn: '1 / -1' }}>
         <div className="kpi-card glass">
           <div className="kpi-label">Utilidad Real Bruta</div>
@@ -170,15 +172,24 @@ export default function Reportes({ data, reports: initialReports, producto, clie
           <div className="muted" style={{ fontSize: '0.8rem' }}>Sobre ventas entregadas</div>
         </div>
       </div>
+      )}
 
-      <div className="card glass" style={{ gridColumn: '1 / span 2' }}>
-        <div className="card-h">
-          <div className="row">
-            <h3 style={{ margin: 0 }}>⚠️ Riesgo de Merma (Próximos a Vencer)</h3>
+      {focusedCard && (
+        <button className="btn primary" onClick={() => setFocusedCard(null)} style={{ gridColumn: '1 / -1', marginBottom: '10px' }}>
+          ⬅ Volver al Tablero
+        </button>
+      )}
+
+      <div style={ focusedCard ? { gridColumn: '1 / -1', display: 'block' } : { gridColumn: '1 / -1', columnWidth: '450px', columnGap: '20px' } }>
+
+      {(!focusedCard || focusedCard === 'merma') && (
+<div className="card glass" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: '20px', display: 'inline-block', width: '100%' }}>
+        <div className="card-h" style={{ cursor: 'pointer' }} onClick={() => setFocusedCard(focusedCard ? null : 'merma')}>
+          <div className="row" style={{ width: '100%', justifyContent: 'space-between' }}>
             <span className="chip warn">Acción Requerida</span>
           </div>
         </div>
-        <div className="card-b" style={{ maxHeight: '350px', overflowY: 'auto', padding: 0 }}>
+        <div className="card-b" style={{ maxHeight: focusedCard ? 'calc(100vh - 200px)' : '350px', overflow: 'auto', padding: 0 }}>
           <table className="table" style={{ margin: 0 }}>
             <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1 }}>
               <tr>
@@ -214,36 +225,74 @@ export default function Reportes({ data, reports: initialReports, producto, clie
         </div>
       </div>
 
-      <div className="card glass">
-        <div className="card-h">
+      )}
+
+      {(!focusedCard || focusedCard === 'rentabilidad') && (
+      <div className="card glass" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: '20px', display: 'inline-block', width: '100%' }}>
+        <div className="card-h" style={{ cursor: 'pointer' }} onClick={() => setFocusedCard(focusedCard ? null : 'rentabilidad')}>
           <h3 style={{ margin: 0 }}>📈 Análisis de Rentabilidad</h3>
         </div>
-        <div className="card-b" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-          <div className="list">
-            {ventasMargen.slice(-15).reverse().map((v, i) => (
-              <div className="item" key={i} style={{ padding: '12px' }}>
-                <div className="row">
-                  <b>{v.orderNumber}</b>
-                  <span style={{ color: 'var(--success)', fontWeight: '900' }}>+{pesos(v.margin)}</span>
+        <div className="card-b" style={{ maxHeight: focusedCard ? 'calc(100vh - 200px)' : '350px', overflow: 'auto', padding: (focusedCard === 'rentabilidad') ? 0 : '20px' }}>
+          {focusedCard === 'rentabilidad' ? (
+            <table className="table" style={{ margin: 0 }}>
+              <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1 }}>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Venta</th>
+                  <th>Costo</th>
+                  <th>Utilidad</th>
+                  <th>Margen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...ventasMargen].reverse().map((v, i) => (
+                  <tr key={i}>
+                    <td><b>{v.orderNumber}</b></td>
+                    <td>{pesos(v.totalAmount)}</td>
+                    <td style={{ color: 'var(--danger)' }}>{pesos(v.totalAmount - v.margin)}</td>
+                    <td style={{ color: 'var(--success)', fontWeight: 'bold' }}>+{pesos(v.margin)}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px' }}>
+                          <div style={{ width: `${Math.min(100, Math.max(0, v.marginPercentage))}%`, height: '100%', background: 'var(--success)', borderRadius: '3px' }}></div>
+                        </div>
+                        <span style={{ fontSize: '0.8rem', width: '40px', textAlign: 'right' }}>{v.marginPercentage.toFixed(1)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="list">
+              {[...ventasMargen].slice(-15).reverse().map((v, i) => (
+                <div className="item" key={i} style={{ padding: '12px' }}>
+                  <div className="row">
+                    <b>{v.orderNumber}</b>
+                    <span style={{ color: 'var(--success)', fontWeight: '900' }}>+{pesos(v.margin)}</span>
+                  </div>
+                  <div className="row muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                    <span>Venta: {pesos(v.totalAmount)}</span>
+                    <span>Margen: {v.marginPercentage.toFixed(1)}%</span>
+                  </div>
                 </div>
-                <div className="row muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>
-                  <span>Venta: {pesos(v.totalAmount)}</span>
-                  <span>Margen: {v.marginPercentage.toFixed(1)}%</span>
-                </div>
-              </div>
-            ))}
-            {ventasMargen.length === 0 && (
-              <div className="item muted text-center">Esperando primeras entregas...</div>
-            )}
-          </div>
+              ))}
+              {ventasMargen.length === 0 && (
+                <div className="item muted text-center">Esperando primeras entregas...</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="card glass">
-        <div className="card-h">
+      )}
+
+      {(!focusedCard || focusedCard === 'clientes') && (
+      <div className="card glass" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: '20px', display: 'inline-block', width: '100%' }}>
+        <div className="card-h" style={{ cursor: 'pointer' }} onClick={() => setFocusedCard(focusedCard ? null : 'clientes')}>
           <h3 style={{ margin: 0 }}>🏆 Top Clientes</h3>
         </div>
-        <div className="card-b" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+        <div className="card-b" style={{ maxHeight: focusedCard ? 'calc(100vh - 200px)' : '350px', overflow: 'auto' }}>
           <div className="list">
             {stats.topClients.map((c, i) => (
               <div className="item" key={i} style={{ padding: '12px' }}>
@@ -266,12 +315,15 @@ export default function Reportes({ data, reports: initialReports, producto, clie
         </div>
       </div>
 
+      )}
+
       {/* Reportes de Cartera CxC / CxP */}
-      <div className="card glass" style={{ gridColumn: '1 / span 2' }}>
-        <div className="card-h">
+      {(!focusedCard || focusedCard === 'cxc') && (
+      <div className="card glass" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: '20px', display: 'inline-block', width: '100%' }}>
+        <div className="card-h" style={{ cursor: 'pointer' }} onClick={() => setFocusedCard(focusedCard ? null : 'cxc')}>
           <h3 style={{ margin: 0 }}>💰 Cuentas por Cobrar (CxC)</h3>
         </div>
-        <div className="card-b" style={{ maxHeight: '400px', overflowY: 'auto', background: '#f8fafc' }}>
+        <div className="card-b" style={{ maxHeight: focusedCard ? 'calc(100vh - 200px)' : '400px', overflow: 'auto', background: '#f8fafc' }}>
           <div className="list">
             {cxc.map((c, i) => (
               <div className="item" key={i} style={{ borderColor: 'rgba(220,38,38,0.2)' }}>
@@ -300,11 +352,14 @@ export default function Reportes({ data, reports: initialReports, producto, clie
         </div>
       </div>
 
-      <div className="card glass">
-        <div className="card-h">
+      )}
+
+      {(!focusedCard || focusedCard === 'cxp') && (
+      <div className="card glass" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: '20px', display: 'inline-block', width: '100%' }}>
+        <div className="card-h" style={{ cursor: 'pointer' }} onClick={() => setFocusedCard(focusedCard ? null : 'cxp')}>
           <h3 style={{ margin: 0 }}>🧾 Cuentas por Pagar (CxP)</h3>
         </div>
-        <div className="card-b" style={{ maxHeight: '400px', overflowY: 'auto', background: '#f8fafc' }}>
+        <div className="card-b" style={{ maxHeight: focusedCard ? 'calc(100vh - 200px)' : '400px', overflow: 'auto', background: '#f8fafc' }}>
           <div className="list">
             {cxp.map((p, i) => (
               <div className="item" key={i} style={{ borderColor: 'rgba(217,119,6,0.2)' }}>
@@ -331,7 +386,9 @@ export default function Reportes({ data, reports: initialReports, producto, clie
           </div>
         </div>
       </div>
-      
+      )}
+      </div>
+
     </div>
   );
 }

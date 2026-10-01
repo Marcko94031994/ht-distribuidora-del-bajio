@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { pesos } from '../utils/helpers';
 
 export default function CajaGeneral({ data }) {
   const [summary, setSummary] = useState(null);
   const [closures, setClosures] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
   const [declaredCash, setDeclaredCash] = useState('');
   const [observations, setObservations] = useState('');
 
@@ -122,7 +124,9 @@ export default function CajaGeneral({ data }) {
                 value={observations} 
                 onChange={e => setObservations(e.target.value)} 
               ></textarea>
-              <button type="submit" className="btn primary full">Registrar Faltante/Sobrante y Cerrar Día</button>
+              <button type="submit" disabled={saving || successMsg} className={`btn full ${successMsg ? 'success' : 'primary'}`}>
+                {successMsg ? '✅ ¡Corte exitoso!' : (saving ? '⏳ Procesando...' : 'Registrar Faltante/Sobrante y Cerrar Día')}
+              </button>
             </form>
           )}
         </div>

@@ -49,7 +49,7 @@ public class AuthController : ControllerBase
                     new Claim(ClaimTypes.Email, user.Email!),
                     new Claim(ClaimTypes.Role, user.Role)
                 }),
-                Expires = DateTime.UtcNow.AddDays(7),
+                Expires = DateTime.UtcNow.AddHours(8),
                 Issuer = jwtSettings["Issuer"],
                 Audience = jwtSettings["Audience"],
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
@@ -58,7 +58,7 @@ public class AuthController : ControllerBase
             
             return Ok(new {
                 token = tokenHandler.WriteToken(token),
-                user = new { user.Id, user.Name, user.Email, user.Role, user.ClientId, SucursalId = user.SucursalId, Permissions = user.Permissions }
+                user = new { user.Id, user.Name, user.Email, user.Role, user.ClientId, SucursalId = user.SucursalId, DriverId = user.DriverId, Permissions = user.Permissions }
             });
         }
 
@@ -70,11 +70,12 @@ public class AuthController : ControllerBase
             { 
                 Name = input.Name, 
                 Email = input.Email, 
-                Password = input.Password, 
+                Password = BCrypt.Net.BCrypt.HashPassword(input.Password), 
                 Role = input.Role,
                 Permissions = input.Permissions,
                 SucursalId = input.SucursalId,
-                ClientId = input.ClientId
+                ClientId = input.ClientId,
+                DriverId = input.DriverId
             };
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -90,11 +91,12 @@ public class AuthController : ControllerBase
             
             user.Name = input.Name;
             user.Email = input.Email;
-            if (!string.IsNullOrEmpty(input.Password)) user.Password = input.Password;
+            if (!string.IsNullOrEmpty(input.Password)) user.Password = BCrypt.Net.BCrypt.HashPassword(input.Password);
             user.Role = input.Role;
             user.Permissions = input.Permissions;
             user.SucursalId = input.SucursalId;
             user.ClientId = input.ClientId;
+            user.DriverId = input.DriverId;
             
             await _context.SaveChangesAsync();
             return Ok(user);

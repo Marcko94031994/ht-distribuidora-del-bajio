@@ -38,6 +38,8 @@ public class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<DailyClosure> DailyClosures => Set<DailyClosure>();
     public DbSet<ProductInventory> ProductInventories => Set<ProductInventory>();
+    public DbSet<DocumentSequence> DocumentSequences => Set<DocumentSequence>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

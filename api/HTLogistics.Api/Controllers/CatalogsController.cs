@@ -57,6 +57,7 @@ public class CatalogsController : ControllerBase
         var productCategories = await _context.ProductCategories.AsNoTracking().ToListAsync();
         var productBrands = await _context.ProductBrands.AsNoTracking().ToListAsync();
         var warehouseLocations = await _context.WarehouseLocations.AsNoTracking().ToListAsync();
+        var visits = await _context.Visits.AsNoTracking().OrderByDescending(v => v.Date).Take(200).ToListAsync();
         
         List<User>? users = null;
         if (User.IsInRole("Admin"))
@@ -84,7 +85,8 @@ public class CatalogsController : ControllerBase
             cierresCaja = cashClosures,
             usuarios = users,
             categorias = productCategories,
-            marcas = productBrands
+            marcas = productBrands,
+            visitas = visits
         });
     }
 
@@ -106,7 +108,7 @@ public class CatalogsController : ControllerBase
     {
         var sales = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.Status == "Entregado" || o.Status == "Entregado con Devolución")
+            .Where(o => o.Status == "Entregado" || o.Status == "Entregado con DevoluciÃ³n")
             .Select(o => new {
                 o.OrderNumber,
                 o.TotalAmount,
@@ -125,10 +127,13 @@ public class CatalogsController : ControllerBase
         var inventoryValue = await _context.Products
             .AsNoTracking()
             .Select(p => new {
+                p.Id,
                 p.Name,
-                Stock = p.TotalStock,
+                p.SKU,
                 p.Cost,
-                TotalValue = p.TotalStock * p.Cost
+                p.Stock,
+                p.IsPerishable,
+                TotalValue = p.Stock * p.Cost
             }).ToListAsync();
 
         return Ok(new
@@ -164,7 +169,7 @@ public class CatalogsController : ControllerBase
     [HttpPost("warehouse")]
     public async Task<IActionResult> CreateWarehouse([FromBody] WarehouseInputModel input)
     {
-        var warehouse = new Warehouse { Name = input.Nombre, BranchId = input.SucursalId, Type = input.Tipo, Manager = input.Responsable, IsActive = true };
+        var warehouse = new Warehouse { Name = input.Nombre, BranchId = input.SucursalId , Type = input.Tipo, Manager = input.Responsable, IsActive = true };
         _context.Warehouses.Add(warehouse);
         await _context.SaveChangesAsync();
         return Ok(warehouse);
@@ -176,7 +181,7 @@ public class CatalogsController : ControllerBase
         var warehouse = await _context.Warehouses.FindAsync(id);
         if (warehouse == null) return NotFound();
         warehouse.Name = input.Nombre;
-        warehouse.BranchId = input.SucursalId;
+        warehouse.BranchId = input.SucursalId ;
         warehouse.Type = input.Tipo;
         warehouse.Manager = input.Responsable;
         await _context.SaveChangesAsync();
@@ -191,7 +196,7 @@ public class CatalogsController : ControllerBase
                 Name = input.Nombre, 
                 Phone = input.Telefono, 
                 VehicleId = input.VehiculoId,
-                BranchId = input.SucursalId, 
+                BranchId = input.SucursalId , 
                 Status = input.Status ?? "Activo",
                 CommissionPercentage = input.Comision
             };
@@ -240,7 +245,7 @@ public class CatalogsController : ControllerBase
     [HttpPost("route")]
     public async Task<IActionResult> CreateRoute([FromBody] RouteInputModel input)
     {
-        var route = new DeliveryRoute { Name = input.Nombre, DayOfWeek = input.Dia, BranchId = input.SucursalId, DriverId = input.VendedorId };
+        var route = new DeliveryRoute { Name = input.Nombre, DayOfWeek = input.Dia, BranchId = input.SucursalId , DriverId = input.VendedorId };
         _context.Routes.Add(route);
         await _context.SaveChangesAsync();
 
@@ -255,8 +260,17 @@ public class CatalogsController : ControllerBase
                     _context.Clients.Add(new Client { Name = trimmed, Zone = "Zona general", IsVisited = false, RouteId = route.Id, Latitude = 21.1, Longitude = -101.6 });
                 }
             }
-            await _context.SaveChangesAsync();
         }
+        
+        if (input.ClientIds != null && input.ClientIds.Any())
+        {
+            var clientsToUpdate = await _context.Clients.Where(c => input.ClientIds.Contains(c.Id)).ToListAsync();
+            foreach (var client in clientsToUpdate)
+            {
+                client.RouteId = route.Id;
+            }
+        }
+        await _context.SaveChangesAsync();
         return Ok(route);
     }
 
@@ -269,6 +283,28 @@ public class CatalogsController : ControllerBase
         route.DayOfWeek = input.Dia;
         route.BranchId = input.SucursalId;
         route.DriverId = input.VendedorId;
+
+        if (input.ClientIds != null)
+        {
+            var defaultRoute = await _context.Routes.FirstOrDefaultAsync();
+            var defaultRouteId = defaultRoute != null ? defaultRoute.Id : 1;
+
+            var existingClients = await _context.Clients.Where(c => c.RouteId == route.Id).ToListAsync();
+            foreach (var existing in existingClients)
+            {
+                if (!input.ClientIds.Contains(existing.Id))
+                {
+                    existing.RouteId = defaultRouteId;
+                }
+            }
+
+            var newClientsToAssign = await _context.Clients.Where(c => input.ClientIds.Contains(c.Id)).ToListAsync();
+            foreach (var newClient in newClientsToAssign)
+            {
+                newClient.RouteId = route.Id;
+            }
+        }
+
         await _context.SaveChangesAsync();
         return Ok(route);
     }
@@ -503,7 +539,7 @@ public class CatalogsController : ControllerBase
         public async Task<IActionResult> GetLoadingSheet(int routeId)
         {
             var pendingOrders = await _context.Orders
-                .Where(o => o.RouteId == routeId && (o.Status == "Pendiente" || o.Status == "En remisión"))
+                .Where(o => o.RouteId == routeId && (o.Status == "Pendiente" || o.Status == "En remisiÃ³n"))
                 .Include(o => o.Items)
                 .ThenInclude(i => i.Product)
                 .ToListAsync();
@@ -555,16 +591,16 @@ public class CatalogsController : ControllerBase
         var branch = await _context.Branches.FirstOrDefaultAsync();
         if (branch == null)
         {
-            branch = new Branch { Name = "Matriz Bajío", Zone = "León", Manager = "Gerencia Bajío" };
+            branch = new Branch { Name = "Matriz BajÃ­o", Zone = "LeÃ³n", Manager = "Gerencia BajÃ­o" };
             _context.Branches.Add(branch);
             await _context.SaveChangesAsync();
         }
 
         // 2. Obtener o crear 3 Choferes / Vendedores
-        var d1 = await _context.Drivers.FirstOrDefaultAsync(d => d.Name.Contains("Juan Pérez"));
+        var d1 = await _context.Drivers.FirstOrDefaultAsync(d => d.Name.Contains("Juan PÃ©rez"));
         if (d1 == null)
         {
-            d1 = new Driver { Name = "Juan Pérez (R-101)", Phone = "4771234567", Status = "En Ruta", BranchId = branch.Id, CommissionPercentage = 3.5m };
+            d1 = new Driver { Name = "Juan PÃ©rez (R-101)", Phone = "4771234567", Status = "En Ruta", BranchId = branch.Id, CommissionPercentage = 3.5m };
             _context.Drivers.Add(d1);
         }
         d1.Latitude = 21.1218;
@@ -603,7 +639,7 @@ public class CatalogsController : ControllerBase
         var r1 = await _context.Routes.FirstOrDefaultAsync(r => r.Name.Contains("R-101"));
         if (r1 == null)
         {
-            r1 = new DeliveryRoute { Name = "R-101: Centro Histórico - San Juan", DayOfWeek = "Jueves", BranchId = branch.Id, DriverId = d1.Id };
+            r1 = new DeliveryRoute { Name = "R-101: Centro HistÃ³rico - San Juan", DayOfWeek = "Jueves", BranchId = branch.Id, DriverId = d1.Id };
             _context.Routes.Add(r1);
         }
         else { r1.DriverId = d1.Id; }
@@ -635,14 +671,14 @@ public class CatalogsController : ControllerBase
             ("Comercializadora Madero", 21.1165, -101.6720, true, 2900m, 70m),
             ("Tienda Don Pepe Belisario", 21.1140, -101.6690, false, 0m, 0m),
             ("Abarrotes La Calzada", 21.1120, -101.6660, false, 0m, 0m),
-            ("Depósito San Pedro", 21.1100, -101.6630, false, 0m, 0m)
+            ("DepÃ³sito San Pedro", 21.1100, -101.6630, false, 0m, 0m)
         };
 
         var route2Stops = new[]
         {
             ("Distribuidora Industrial Delta", 21.0920, -101.6320, true, 8900m, 240m),
             ("Abarrotes San Miguel Sur", 21.0950, -101.6350, true, 4200m, 110m),
-            ("Super Carnicería Omega", 21.0990, -101.6400, true, 5500m, 130m),
+            ("Super CarnicerÃ­a Omega", 21.0990, -101.6400, true, 5500m, 130m),
             ("Mini Super Blvd. Aeropuerto", 21.1030, -101.6450, false, 0m, 0m),
             ("Abarrotes El Retiro Industrial", 21.1070, -101.6500, false, 0m, 0m),
             ("Tienda Las Torres", 21.1110, -101.6550, false, 0m, 0m)
@@ -653,8 +689,8 @@ public class CatalogsController : ControllerBase
             ("Super Gourmet Campestre", 21.1580, -101.7050, true, 11500m, 290m),
             ("Mini Super Paseo del Moral", 21.1540, -101.7010, true, 7300m, 180m),
             ("Abarrotes Panorama", 21.1500, -101.6960, true, 4800m, 120m),
-            ("Comercial San Jerónimo", 21.1460, -101.6910, true, 5600m, 140m),
-            ("Depósito Hidalgo Norte", 21.1420, -101.6870, true, 3900m, 95m),
+            ("Comercial San JerÃ³nimo", 21.1460, -101.6910, true, 5600m, 140m),
+            ("DepÃ³sito Hidalgo Norte", 21.1420, -101.6870, true, 3900m, 95m),
             ("Tienda Valle del Campestre", 21.1380, -101.6830, false, 0m, 0m),
             ("Mini Super Blvd. Insurgentes", 21.1340, -101.6790, false, 0m, 0m),
             ("Abarrotes Jardines del Moral", 21.1300, -101.6750, false, 0m, 0m)
@@ -671,7 +707,7 @@ public class CatalogsController : ControllerBase
                     client = new Client
                     {
                         Name = stop.name,
-                        Zone = "León",
+                        Zone = "LeÃ³n",
                         RouteId = routeId,
                         Latitude = stop.lat,
                         Longitude = stop.lng,
@@ -698,6 +734,8 @@ public class CatalogsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Demostración de 3 rutas activas en León, Gto generada exitosamente.", r1Id = r1.Id, r2Id = r2.Id, r3Id = r3.Id });
+        return Ok(new { message = "DemostraciÃ³n de 3 rutas activas en LeÃ³n, Gto generada exitosamente.", r1Id = r1.Id, r2Id = r2.Id, r3Id = r3.Id });
     }
 }
+
+

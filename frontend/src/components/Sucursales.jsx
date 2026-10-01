@@ -4,6 +4,8 @@ export default function Sucursales({ data, sucursal, addSucursal, updateSucursal
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -25,17 +27,28 @@ export default function Sucursales({ data, sucursal, addSucursal, updateSucursal
       manager: s.manager || ''
     });
     setShowModal(true);
-  };
+      };
 
-  const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editing) {
-      if (updateSucursal) updateSucursal(editing.id, form);
-    } else {
-      if (addSucursal) addSucursal(form);
+    setSaving(true);
+    try {
+      if (editing) {
+        if (updateSucursal) await updateSucursal(editing.id, form);
+      } else {
+        if (addSucursal) await addSucursal(form);
+      }
+      setSuccessMsg(true);
+      setTimeout(() => {
+        setShowModal(false);
+        setEditing(null);
+        setSuccessMsg(false);
+      }, 1500);
+    } catch(err) {
+      alert("Error: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
-    setEditing(null);
   };
 
   const sucursalesList = data.sucursales || [];
@@ -95,8 +108,8 @@ export default function Sucursales({ data, sucursal, addSucursal, updateSucursal
                 />
               </div>
               <div className="full" style={{ marginTop: '12px' }}>
-                <button type="submit" className={`btn full ${editing ? 'warn' : 'primary'}`}>
-                  {editing ? '💾 Actualizar sucursal' : '✅ Guardar sucursal'}
+                <button type="submit" disabled={saving || successMsg} className={`btn full ${successMsg ? 'success' : (editing ? 'warn' : 'primary')}`}>
+                  {successMsg ? '✅ ¡Guardado exitosamente!' : (saving ? '⏳ Guardando...' : (editing ? '📝 Actualizar sucursal' : '💾 Guardar sucursal'))}
                 </button>
               </div>
             </form>

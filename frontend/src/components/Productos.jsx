@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { pesos } from '../utils/helpers';
 
 export default function Productos({ data, addProducto, updateProducto, almacen }) {
   const [photos, setPhotos] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [search, setSearch] = useState('');
@@ -102,7 +104,12 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
 
   const handlePhotos = (e) => {
     const files = Array.from(e.target.files);
-    files.forEach(file => {
+    const availableSlots = Math.max(0, 5 - photos.length);
+    if (files.length > availableSlots) {
+      alert(`Máximo 5 imágenes por producto. Sólo se agregarán ${availableSlots} imágenes.`);
+    }
+    const filesToAdd = files.slice(0, availableSlots);
+    filesToAdd.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotos(prev => [...prev, reader.result]);
@@ -111,8 +118,9 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     const f = new FormData(e.currentTarget);
     const payload = {
       name: f.get('name'),
@@ -146,16 +154,25 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
       photos: photos
     };
 
-    if (editingProduct) {
-      updateProducto(editingProduct.id, payload);
-      setEditingProduct(null);
-    } else {
-      addProducto(payload);
+    try {
+      if (editingProduct) {
+        await updateProducto(editingProduct.id, payload);
+      } else {
+        await addProducto(payload);
+      }
+      setSuccessMsg(true);
+      setTimeout(() => {
+        e.target.reset();
+        setPhotos([]);
+        setShowForm(false);
+        setEditingProduct(null);
+        setSuccessMsg(false);
+      }, 1500);
+    } catch(err) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsSaving(false);
     }
-    
-    e.target.reset();
-    setPhotos([]);
-    setShowForm(false);
   };
 
   const startEdit = (p) => {
@@ -244,7 +261,9 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                     <input name="quantity" type="number" min="1" className="input full" required />
                   </div>
                   <div>
-                    <button type="submit" className="btn primary">Guardar</button>
+                    <button type="submit" className="btn primary">
+                      Guardar
+                    </button>
                   </div>
                 </form>
               </div>
@@ -472,11 +491,11 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
                   </div>
                 </div>
 
-                <div className="full" style={{ marginTop: '12px' }}>
-                  <button type="submit" className={`btn success full ${editingProduct ? 'warn' : ''}`}>
-                    {editingProduct ? '💾 Actualizar Producto' : '✅ Guardar Producto'}
-                  </button>
-                </div>
+                  <div className="full" style={{ marginTop: '12px' }}>
+                    <button type="submit" disabled={isSaving || successMsg} className={`btn full ${successMsg ? 'success' : (editingProduct ? 'warn' : 'primary')}`}>
+                      {successMsg ? '✅ ¡Guardado exitosamente!' : (isSaving ? '⏳ Guardando...' : (editingProduct ? '📝 Actualizar Producto' : '💾 Guardar Producto'))}
+                    </button>
+                  </div>
               </form>
             </div>
         </div>
@@ -546,7 +565,7 @@ export default function Productos({ data, addProducto, updateProducto, almacen }
               <div style={{ display: 'flex', gap: '15px' }}>
                 <div style={{ width: '80px', position: 'relative' }}>
                    {p.images && p.images.length > 0 ? (
-                     <img src={p.images[0].photoBase64} alt={p.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                     <img src={(p.images[0].photoBase64 && p.images[0].photoBase64.startsWith('uploads/')) ? '/' + p.images[0].photoBase64 : p.images[0].photoBase64} alt={p.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
                    ) : (
                      <div style={{ width: '80px', height: '80px', background: 'var(--bg)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📦</div>
                    )}

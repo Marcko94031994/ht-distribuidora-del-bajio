@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { pesos } from '../utils/helpers';
 import SearchableSelect from './SearchableSelect';
@@ -59,7 +59,8 @@ export default function ListaPrecios({ data, reloadState }) {
       if (res.ok) {
         alert('✅ Precios y costos actualizados con éxito.');
         setUpdates({});
-        if (reloadState) reloadState();
+        if (reloadState) await reloadState();
+        window.location.reload();
       } else {
         alert('Error al guardar cambios de precios.');
       }
@@ -287,18 +288,31 @@ export default function ListaPrecios({ data, reloadState }) {
   };
 
   const handleApplyExcelPrices = async () => {
-    if (!excelPreview || excelPreview.matched.length === 0) return;
+    if (!excelPreview || (excelPreview.matched.length === 0 && excelPreview.unmatched.length === 0)) return;
 
     setUploadingExcel(true);
     try {
-      const payload = excelPreview.matched.map(item => {
-        const updateObj = { id: item.product.id, sku: item.sku };
+      const payload = [];
+      
+      excelPreview.matched.forEach(item => {
+        const updateObj = { id: item.product.id, sku: item.sku, name: item.product.name };
         if (item.newPrices.price1 !== undefined) updateObj.price = item.newPrices.price1;
         if (item.newPrices.price2 !== undefined) updateObj.price2 = item.newPrices.price2;
         if (item.newPrices.price3 !== undefined) updateObj.price3 = item.newPrices.price3;
         if (item.newPrices.boxPrice !== undefined) updateObj.boxPrice = item.newPrices.boxPrice;
         if (item.newPrices.cost !== undefined) updateObj.cost = item.newPrices.cost;
-        return updateObj;
+        payload.push(updateObj);
+      });
+      
+      excelPreview.unmatched.forEach(item => {
+        const createObj = { sku: item.sku, name: item.name || 'Sin nombre' };
+        if (item.prices.price1 !== undefined) createObj.price1 = item.prices.price1;
+        if (item.prices.price1 !== undefined) createObj.price = item.prices.price1;
+        if (item.prices.price2 !== undefined) createObj.price2 = item.prices.price2;
+        if (item.prices.price3 !== undefined) createObj.price3 = item.prices.price3;
+        if (item.prices.boxPrice !== undefined) createObj.boxPrice = item.prices.boxPrice;
+        if (item.prices.cost !== undefined) createObj.cost = item.prices.cost;
+        payload.push(createObj);
       });
 
       const token = localStorage.getItem('ht_token');
@@ -312,7 +326,8 @@ export default function ListaPrecios({ data, reloadState }) {
         alert(`✅ Se actualizaron exitosamente las listas de precios de ${payload.length} productos.`);
         setShowExcelModal(false);
         setExcelPreview(null);
-        if (reloadState) reloadState();
+        if (reloadState) await reloadState();
+        window.location.reload();
       } else {
         const err = await res.text();
         alert("Error al aplicar actualización masiva: " + err);
@@ -464,7 +479,7 @@ export default function ListaPrecios({ data, reloadState }) {
                   </div>
                   <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px', lineHeight: 1.4 }}>
                     {excelPreview.unmatched.length > 0 
-                      ? 'Existen en el archivo pero no están dados de alta en el catálogo (serán omitidos).' 
+                      ? 'Existen en el archivo pero no están dados de alta en el catálogo (serán creados como productos nuevos).' 
                       : 'Todos los productos leídos existen en la base de datos.'}
                   </div>
                 </div>
@@ -577,10 +592,10 @@ export default function ListaPrecios({ data, reloadState }) {
                 type="button" 
                 className="btn success" 
                 onClick={handleApplyExcelPrices}
-                disabled={uploadingExcel || excelPreview.matched.length === 0}
+                disabled={uploadingExcel || (excelPreview.matched.length === 0 && excelPreview.unmatched.length === 0)}
                 style={{ fontWeight: 800, padding: '10px 22px' }}
               >
-                {uploadingExcel ? '⏳ Aplicando cambios...' : `Confirmar y Aplicar Precios (${excelPreview.matched.length} Productos)`}
+                {uploadingExcel ? '⏳ Aplicando...' : `Aplicar ${excelPreview.matched.length} actualizados y ${excelPreview.unmatched.length} nuevos`}
               </button>
             </div>
           </div>
@@ -748,8 +763,11 @@ export default function ListaPrecios({ data, reloadState }) {
               <tr style={{ background: 'var(--bg, #f1f5f9)', borderBottom: '2px solid var(--line, #cbd5e1)' }}>
                 <th style={{ padding: '10px 12px' }}>SKU</th>
                 <th style={{ padding: '10px 12px' }}>Producto</th>
+                <th style={{ padding: '10px 12px', background: '#f8fafc', color: '#64748b' }}>
+                  Costo Promedio (Kardex)
+                </th>
                 <th style={{ padding: '10px 12px', background: '#fef3c7', color: '#92400e' }}>
-                  Costo Promedio (Default/Editable)
+                  Costo de Producto
                 </th>
                 <th style={{ padding: '10px 12px', background: '#e0f2fe', color: '#0369a1' }}>
                   Precio 1 (Menudeo / Base)
@@ -794,7 +812,12 @@ export default function ListaPrecios({ data, reloadState }) {
                       {pCat && <div className="muted" style={{ fontSize: '11px' }}>{pCat}</div>}
                     </td>
 
-                    {/* COSTO PROMEDIO / BASE (EDITABLE CON DEFAULT) */}
+                    {/* COSTO PROMEDIO (KARDEX - READ-ONLY) */}
+                    <td style={{ padding: '6px 12px', background: '#f8fafc', fontWeight: 'bold', color: '#64748b' }}>
+                      {pesos(p.cogs || 0)}
+                    </td>
+
+                    {/* COSTO DE PRODUCTO (EDITABLE) */}
                     <td style={{ padding: '6px 12px', background: '#fffbeb' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 'bold' }}>$</span>

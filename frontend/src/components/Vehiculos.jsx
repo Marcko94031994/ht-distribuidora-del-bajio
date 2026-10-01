@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export default function Vehiculos({ data, addVehiculo, updateVehiculo }) {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
 
   const [form, setForm] = useState({
     placas: '',
@@ -32,24 +34,35 @@ export default function Vehiculos({ data, addVehiculo, updateVehiculo }) {
       estatus: v.status || 'Disponible'
     });
     setShowModal(true);
-  };
+      };
 
-  const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      placas: form.placas,
-      marca: form.marca,
-      modelo: form.modelo,
-      estatus: form.estatus
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        placas: form.placas,
+        marca: form.marca,
+        modelo: form.modelo,
+        estatus: form.estatus
+      };
 
-    if (editing) {
-      if (updateVehiculo) updateVehiculo(editing.id, payload);
-    } else {
-      if (addVehiculo) addVehiculo(payload);
+      if (editing) {
+        if (updateVehiculo) await updateVehiculo(editing.id, payload);
+      } else {
+        if (addVehiculo) await addVehiculo(payload);
+      }
+      setSuccessMsg(true);
+      setTimeout(() => {
+        setShowModal(false);
+        setEditing(null);
+        setSuccessMsg(false);
+      }, 1500);
+    } catch(err) {
+      alert("Error: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
-    setEditing(null);
   };
 
   const filteredVehiculos = (data.unidades || []).filter(v => {
@@ -123,8 +136,8 @@ export default function Vehiculos({ data, addVehiculo, updateVehiculo }) {
                 </select>
               </div>
               <div className="full" style={{ marginTop: '12px' }}>
-                <button type="submit" className={`btn full ${editing ? 'warn' : 'primary'}`}>
-                  {editing ? '💾 Actualizar Unidad' : '✅ Guardar Unidad'}
+                <button type="submit" disabled={saving || successMsg} className={`btn full ${successMsg ? 'success' : (editing ? 'warn' : 'primary')}`}>
+                  {successMsg ? '✅ ¡Guardado exitosamente!' : (saving ? '⏳ Guardando...' : (editing ? '📝 Actualizar vehículo' : '💾 Guardar vehículo'))}
                 </button>
               </div>
             </form>

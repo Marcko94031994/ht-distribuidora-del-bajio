@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { pesos } from '../utils/helpers';
+import { useState } from 'react';
+import { pesos, printRemision } from '../utils/helpers';
 
 export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vendedor, producto, cambiarPedidoStatus, registrarDevolucion }) {
   const [photoBase64, setPhotoBase64] = useState(null);
   const [returnItems, setReturnItems] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
   const handlePhoto = (e) => {
     const file = e.target.files[0];
@@ -41,18 +44,31 @@ export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vend
 
   const pedidosList = data.pedidos || [];
   const filteredPedidos = pedidosList.filter(p => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    const rutaName = ruta(p.routeId)?.name || '';
-    return (
-      (p.orderNumber && p.orderNumber.toLowerCase().includes(term)) ||
-      (p.status && p.status.toLowerCase().includes(term)) ||
-      rutaName.toLowerCase().includes(term)
-    );
+    if (p.status === 'Pendiente' || p.status === 'Esperando Autorización Admin' || p.status === 'Cancelado') return false;
+
+    if (filterStatus && p.status !== filterStatus) return false;
+    
+    if (filterDateFrom || filterDateTo) {
+      const pDate = new Date(p.date).toISOString().split('T')[0];
+      if (filterDateFrom && pDate < filterDateFrom) return false;
+      if (filterDateTo && pDate > filterDateTo) return false;
+    }
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const rutaName = ruta(p.routeId)?.name || '';
+      if (!((p.orderNumber && p.orderNumber.toLowerCase().includes(term)) ||
+          (p.status && p.status.toLowerCase().includes(term)) ||
+          rutaName.toLowerCase().includes(term))) {
+        return false;
+      }
+    }
+    return true;
   });
 
-  const currentCliente = pedido ? data.clientes?.find(x => x.id === pedido.clientId) : null;
-  const currentItems = pedido?.items || [];
+  const activePedido = filteredPedidos.find(p => p.id === pedido?.id);
+  const currentCliente = activePedido ? (data.rutas?.flatMap(r => r.clients) || []).find(x => x.id === activePedido.clientId) : null;
+  const currentItems = activePedido?.items || [];
 
   return (
     <div className="grid">
@@ -65,10 +81,39 @@ export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vend
           <input 
             type="text" 
             className="input full" 
-            placeholder="🔍 Buscar folio o ruta..." 
+            placeholder="🔎 Buscar folio o ruta..." 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <input 
+                type="date" 
+                className="input" 
+                style={{ flex: 1, padding: '6px', fontSize: '0.8rem' }}
+                value={filterDateFrom}
+                onChange={e => setFilterDateFrom(e.target.value)}
+              />
+              <input 
+                type="date" 
+                className="input" 
+                style={{ flex: 1, padding: '6px', fontSize: '0.8rem' }}
+                value={filterDateTo}
+                onChange={e => setFilterDateTo(e.target.value)}
+              />
+            </div>
+            <div style={{ marginTop: '10px' }}>
+              <select 
+              className="select" 
+              style={{ flex: 1, padding: '6px', fontSize: '0.8rem' }}
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+            >
+              <option value="">Todos los estatus</option>
+              <option value="Surtido/En Tránsito">En Tránsito</option>
+              <option value="Entregado">Entregado</option>
+              <option value="Entregado con Devolución">Entregado con Dev</option>
+            </select>
+          </div>
         </div>
         <div className="card-b list">
           {filteredPedidos.map(p => (
@@ -95,10 +140,10 @@ export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vend
       </div>
 
       <div className="card double">
-        {pedido ? (
+        {activePedido ? (
           <>
             <div className="card-h">
-              <h3>Detalle de {pedido.orderNumber || `Pedido #${pedido.id}`}</h3>
+              <h3>Detalle de {activePedido.orderNumber || `Pedido #${activePedido.id}`}</h3>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <button 
                   className="btn secondary" 
@@ -106,14 +151,21 @@ export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vend
                   onClick={() => {
                     const itemsTxt = currentItems.map(i => `${producto(i.productId)?.name || 'Prod'} x ${i.quantity} = ${pesos((producto(i.productId)?.price || 0) * i.quantity)}`).join('\n');
                     const total = currentItems.reduce((sum, i) => sum + ((producto(i.productId)?.price || 0) * i.quantity), 0);
-                    const text = `🧾 *TICKET HT DISTRIBUIDORA*\n--------------------------\nFolio: ${pedido.orderNumber || pedido.id}\nCliente: ${currentCliente?.name || 'Cliente general'}\n\n${itemsTxt}\n\n*TOTAL: ${pesos(total)}*\n--------------------------\n¡Gracias por su compra!`;
+                    const text = `🧾 *TICKET HT DISTRIBUIDORA*\n--------------------------\nFolio: ${activePedido.orderNumber || activePedido.id}\nCliente: ${currentCliente?.name || 'Cliente general'}\n\n${itemsTxt}\n\n*TOTAL: ${pesos(total)}*\n--------------------------\n¡Gracias por su compra!`;
                     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
                     window.open(url, '_blank');
                   }}
                 >
-                  📱 Compartir WhatsApp
+                  📱 WhatsApp
                 </button>
-                <div className="muted">{pedido.time || ''} · {vendedor(pedido.driverId)?.name || 'Sin Chofer'}</div>
+                <button 
+                  className="btn secondary" 
+                  style={{ padding: '6px 12px', fontSize: '0.8rem' }} 
+                  onClick={() => printRemision(activePedido, currentCliente, currentItems, data)}
+                >
+                  🖨️ Imprimir Remisión
+                </button>
+                <div className="muted">{activePedido.time || ''} · {vendedor(activePedido.driverId)?.name || 'Sin Chofer'}</div>
               </div>
             </div>
             <div className="card-b">
@@ -135,7 +187,7 @@ export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vend
                     <div>{i.quantity}</div>
                     <div>{pesos(prod?.price || 0)}</div>
                     <div>
-                      {pedido.status === 'En remisión' ? (
+                      {(activePedido.status === 'En remisión' || activePedido.status === 'Surtido/En Tránsito') ? (
                         <input 
                           type="number" 
                           min="0" 
@@ -152,17 +204,17 @@ export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vend
               })}
               <br/>
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                {pedido.status === 'Pendiente' && (
+                {activePedido.status === 'Pendiente' && (
                   <button className="btn success" onClick={() => cambiarPedidoStatus('En remisión')}>
                     Autorizar y Despachar
                   </button>
                 )}
-                {pedido.status === 'En remisión' && (
+                {(activePedido.status === 'En remisión' || activePedido.status === 'Surtido/En Tránsito') && (
                   <button className="btn secondary" onClick={() => cambiarPedidoStatus('Cancelado')}>
                     Cancelar Pedido
                   </button>
                 )}
-                {pedido.status === 'En remisión' && (
+                {(activePedido.status === 'En remisión' || activePedido.status === 'Surtido/En Tránsito') && (
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <div>
                       <label className="muted" style={{ display: 'block', fontSize: '0.8rem' }}>Evidencia de Entrega:</label>
@@ -174,13 +226,13 @@ export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vend
                 )}
               </div>
               {photoBase64 && (
-                <img src={photoBase64} alt="Evidencia temp" style={{ width: '80px', height: '80px', objectFit: 'cover', marginTop: '1rem', borderRadius: '6px' }} />
+                <img src={(photoBase64 && photoBase64.startsWith('uploads/')) ? '/' + photoBase64 : photoBase64} alt="Evidencia temp" style={{ width: '80px', height: '80px', objectFit: 'cover', marginTop: '1rem', borderRadius: '6px' }} />
               )}
               
-              {pedido.status === 'Entregado con Devolución' && (
+              {activePedido.status === 'Entregado con Devolución' && (
                 <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                   <h4 className="danger">Productos Devueltos:</h4>
-                  {data.devoluciones?.filter(d => d.orderId === pedido.id).map(d => (
+                  {data.devoluciones?.filter(d => d.orderId === activePedido.id).map(d => (
                     <div key={d.id} className="item">
                       <div className="row">
                         <b>{producto(d.productId)?.name || `Prod #${d.productId}`}</b>
@@ -193,10 +245,10 @@ export default function Remisiones({ data, pedido, setSelectedPedido, ruta, vend
                 </div>
               )}
 
-              {pedido.deliveryPhotoBase64 && (
+              {activePedido.deliveryPhotoBase64 && (
                 <div style={{ marginTop: '1rem' }}>
                   <p><b>Foto de Entrega Guardada:</b></p>
-                  <img src={pedido.deliveryPhotoBase64} alt="Evidencia final" style={{ width: '200px', borderRadius: '8px' }} />
+                  <img src={(import.meta.env.VITE_API_URL || "") + activePedido.deliveryPhotoBase64} alt="Evidencia final" style={{ width: '200px', borderRadius: '8px' }} />
                 </div>
               )}
             </div>

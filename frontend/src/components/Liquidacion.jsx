@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { pesos } from '../utils/helpers';
 
 export default function Liquidacion({ data, ruta, vendedor, reloadState }) {
@@ -20,42 +20,55 @@ export default function Liquidacion({ data, ruta, vendedor, reloadState }) {
 
   const handleDeclare = async (e) => {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const token = localStorage.getItem('ht_token');
-    
-    const totalExpenses = expenses.reduce((sum, ex) => sum + ex.amount, 0);
+    setSaving(true);
+    try {
+      const f = new FormData(e.currentTarget);
+      const token = localStorage.getItem('ht_token');
+      
+      const totalExpenses = expenses.reduce((sum, ex) => sum + ex.amount, 0);
 
-    // Save each expense directly
-    for (let ex of expenses) {
-      await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/expense', {
+      // Save each expense directly
+      for (let ex of expenses) {
+        await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/expense', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            concept: ex.concept,
+            amount: ex.amount,
+            referenceNumber: `Route-${selectedClosure.routeId}-Driver-${selectedClosure.driverId}`,
+            expenseCategoryId: 1
+          })
+        });
+      }
+
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/cash-closure/declare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          concept: ex.concept,
-          amount: ex.amount,
-          referenceNumber: `Route-${selectedClosure.routeId}-Driver-${selectedClosure.driverId}`,
-          expenseCategoryId: 1
+          closureId: selectedClosure.id,
+          totalDeclared: Number(f.get('totalDeclared')),
+          totalExpenses: totalExpenses,
+          observations: f.get('observations')
         })
       });
-    }
 
-    const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/cash-closure/declare', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        closureId: selectedClosure.id,
-        totalDeclared: Number(f.get('totalDeclared')),
-        totalExpenses: totalExpenses,
-        observations: f.get('observations')
-      })
-    });
-
-    if (res.ok) {
-      alert('Liquidación completada. Se ha calculado la diferencia.');
-      setSelectedClosure(null);
-      setExpenses([]);
-      if (reloadState) reloadState();
-      else window.location.reload();
+      if (res.ok) {
+        setSuccessMsg(true);
+        setTimeout(() => {
+          setSelectedClosure(null);
+          setExpenses([]);
+          setSuccessMsg(false);
+          if (reloadState) reloadState();
+          else window.location.reload();
+        }, 1500);
+      } else {
+        const err = await res.text();
+        alert("Error: " + err);
+      }
+    } catch(err) {
+      alert("Error: " + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -133,7 +146,9 @@ export default function Liquidacion({ data, ruta, vendedor, reloadState }) {
                     <label>Observaciones / Faltantes</label>
                     <textarea name="observations" className="textarea" placeholder="Ej. El cliente X no pagó completo..."></textarea>
                   </div>
-                  <button type="submit" className="btn success full">Finalizar y Comparar</button>
+                  <button type="submit" disabled={saving || successMsg} className={`btn full ${successMsg ? 'success' : 'success'}`}>
+                    {successMsg ? '✅ ¡Liquidado!' : (saving ? '⏳ Procesando...' : 'Finalizar y Comparar')}
+                  </button>
                 </form>
               </div>
             </div>

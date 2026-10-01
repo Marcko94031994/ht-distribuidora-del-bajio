@@ -100,10 +100,6 @@ namespace HTLogistics.Api.Services
                     }
                 }
 
-                if (order.PaymentMethod == "Crédito" && order.Client != null)
-                {
-                    order.Client.CurrentBalance += order.TotalAmount;
-                }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -167,6 +163,13 @@ namespace HTLogistics.Api.Services
                                 });
                             }
                         }
+                    }
+                    
+                    // Restaurar saldo si el pago era a crédito
+                    if (order.PaymentMethod == "Crédito" && order.Client != null)
+                    {
+                        order.Client.CurrentBalance -= order.TotalAmount;
+                        if (order.Client.CurrentBalance < 0) order.Client.CurrentBalance = 0;
                     }
                 }
 

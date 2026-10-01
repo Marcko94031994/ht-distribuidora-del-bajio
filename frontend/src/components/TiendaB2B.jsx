@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { pesos } from '../utils/helpers';
 
 export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }) {
@@ -28,7 +28,7 @@ export default function TiendaB2B({ data, cart, setCart, addCart, enviarPedido }
       {isOffer && <div style={{ position: 'absolute', top: '-10px', left: '10px', background: '#fbbf24', color: 'black', padding: '2px 10px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 900 }}>🔥 SUPER OFERTA</div>}
       <div style={{ height: '140px', background: '#f8fafc', borderRadius: '16px', marginBottom: '15px', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
           {p.images?.[0] ? 
-          <img src={p.images[0].photoBase64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={p.name} /> : 
+          <img src={(p.images[0].photoBase64 && p.images[0].photoBase64.startsWith('uploads/')) ? '/' + p.images[0].photoBase64 : p.images[0].photoBase64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={p.name} /> : 
           <span style={{ fontSize: '2.5rem' }}>📦</span>
           }
       </div>

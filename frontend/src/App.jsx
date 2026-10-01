@@ -1,5 +1,6 @@
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
+import VersionWatcher from './components/VersionWatcher';
 import Kpi from './components/Kpi';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
@@ -22,19 +23,19 @@ import Usuarios from './components/Usuarios';
 import Cobranza from './components/Cobranza';
 import CuentasPorPagar from './components/CuentasPorPagar';
 import Facturacion from './components/Facturacion';
-import Masivos from './components/Masivos';
 import TiendaB2B from './components/TiendaB2B';
 import CajaGeneral from './components/CajaGeneral';
 import Mermas from './components/Mermas';
 import OrdenesCompra from './components/OrdenesCompra';
 import Vehiculos from './components/Vehiculos';
 import PwaMobileLayout from './components/pwa/PwaMobileLayout';
+import SurtidoPedidos from './components/SurtidoPedidos';
 
 function App() {
   const [logged,setLogged]=useState(!!localStorage.getItem('ht_token')); 
   const [user,setUser]=useState(() => {
     const saved = localStorage.getItem('ht_user');
-    return saved ? JSON.parse(saved) : {email:'demo@abarrotera.mx',pass:'123456',sucursalId:1};
+    return saved ? JSON.parse(saved) : {email:'',pass:'',sucursalId:1};
   });
   const defaultData = {
     sucursales: [],
@@ -78,10 +79,15 @@ function App() {
     const token = localStorage.getItem('ht_token');
     const headers = { ...options.headers };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(url, { ...options, headers });
+    const fetchOptions = { cache: 'no-store', ...options, headers };
+    const res = await fetch(url, fetchOptions);
     if (res.status === 401) {
       localStorage.removeItem('ht_token');
-      setLogged(false);
+      localStorage.removeItem('ht_user');
+      localStorage.removeItem('ht_cache_data');
+      localStorage.removeItem('ht_offline_orders');
+      localStorage.removeItem('ht_pwa_cart');
+      window.location.href = '/';
     }
     return res;
   };
@@ -154,6 +160,13 @@ function App() {
     }
   };
 
+
+  // Check version logic moved to VersionWatcher.jsx
+  useEffect(() => {
+    // just keeping the hook for API setup if needed, but not forcing reload
+  }, []);
+
+
   useEffect(() => {
     if (logged) {
       reloadState();
@@ -172,7 +185,7 @@ function App() {
             if (res.ok) {
               const current = JSON.parse(localStorage.getItem('ht_offline_orders') || '[]');
               localStorage.setItem('ht_offline_orders', JSON.stringify(current.filter((_, i) => i !== idx)));
-              reloadState();
+              await reloadState();
             }
           } catch(e) {}
         });
@@ -180,18 +193,26 @@ function App() {
     }
   }, [logged]);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
     try {
+      let email = user.email;
+      let pass = user.pass;
+      if (e && e.target && e.target.nodeName === 'FORM') {
+        const formData = new FormData(e.target);
+        if (formData.get('email')) email = formData.get('email').toString().trim();
+        if (formData.get('pass')) pass = formData.get('pass').toString();
+      }
+      
       const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/app/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, password: user.pass, sucursalId: user.sucursalId })
+        body: JSON.stringify({ email: email, password: pass, sucursalId: user.sucursalId })
       });
       if(res.ok) {
         const payload = await res.json();
         localStorage.setItem('ht_token', payload.token);
         
-        const updatedUser = { ...user, ...payload.user };
+        const updatedUser = { ...user, ...payload.user, pass: '' };
         localStorage.setItem('ht_user', JSON.stringify(updatedUser));
         setUser(updatedUser);
         
@@ -213,7 +234,7 @@ function App() {
   const [selectedRuta,setSelectedRuta]=useState(1); 
   const [selectedCliente,setSelectedCliente]=useState(1); 
   const [cart,setCart]=useState([]); 
-  const [selectedPedido,setSelectedPedido]=useState('P-1001');
+  const [selectedPedido,setSelectedPedido]=useState(null);
 
   const sucursal=id=>data.sucursales.find(x=>x.id==id); 
   const vendedor=id=>data.vendedores.find(x=>x.id==id); 
@@ -223,9 +244,10 @@ function App() {
   const cliente=id=>data.rutas.flatMap(r=>r.clientes||r.clients||[]).find(c=>c.id==id);
   const proveedor=id=>data.proveedores?.find(x=>x.id==id);
 
-  const currentRuta=ruta(selectedRuta)||data.rutas[0]; 
+  const availableRutas = (user.role === 'Vendedor' && user.driverId) ? data.rutas.filter(r => r.driverId === Number(user.driverId)) : data.rutas;
+  const currentRuta = availableRutas.find(x => x.id === selectedRuta) || availableRutas[0]; 
   const currentCliente=(currentRuta?.clientes||currentRuta?.clients)?.find(c=>c.id===selectedCliente)||(currentRuta?.clientes||currentRuta?.clients)?.[0]; 
-  const currentPedido=data.pedidos?.find(p=>p.id===selectedPedido)||data.pedidos?.[0];
+  const currentPedido=data.pedidos?.find(p=>p.id===selectedPedido);
 
   const kpis=kpiData;
 
@@ -246,7 +268,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -257,7 +279,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -276,7 +298,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -287,7 +309,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -298,7 +320,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -309,7 +331,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -328,7 +350,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -339,7 +361,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
   
@@ -351,7 +373,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -362,7 +384,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -381,7 +403,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -392,7 +414,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -411,7 +433,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -422,7 +444,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -433,7 +455,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -444,7 +466,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -455,12 +477,12 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
   // Cart logic updated for boxes and client prices
-  const addCart = (pIdArg = null, qArg = null, isBox = false) => {
+  const addCart = (pIdArg = null, qArg = null, isBox = false, priceOverride = null) => {
     const pId = pIdArg || Number(document.getElementById('prodPedido')?.value);
     const q = qArg !== null ? qArg : Number(document.getElementById('qtyPedido')?.value || 1);
     const prod = producto(pId);
@@ -473,16 +495,20 @@ function App() {
     // Determine effective price per unit
     let unitPrice = prod.price;
     
-    // 1. Check if client has a special price
-    const clientPrice = data.preciosEspeciales?.find(cp => cp.clientId === currentCliente?.id && cp.productId === pId);
-    if (clientPrice) {
-      unitPrice = clientPrice.specialPrice;
+    if (priceOverride !== null) {
+      unitPrice = priceOverride;
     } else {
-      // 2. Check box vs volume
-      if (isBox) {
-        unitPrice = prod.boxPrice / prod.unitsPerBox;
-      } else if (unitsToAdd >= 10) {
-        unitPrice = prod.volumePrice;
+      // 1. Check if client has a special price
+      const clientPrice = data.preciosEspeciales?.find(cp => cp.clientId === currentCliente?.id && cp.productId === pId);
+      if (clientPrice) {
+        unitPrice = clientPrice.specialPrice;
+      } else {
+        // 2. Check box vs volume
+        if (isBox) {
+          unitPrice = prod.boxPrice / prod.unitsPerBox;
+        } else if (unitsToAdd >= 10) {
+          unitPrice = prod.volumePrice;
+        }
       }
     }
 
@@ -495,7 +521,7 @@ function App() {
     });
   };
   
-  const enviarPedido = async (photoBase64, lat = 0, long = 0) => {
+  const enviarPedido = async (photoBase64, lat = 0, long = 0, editingOrderId = null) => {
     let clientId = currentCliente?.id;
     let routeId = currentRuta?.id;
     let driverId = currentRuta?.driverId;
@@ -515,34 +541,56 @@ function App() {
 
     if (!cart.length || !routeId || !clientId) return alert('No se pudo identificar el cliente o la ruta de despacho.');
 
+    // Determine payment method based on client credit
+    let paymentMethod = 'Contado';
+    const allClientsFull = data.rutas?.flatMap(r => r.clients) || [];
+    const theClient = allClientsFull.find(c => c.id === clientId) || currentCliente;
+    if (theClient && theClient.creditLimit > 0) {
+      paymentMethod = 'Crédito';
+    }
+
     const payload = {
       clientId,
       routeId,
       driverId,
       photoBase64: photoBase64,
-      items: cart.map(c => ({ productId: c.productoId, quantity: c.unitsToAdd })),
+      items: cart.map(c => ({ productId: c.productoId, quantity: c.unitsToAdd, unitPrice: c.unitPrice })),
       latitude: lat,
-      longitude: long
+      longitude: long,
+      paymentMethod: paymentMethod
     };
 
     try {
-      const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/order', {
-        method: 'POST',
+      const url = editingOrderId 
+        ? `${import.meta.env.VITE_API_URL || ''}/api/app/order/${editingOrderId}`
+        : `${import.meta.env.VITE_API_URL || ''}/api/app/order`;
+      
+      const method = editingOrderId ? 'PUT' : 'POST';
+
+      const res = await apiFetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errorText = await res.text();
+        alert(`Error al guardar el pedido: ${errorText}`);
+        throw new Error();
+      }
       
       const result = await res.json();
       setCart([]);
-      reloadState();
-      return { success: true, orderId: result.orderId || result.id || 'NUEVO' };
+      await reloadState();
+      return { success: true, orderId: result.orderId || result.id || (editingOrderId || 'NUEVO') };
     } catch(e) { 
-      // Save offline
-      const current = JSON.parse(localStorage.getItem('ht_offline_orders') || '[]');
-      localStorage.setItem('ht_offline_orders', JSON.stringify([...current, payload]));
-      setCart([]);
-      return { success: true, orderId: 'OFFLINE-' + Date.now(), offline: true };
+      // Save offline if not editing
+      if (!editingOrderId) {
+        const current = JSON.parse(localStorage.getItem('ht_offline_orders') || '[]');
+        localStorage.setItem('ht_offline_orders', JSON.stringify([...current, payload]));
+        setCart([]);
+        return { success: true, orderId: 'OFFLINE-' + Date.now(), offline: true };
+      }
+      return { success: false };
     }
   };
 
@@ -553,7 +601,7 @@ function App() {
     try {
       const payload = { driverId: currentRuta.driverId, reason };
       const res = await apiFetch((import.meta.env.VITE_API_URL || '') + '/api/app/incident', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-      if (res.ok) { alert('Contratiempo reportado a la Torre de Control'); reloadState(); }
+      if (res.ok) { await reloadState(); } else { throw new Error(await res.text()); }
     } catch (e) { console.error(e); }
   };
   
@@ -562,7 +610,7 @@ function App() {
     if(status === 'En remisión') {
       try {
         await apiFetch((import.meta.env.VITE_API_URL || '') + `/api/app/authorize-order/${currentPedido.id}`, { method: 'POST' });
-        reloadState();
+        await reloadState();
       } catch(e) { console.error(e); }
     } else if (status === 'Entregado') {
       try {
@@ -571,7 +619,7 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderId: currentPedido.id, photoBase64 })
         });
-        reloadState();
+        await reloadState();
       } catch(e) { console.error(e); }
     } else {
       try {
@@ -580,7 +628,7 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(status)
         });
-        reloadState();
+        await reloadState();
       } catch(e) { console.error(e); }
     }
   };
@@ -593,7 +641,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: currentPedido.id, returns })
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -604,7 +652,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isWaste })
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -624,21 +672,17 @@ function App() {
           reason: f.get('reason')
         })
       });
-      if (res.ok) {
-        alert('Ajuste de inventario registrado correctamente.');
-        e.target.reset();
-        reloadState();
-      } else {
-        const err = await res.text();
-        alert('Error: ' + err);
-      }
+      if (res.ok) { e.target.reset(); await reloadState(); } else { throw new Error(await res.text()); }
     } catch (err) { console.error(err); }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('ht_token');
     localStorage.removeItem('ht_user');
-    setLogged(false);
+    localStorage.removeItem('ht_cache_data');
+    localStorage.removeItem('ht_offline_orders');
+    localStorage.removeItem('ht_pwa_cart');
+    window.location.href = '/';
   };
 
   const addUser = async (payload) => {
@@ -648,7 +692,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -659,7 +703,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      reloadState();
+      await reloadState();
     } catch(e) { console.error(e); }
   };
 
@@ -667,12 +711,19 @@ function App() {
     <Routes>
       <Route path="/pwa/*" element={<PwaMobileLayout data={data} user={user} sucursal={sucursal(user.sucursalId)} producto={producto} reloadState={reloadState} />} />
       <Route path="*" element={
-        <div className="app-layout">
-          <Sidebar tab={tab} setTab={setTab} user={user} sucursal={sucursal(user.sucursalId)} logout={handleLogout}/>
-          <div className="app-content">
+        <>
+          <VersionWatcher />
+          <div className="app-layout">
+          {user.role !== 'vendedor' && user.role !== 'Vendedor' && (
+            <Sidebar tab={tab} setTab={setTab} user={user} sucursal={sucursal(user.sucursalId)} logout={handleLogout}/>
+          )}
+          <div className="app-content" style={{ marginLeft: (user.role === 'vendedor' || user.role === 'Vendedor') ? '0' : undefined, width: (user.role === 'vendedor' || user.role === 'Vendedor') ? '100%' : undefined }}>
             <div style={{ background: 'var(--brand-beige)', height: '4px', borderRadius: '10px', marginBottom: '10px', width: '100%' }}></div>
             <Routes>
         <Route path="/" element={
+          (user.role === 'vendedor' || user.role === 'Vendedor') ? (
+            <Navigate to="/vendedor" replace />
+          ) : (
           <>
             <section className="hero">
               <div className="hero-main">
@@ -686,26 +737,31 @@ function App() {
             </section>
             <Dashboard data={data} sucursal={sucursal} vendedor={vendedor} producto={producto}/>
           </>
+          )
         } />
         <Route path="/torre" element={<TorreControl data={data} vendedor={vendedor} reloadState={reloadState}/>} />
         <Route path="/reportes" element={<Reportes data={data} reports={reports} producto={producto} cliente={cliente}/>} />
         <Route path="/sucursales" element={<Sucursales data={data} sucursal={sucursal} addSucursal={addSucursal} updateSucursal={updateSucursal}/>} />
         <Route path="/almacenes" element={<AlmacenesCatalogo data={data} sucursal={sucursal} addAlmacen={addAlmacen} updateAlmacen={updateAlmacen} reloadState={reloadState} />} />
         <Route path="/vendedores" element={<VendedoresCatalogo data={data} sucursal={sucursal} addVendedor={addVendedor} updateVendedor={updateVendedor} />} />
-        <Route path="/vendedor" element={<Vendedor data={data} ruta={currentRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo} reloadState={reloadState}/>} />
+        <Route path="/vendedor" element={<Vendedor data={data} user={user} ruta={currentRuta} availableRutas={availableRutas} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} cliente={currentCliente} setSelectedCliente={setSelectedCliente} vendedor={vendedor} sucursal={sucursal} producto={producto} almacen={almacen} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido} reportarContratiempo={reportarContratiempo} reloadState={reloadState}/>} />
         <Route path="/rutas" element={<Rutas data={data} sucursal={sucursal} vendedor={vendedor} addVendedor={addVendedor} updateVendedor={updateVendedor} addRuta={addRuta} updateRuta={updateRuta} selectedRuta={selectedRuta} setSelectedRuta={setSelectedRuta} setSelectedCliente={setSelectedCliente}/>} />
-        <Route path="/almacen" element={<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste} reloadState={reloadState} apiFetch={apiFetch}/>} />
-        <Route path="/kardex" element={<Almacen data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste} reloadState={reloadState} apiFetch={apiFetch}/>} />
+        <Route path="/almacen/stock" element={<Almacen initialView="stock" data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste} reloadState={reloadState} apiFetch={apiFetch}/>} />
+        <Route path="/almacen/kardex" element={<Almacen initialView="kardex" data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste} reloadState={reloadState} apiFetch={apiFetch}/>} />
+        <Route path="/almacen/ajustes" element={<Almacen initialView="ajustes" data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste} reloadState={reloadState} apiFetch={apiFetch}/>} />
+        <Route path="/almacen/devoluciones" element={<Almacen initialView="devoluciones" data={data} sucursal={sucursal} almacen={almacen} producto={producto} proveedor={proveedor} devoluciones={data.devoluciones} autorizarDevolucion={autorizarDevolucion} registrarAjuste={registrarAjuste} reloadState={reloadState} apiFetch={apiFetch}/>} />
         <Route path="/ordenes" element={<OrdenesCompra data={data} producto={producto} proveedor={proveedor} reloadState={reloadState} />} />
+        <Route path="/remisiones" element={<Remisiones data={data} pedido={currentPedido} setSelectedPedido={setSelectedPedido} ruta={ruta} vendedor={vendedor} producto={producto} cambiarPedidoStatus={cambiarPedidoStatus} registrarDevolucion={registrarDevolucion} />} />
         <Route path="/mermas" element={<Mermas data={data} />} />
         <Route path="/productos" element={<Productos data={data} addProducto={addProducto} updateProducto={updateProducto} almacen={almacen}/>} />
-        <Route path="/precios" element={<ListaPrecios data={data} reloadState={reloadState}/>} />
+        <Route path="/precios" element={<ListaPrecios data={data} />} />
+        <Route path="/ventas/surtido" element={<SurtidoPedidos data={data} reloadState={reloadState} />} />
+        <Route path="/tienda" element={<TiendaB2B data={data} reloadState={reloadState} />} />
         <Route path="/clientes" element={<Clientes data={data} addCliente={addCliente} updateCliente={updateCliente} ruta={ruta} reloadState={reloadState}/>} />
         <Route path="/proveedores" element={<Proveedores data={data} addProveedor={addProveedor} updateProveedor={updateProveedor} registrarPago={registrarPagoProveedor}/>} />
         <Route path="/vehiculos" element={<Vehiculos data={data} addVehiculo={addVehiculo} updateVehiculo={updateVehiculo} />} />
         <Route path="/liquidacion" element={<Liquidacion data={data} ruta={ruta} vendedor={vendedor} reloadState={reloadState}/>} />
         <Route path="/caja" element={<CajaGeneral data={data} reloadState={reloadState}/>} />
-        <Route path="/masivos" element={<Masivos data={data} reloadState={reloadState}/>} />
         <Route path="/usuarios" element={<Usuarios data={data} addUser={addUser} updateUser={updateUser}/>} />
         <Route path="/cobranza" element={<Cobranza data={data} reloadState={reloadState}/>} />
         <Route path="/cxc" element={<Cobranza data={data} reloadState={reloadState}/>} />
@@ -715,12 +771,18 @@ function App() {
         <Route path="/cxp/antiguedad" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="antiguedad"/>} />
         <Route path="/cxp/pagos" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="pagos"/>} />
         <Route path="/cxp/estado-cuenta" element={<CuentasPorPagar data={data} reloadState={reloadState} initialView="edo_cuenta"/>} />
-        <Route path="/facturacion" element={<Facturacion data={data} reloadState={reloadState}/>} />
+        
+        {/* CFDI Facturación */}
+        <Route path="/cfdi/ingresos" element={<Facturacion data={data} reloadState={reloadState} initialTab="ingreso"/>} />
+        <Route path="/cfdi/pagos" element={<Facturacion data={data} reloadState={reloadState} initialTab="pago"/>} />
+        <Route path="/cfdi/egresos" element={<Facturacion data={data} reloadState={reloadState} initialTab="egreso"/>} />
+        
         <Route path="/tienda" element={<TiendaB2B data={data} cart={cart} setCart={setCart} addCart={addCart} enviarPedido={enviarPedido}/>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </div>
         </div>
+        </>
       } />
     </Routes>
   );

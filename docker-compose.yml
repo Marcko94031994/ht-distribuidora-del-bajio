@@ -14,6 +14,8 @@ services:
       - sqlvolume:/var/opt/mssql
 
   api:
+    volumes:
+      - ./uploads:/app/wwwroot/uploads
     build:
       context: ./api
       dockerfile: Dockerfile

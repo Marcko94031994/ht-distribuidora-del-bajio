@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 function PwaCart({ clients, cart, setCart, data, user, route, reloadState }) {
@@ -15,7 +15,8 @@ function PwaCart({ clients, cart, setCart, data, user, route, reloadState }) {
   const subtotal = cart.reduce((sum, item) => {
     const prod = data.productos?.find(p => p.id === item.productId);
     const cp = data.preciosEspeciales?.find(cp => cp.clientId === client.id && cp.productId === item.productId);
-    const price = cp ? cp.specialPrice : (prod?.price || 0);
+    const defaultPrice = cp ? cp.specialPrice : (prod?.price || 0);
+    const price = item.customPrice !== undefined ? item.customPrice : defaultPrice;
     return sum + (price * item.quantity);
   }, 0);
   
@@ -24,6 +25,27 @@ function PwaCart({ clients, cart, setCart, data, user, route, reloadState }) {
   const taxes = subtotalAfterDiscount * 0.16; // 16% IVA
   const total = subtotalAfterDiscount + taxes;
 
+  const handlePriceChange = (productId, valStr) => {
+    setCart(prev => prev.map(item => item.productId === productId ? { ...item, tempPriceStr: valStr } : item));
+  };
+
+  const handlePriceBlur = (productId, valStr) => {
+    const prod = data.productos?.find(p => p.id === productId);
+    const cp = data.preciosEspeciales?.find(cp => cp.clientId === client.id && cp.productId === productId);
+    const defaultPrice = cp ? cp.specialPrice : (prod?.price || 0);
+    const minPrice = prod?.cost || (defaultPrice * 0.8); // Fallback al 80% si no hay costo
+    
+    let val = parseFloat(valStr);
+    if (isNaN(val)) val = defaultPrice;
+    
+    if (val < minPrice) {
+      alert(`El precio mínimo permitido para este producto es $${minPrice.toFixed(2)}`);
+      val = minPrice;
+    }
+    
+    setCart(prev => prev.map(item => item.productId === productId ? { ...item, customPrice: val, tempPriceStr: val.toFixed(2) } : item));
+  };
+
   const handleConfirmOrder = async () => {
     setIsSubmitting(true);
     
@@ -31,7 +53,9 @@ function PwaCart({ clients, cart, setCart, data, user, route, reloadState }) {
     const items = cart.map(item => {
       const prod = data.productos?.find(p => p.id === item.productId);
       const cp = data.preciosEspeciales?.find(cp => cp.clientId === client.id && cp.productId === item.productId);
-      const price = cp ? cp.specialPrice : (prod?.price || 0);
+      const defaultPrice = cp ? cp.specialPrice : (prod?.price || 0);
+      const price = item.customPrice !== undefined ? item.customPrice : defaultPrice;
+      
       return {
         productId: item.productId,
         quantity: item.quantity,
@@ -60,10 +84,10 @@ function PwaCart({ clients, cart, setCart, data, user, route, reloadState }) {
         localStorage.setItem('ht_offline_orders', JSON.stringify(offlineQueue));
         
         // Mark client visited locally
-        client.isVisited = true; // Mutating for current session
+        // client.isVisited = true; // mutation removed
         
         setCart([]); // Clear cart
-        navigate(`/pwa/exito/OFFLINE-${Date.now()}`);
+        navigate(`/pwa/exito/OFFLINE-${Date.now()}`, { state: { order: payload, clientName: client.name, isOffline: true } });
         return;
       }
 
@@ -81,7 +105,7 @@ function PwaCart({ clients, cart, setCart, data, user, route, reloadState }) {
         const result = await response.json();
         setCart([]);
         if (reloadState) reloadState();
-        navigate(`/pwa/exito/${result.orderId || result.id || 'NUEVO'}`);
+        navigate(`/pwa/exito/${result.orderId || result.id || 'NUEVO'}`, { state: { order: payload, clientName: client.name } });
       } else {
         alert('Error al guardar el pedido.');
         setIsSubmitting(false);
@@ -93,7 +117,7 @@ function PwaCart({ clients, cart, setCart, data, user, route, reloadState }) {
       offlineQueue.push({ ...payload, tempId: Date.now() });
       localStorage.setItem('ht_offline_orders', JSON.stringify(offlineQueue));
       setCart([]);
-      navigate(`/pwa/exito/OFFLINE-${Date.now()}`);
+      navigate(`/pwa/exito/OFFLINE-${Date.now()}`, { state: { order: payload, clientName: client.name, isOffline: true } });
     }
   };
 
@@ -118,13 +142,24 @@ function PwaCart({ clients, cart, setCart, data, user, route, reloadState }) {
         {cart.map(item => {
           const prod = data.productos?.find(p => p.id === item.productId);
           const cp = data.preciosEspeciales?.find(cp => cp.clientId === client.id && cp.productId === item.productId);
-          const price = cp ? cp.specialPrice : (prod?.price || 0);
+          const defaultPrice = cp ? cp.specialPrice : (prod?.price || 0);
+          const price = item.customPrice !== undefined ? item.customPrice : defaultPrice;
+          const displayPrice = item.tempPriceStr !== undefined ? item.tempPriceStr : price.toFixed(2);
           
           return (
             <div className="pwa-product-row" style={{alignItems: 'center', padding: '10px 12px'}} key={item.productId}>
               <div style={{flex: 1}}>
                 <div style={{fontWeight: 800, fontSize: '0.9rem', marginBottom: '2px'}}>{item.quantity} x {prod?.name}</div>
-                <div style={{fontSize: '0.75rem', color: '#78685e'}}>${price.toFixed(2)} unitario</div>
+                <div style={{fontSize: '0.75rem', color: '#78685e', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                  $ <input 
+                      type="number" 
+                      step="0.01"
+                      value={displayPrice}
+                      onChange={(e) => handlePriceChange(item.productId, e.target.value)}
+                      onBlur={(e) => handlePriceBlur(item.productId, e.target.value)}
+                      style={{ width: '70px', padding: '2px 4px', fontSize: '0.75rem', border: '1px solid #d1d5db', borderRadius: '4px' }}
+                    /> unitario
+                </div>
               </div>
               <div style={{fontWeight: 900, fontSize: '1.05rem'}}>
                 ${(price * item.quantity).toLocaleString('en-US', {minimumFractionDigits: 2})}

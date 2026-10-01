@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { pesosDecimals } from '../utils/helpers';
 
 export default function AntiguedadSaldosClientes({ data, onSelectClientForStatement }) {

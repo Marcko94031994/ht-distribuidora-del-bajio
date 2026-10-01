@@ -33,8 +33,6 @@ button,input,select,textarea{font-family:inherit}
 /* Login Page Styles */
 .login-wrap{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:#f8fafc}
 .login-hero{background:#ffffff;color:var(--text);padding:60px 48px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;border-right:1px solid var(--line)}
-.login-hero::before{content:'';position:absolute;bottom:-120px;left:-120px;width:380px;height:380px;border-radius:50%;background:#d81921;z-index:1;opacity:0.95}
-.login-hero::after{content:'';position:absolute;bottom:-80px;left:80px;width:300px;height:300px;border-radius:50%;background:#111111;z-index:0;opacity:0.9}
 .login-hero-content{position:relative;z-index:2;max-width:520px;margin:auto 0}
 .login-hero h1{font-size:42px;line-height:1.15;font-weight:900;color:#111827;margin:0 0 16px}
 .login-hero h1 .highlight{color:var(--primary)}
@@ -121,7 +119,7 @@ button,input,select,textarea{font-family:inherit}
 .grid.two{grid-template-columns:1fr 1fr}
 .grid.full{grid-template-columns:1fr}
 .grid.three{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start}
-.card{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:visible}
 .double{grid-column:span 2}
 .table-responsive{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .card-h{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}

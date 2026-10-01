@@ -104,12 +104,13 @@ public class OrdersController : ControllerBase
                     .FirstOrDefaultAsync(p => p.Id == item.ProductId);
                 if (product != null)
                 {
-                    if (product.TotalAvailableStock < item.Quantity)
+                    if (product.AvailableStock < item.Quantity)
                     {
-                        return BadRequest($"Stock insuficiente para {product.Name}. Físico: {product.TotalStock}");
+                        return BadRequest($"Stock insuficiente para {product.Name}. Físico: {product.Stock}");
                     }
 
-                    var subtotal = product.Price * item.Quantity;
+                    var finalPrice = item.UnitPrice ?? product.Price;
+                    var subtotal = finalPrice * item.Quantity;
                     var tax = subtotal * (product.IvaRate + product.IepsRate);
                     
                     total += subtotal + tax;
@@ -122,7 +123,7 @@ public class OrdersController : ControllerBase
                         Order = order,
                         ProductId = item.ProductId,
                         Quantity = item.Quantity,
-                        UnitPrice = product.Price
+                        UnitPrice = finalPrice
                     });
 
                     // Apartar el inventario para pedidos pendientes
@@ -153,11 +154,140 @@ public class OrdersController : ControllerBase
                     order.NeedsAdminApproval = true;
                     order.AdminApprovalReason = client.HasOverdueDebt ? "Cartera Vencida" : "Excede Límite de Crédito";
                 }
+                client.CurrentBalance += total;
             }
     
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
     
+            return Ok(order);
+        }
+
+        [HttpPut("order/{id}")]
+        public async Task<IActionResult> EditOrder(int id, [FromBody] OrderInputModel input)
+        {
+            var order = await _context.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null) return NotFound("Order not found");
+
+            if (order.Status != "Pendiente" && order.Status != "Esperando Autorización Admin")
+            {
+                return BadRequest("Solo se pueden editar pedidos que no han sido surtidos ni procesados.");
+            }
+
+            var client = await _context.Clients.FindAsync(order.ClientId);
+            if (client == null) return NotFound("Client not found");
+
+            // 1. Revertir cambios originales del pedido
+            if (order.PaymentMethod == "Crédito")
+            {
+                client.CurrentBalance -= order.TotalAmount;
+                if (client.CurrentBalance < 0) client.CurrentBalance = 0;
+            }
+
+            var route = await _context.Routes.FindAsync(order.RouteId);
+            var warehouse = await _context.Warehouses.FirstOrDefaultAsync(w => w.BranchId == route.BranchId && w.Type == "Principal") 
+                ?? await _context.Warehouses.FirstOrDefaultAsync(w => w.BranchId == route.BranchId)
+                ?? await _context.Warehouses.FirstAsync();
+
+            foreach (var oldItem in order.Items)
+            {
+                var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == oldItem.ProductId && i.WarehouseId == warehouse.Id);
+                if (inventory != null)
+                {
+                    inventory.CommittedStock -= oldItem.Quantity;
+                    if (inventory.CommittedStock < 0) inventory.CommittedStock = 0;
+                }
+            }
+            
+            var oldItems = order.Items.ToList();
+            _context.OrderItems.RemoveRange(oldItems);
+            order.Items.Clear();
+            
+            // 2. Aplicar nuevos cambios
+            decimal total = 0;
+            decimal totalTax = 0;
+            decimal totalCost = 0;
+            decimal totalWeight = 0;
+
+            foreach (var item in input.Items)
+            {
+                var product = await _context.Products
+                    .Include(p => p.Inventories)
+                    .FirstOrDefaultAsync(p => p.Id == item.ProductId);
+                if (product != null)
+                {
+                    // Al editar no es tan estricto el "AvailableStock < item.Quantity", pero sí validar (stock actual + lo que habíamos apartado > nuevo item.Quantity)
+                    // Físicamente hay Stock. 
+                    var totalAvailableForThis = product.AvailableStock + (oldItems.FirstOrDefault(i => i.ProductId == product.Id)?.Quantity ?? 0);
+                    if (totalAvailableForThis < item.Quantity)
+                    {
+                        return BadRequest($"Stock insuficiente para {product.Name}. Disponible real (incluyendo tu apartado previo): {totalAvailableForThis}");
+                    }
+
+                    var finalPrice = item.UnitPrice ?? product.Price;
+                    var subtotal = finalPrice * item.Quantity;
+                    var tax = subtotal * (product.IvaRate + product.IepsRate);
+                    
+                    total += subtotal + tax;
+                    totalTax += tax;
+                    totalCost += product.Cost * item.Quantity;
+                    totalWeight += product.Weight * item.Quantity;
+    
+                    _context.OrderItems.Add(new OrderItem
+                    {
+                        Order = order,
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        UnitPrice = finalPrice
+                    });
+
+                    var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == product.Id && i.WarehouseId == warehouse.Id);
+                    if (inventory == null) {
+                        inventory = new ProductInventory { ProductId = product.Id, WarehouseId = warehouse.Id };
+                        _context.ProductInventories.Add(inventory);
+                    }
+                    inventory.CommittedStock += item.Quantity;
+                }
+            }
+
+            order.TotalAmount = total;
+            order.TotalTax = totalTax;
+            order.TotalCost = totalCost;
+            order.TotalWeight = totalWeight;
+            
+            order.PhotoBase64 = !string.IsNullOrEmpty(input.PhotoBase64) && input.PhotoBase64.Contains(",") 
+                ? SaveImage(input.PhotoBase64, "orders") 
+                : order.PhotoBase64;
+            
+            order.PaymentMethod = input.PaymentMethod;
+
+            if (order.PaymentMethod == "Crédito")
+            {
+                if (client.HasOverdueDebt || (client.CurrentBalance + total > client.CreditLimit))
+                {
+                    order.Status = "Esperando Autorización Admin";
+                    order.NeedsAdminApproval = true;
+                    order.AdminApprovalReason = client.HasOverdueDebt ? "Cartera Vencida" : "Excede Límite de Crédito";
+                }
+                else 
+                {
+                    order.Status = "Pendiente";
+                    order.NeedsAdminApproval = false;
+                    order.AdminApprovalReason = null;
+                }
+                client.CurrentBalance += total;
+            }
+            else 
+            {
+                order.Status = "Pendiente";
+                order.NeedsAdminApproval = false;
+                order.AdminApprovalReason = null;
+            }
+
+            await _context.SaveChangesAsync();
             return Ok(order);
         }
 
@@ -321,6 +451,86 @@ public class OrdersController : ControllerBase
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+    [HttpPost("order/{id}/fulfill")]
+        public async Task<IActionResult> FulfillOrder(int id, [FromBody] FulfillOrderInput input)
+        {
+            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+            var userId = int.Parse(userIdString);
+
+            var order = await _context.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
+            if (order == null) return NotFound("Order not found");
+
+            order.VehicleId = input.VehicleId;
+
+            foreach (var inputItem in input.Items)
+            {
+                var existingItem = order.Items.FirstOrDefault(i => i.ProductId == inputItem.ProductId);
+                if (existingItem != null)
+                {
+                    int difference = existingItem.Quantity - inputItem.FulfillQuantity;
+                    if(difference > 0) 
+                    {
+                        var product = await _context.Products.FindAsync(inputItem.ProductId);
+                        if(product != null) 
+                        {
+                            var route = await _context.Routes.FindAsync(order.RouteId);
+                            if (route != null) 
+                            {
+                                var warehouse = await _context.Warehouses.FirstOrDefaultAsync(w => w.BranchId == route.BranchId && w.Type == "Principal") 
+                                        ?? await _context.Warehouses.FirstOrDefaultAsync(w => w.BranchId == route.BranchId)
+                                        ?? await _context.Warehouses.FirstAsync();
+
+                                var inventory = await _context.ProductInventories
+                                    .FirstOrDefaultAsync(inv => inv.ProductId == product.Id && inv.WarehouseId == warehouse.Id);
+
+                                if(inventory != null) {
+                                    inventory.CommittedStock -= difference;
+                                    if(inventory.CommittedStock < 0) inventory.CommittedStock = 0;
+                                }
+                            }
+                        }
+                    }
+                    existingItem.Quantity = inputItem.FulfillQuantity;
+                }
+            }
+
+            var itemsToRemove = order.Items.Where(i => i.Quantity <= 0).ToList();
+            if(itemsToRemove.Any()) {
+                _context.OrderItems.RemoveRange(itemsToRemove);
+            }
+            
+            decimal total = 0;
+            decimal totalTax = 0;
+            decimal totalCost = 0;
+            decimal totalWeight = 0;
+
+            foreach (var item in order.Items.Where(i => i.Quantity > 0))
+            {
+                var product = await _context.Products.FindAsync(item.ProductId);
+                if(product != null) {
+                    var subtotal = item.UnitPrice * item.Quantity;
+                    var tax = subtotal * (product.IvaRate + product.IepsRate);
+                    
+                    total += subtotal + tax;
+                    totalTax += tax;
+                    totalCost += product.Cost * item.Quantity;
+                    totalWeight += product.Weight * item.Quantity;
+                }
+            }
+
+            order.TotalAmount = total;
+            order.TotalTax = totalTax;
+            order.TotalCost = totalCost;
+            order.TotalWeight = totalWeight;
+
+            await _context.SaveChangesAsync();
+
+            await _orderService.UpdateOrderStatusAsync(order.Id, "Surtido/En Tránsito", userId);
+            
+            return Ok(order);
         }
 
     [HttpPost("order-return")]

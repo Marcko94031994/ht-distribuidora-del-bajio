@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { pesos } from '../utils/helpers';
 
 export default function Dashboard({ data, sucursal, vendedor, producto }) {

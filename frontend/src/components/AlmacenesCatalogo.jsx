@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import SearchableSelect from './SearchableSelect';
 
 export default function AlmacenesCatalogo({ data, sucursal, addAlmacen, updateAlmacen, reloadState }) {
@@ -6,6 +6,8 @@ export default function AlmacenesCatalogo({ data, sucursal, addAlmacen, updateAl
   const [showUbicacionModal, setShowUbicacionModal] = useState(false);
   const [editingAlmacen, setEditingAlmacen] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
   const [filterWarehouseLayout, setFilterWarehouseLayout] = useState('');
 
   const [form, setForm] = useState({
@@ -37,22 +39,33 @@ export default function AlmacenesCatalogo({ data, sucursal, addAlmacen, updateAl
     setShowAlmacenModal(true);
   };
 
-  const handleSubmitAlmacen = (e) => {
+  const handleSubmitAlmacen = async (e) => {
     e.preventDefault();
-    const payload = {
-      nombre: form.nombre,
-      sucursalId: Number(form.sucursalId),
-      tipo: form.tipo,
-      responsable: form.responsable
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        nombre: form.nombre,
+        sucursalId: Number(form.sucursalId),
+        tipo: form.tipo,
+        responsable: form.responsable
+      };
 
-    if (editingAlmacen) {
-      if (updateAlmacen) updateAlmacen(editingAlmacen.id, payload);
-    } else {
-      if (addAlmacen) addAlmacen(payload);
+      if (editingAlmacen) {
+        if (updateAlmacen) await updateAlmacen(editingAlmacen.id, payload);
+      } else {
+        if (addAlmacen) await addAlmacen(payload);
+      }
+      setSuccessMsg(true);
+      setTimeout(() => {
+        setShowAlmacenModal(false);
+        setEditingAlmacen(null);
+        setSuccessMsg(false);
+      }, 1500);
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    setShowAlmacenModal(false);
-    setEditingAlmacen(null);
   };
 
   const handleAddLocation = async (e) => {
@@ -158,8 +171,8 @@ export default function AlmacenesCatalogo({ data, sucursal, addAlmacen, updateAl
                 />
               </div>
               <div className="full" style={{ marginTop: '12px' }}>
-                <button type="submit" className={`btn full ${editingAlmacen ? 'warn' : 'primary'}`}>
-                  {editingAlmacen ? '💾 Actualizar almacén' : '✅ Guardar almacén'}
+                <button type="submit" disabled={saving || successMsg} className={`btn full ${successMsg ? 'success' : (editingAlmacen ? 'warn' : 'primary')}`}>
+                  {successMsg ? '✅ ¡Guardado exitosamente!' : (saving ? '⏳ Guardando...' : (editingAlmacen ? '📝 Actualizar almacén' : '💾 Guardar almacén'))}
                 </button>
               </div>
             </form>

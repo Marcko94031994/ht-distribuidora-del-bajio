@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -174,7 +175,15 @@ export default function TorreControl({ data, vendedor, reloadState }) {
   const center = { lat: 21.1213, lng: -101.6826 };
   const [selectedRouteId, setSelectedRouteId] = useState('ALL');
   const [showGeoModal, setShowGeoModal] = useState(false);
+  const [showVisitsModal, setShowVisitsModal] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
+
+  const noSaleVisits = useMemo(() => {
+    return (data.visitas || []).filter(v => 
+      v.saleAccomplished === false && 
+      new Date(v.date).toDateString() === new Date().toDateString()
+    );
+  }, [data.visitas]);
 
   // Cargar configuración de Geovalidación
   const [geoSettings, setGeoSettings] = useState(() => {
@@ -192,28 +201,7 @@ export default function TorreControl({ data, vendedor, reloadState }) {
     setShowGeoModal(false);
   };
 
-  // Disparador para simular 3 rutas activas en vivo
-  const handleSimulateRoutes = async () => {
-    setIsSimulating(true);
-    try {
-      const token = localStorage.getItem('ht_token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/app/simulate-active-routes`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        if (reloadState) await reloadState();
-        else window.location.reload();
-      } else {
-        alert('No se pudo iniciar la simulación.');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Error de conexión al simular.');
-    } finally {
-      setIsSimulating(false);
-    }
-  };
+  // (Simulación removida)
 
   // Filtrar rutas según selección
   const displayedRoutes = useMemo(() => {
@@ -269,14 +257,29 @@ export default function TorreControl({ data, vendedor, reloadState }) {
           <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>📡</span> Torre de Control
           </h3>
-          <button 
-            className="btn ghost small"
-            onClick={() => setShowGeoModal(true)}
-            title="Configuración de Geocerca GPS"
-            style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            <span>⚙️</span> Geocerca GPS
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              className="btn ghost small"
+              onClick={() => setShowVisitsModal(true)}
+              title="Bitácora de Visitas sin Venta"
+              style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', position: 'relative' }}
+            >
+              <span>🔔</span> Bitácora
+              {noSaleVisits.length > 0 && (
+                <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#dc2626', color: '#fff', fontSize: '9px', fontWeight: 'bold', padding: '2px 5px', borderRadius: '50%' }}>
+                  {noSaleVisits.length}
+                </span>
+              )}
+            </button>
+            <button 
+              className="btn ghost small"
+              onClick={() => setShowGeoModal(true)}
+              title="Configuración de Geocerca GPS"
+              style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <span>⚙️</span> Geocerca GPS
+            </button>
+          </div>
         </div>
 
         {/* Resumen General Rápido */}
@@ -310,27 +313,6 @@ export default function TorreControl({ data, vendedor, reloadState }) {
             </div>
           </div>
         </div>
-
-        {/* Botón de Demostración Rápida de 3 Rutas */}
-        <button
-          className="btn primary full"
-          onClick={handleSimulateRoutes}
-          disabled={isSimulating}
-          style={{ 
-            marginBottom: '14px', 
-            padding: '9px 12px', 
-            fontSize: '12px', 
-            fontWeight: 700, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: '8px',
-            background: 'linear-gradient(135deg, #d81921 0%, #b9141b 100%)',
-            boxShadow: '0 4px 10px rgba(216,25,33,0.25)'
-          }}
-        >
-          <span>🚀</span> {isSimulating ? 'Generando Jornada...' : 'Simular 3 Rutas en Vivo (León)'}
-        </button>
 
         {/* Lista de Rutas con Progreso y Selección */}
         <div className="list" style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
@@ -594,7 +576,7 @@ export default function TorreControl({ data, vendedor, reloadState }) {
                 )}
 
                 {/* Marcador del Chofer / Camión */}
-                {driver && driver.latitude && driver.longitude && (
+                {driver && driver.latitude !== 0 && driver.longitude !== 0 && (
                   <Marker
                     position={[driver.latitude, driver.longitude]}
                     icon={createDriverDivIcon(driver, palette.stroke)}
@@ -686,7 +668,57 @@ export default function TorreControl({ data, vendedor, reloadState }) {
         </MapContainer>
 
         <WeatherWidget />
-      </div>
+        </div>
+
+      {showVisitsModal && (
+        <div className="modal" style={{ zIndex: 99999 }}>
+          <div className="modal-content" style={{ maxWidth: '600px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.4rem' }}>🚫</span>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Bitácora de Visitas sin Venta</h3>
+              </div>
+              <button 
+                onClick={() => setShowVisitsModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✖
+              </button>
+            </div>
+            
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {noSaleVisits.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                  No hay visitas sin venta registradas el día de hoy.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {noSaleVisits.map((visit, i) => {
+                    const client = (data.clientes || []).find(c => c.id === visit.clientId);
+                    const driver = (data.vendedores || []).find(d => d.id === visit.driverId);
+                    return (
+                      <div key={i} style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 700, color: '#0f172a' }}>{client?.name || `Cliente #${visit.clientId}`}</span>
+                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            {new Date(visit.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#334155', marginBottom: '4px' }}>
+                          🚚 Vendedor: <b>{driver?.name || 'Desconocido'}</b>
+                        </div>
+                        <div style={{ color: '#dc2626', fontSize: '0.9rem', fontWeight: 600 }}>
+                          Motivo: {visit.noSaleReason || 'No especificado'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: CONFIGURACIÓN DE GEOVALIDACIÓN GPS */}
       {showGeoModal && (

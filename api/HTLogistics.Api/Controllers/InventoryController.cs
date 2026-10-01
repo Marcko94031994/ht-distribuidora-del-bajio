@@ -25,6 +25,40 @@ public class InventoryController : ControllerBase
         _configuration = configuration;
     }
 
+    [HttpGet("products/{id}/image")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetProductImage(int id)
+    {
+        var image = await _context.ProductImages.AsNoTracking().FirstOrDefaultAsync(p => p.ProductId == id);
+        if (image == null || string.IsNullOrEmpty(image.PhotoBase64)) return NotFound();
+        
+        var base64Data = image.PhotoBase64;
+        var commaIndex = base64Data.IndexOf(',');
+        if (commaIndex > 0) base64Data = base64Data.Substring(commaIndex + 1);
+        
+        byte[] imageBytes;
+        try { imageBytes = Convert.FromBase64String(base64Data); } catch { return NotFound(); }
+        return File(imageBytes, "image/jpeg");
+    }
+
+    [HttpGet("products/{productId}/images/{imageId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetProductImageById(int productId, int imageId)
+    {
+        var image = await _context.ProductImages.AsNoTracking().FirstOrDefaultAsync(p => p.ProductId == productId && p.Id == imageId);
+        if (image == null || string.IsNullOrEmpty(image.PhotoBase64)) return NotFound();
+        
+        var base64Data = image.PhotoBase64;
+        if (base64Data.StartsWith("http")) return Redirect(base64Data);
+
+        var commaIndex = base64Data.IndexOf(',');
+        if (commaIndex > 0) base64Data = base64Data.Substring(commaIndex + 1);
+        
+        byte[] imageBytes;
+        try { imageBytes = Convert.FromBase64String(base64Data); } catch { return NotFound(); }
+        return File(imageBytes, "image/jpeg");
+    }
+
     [HttpGet("products")]
     public async Task<IActionResult> GetProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
@@ -32,7 +66,6 @@ public class InventoryController : ControllerBase
         
         var products = await _context.Products
             .AsNoTracking()
-            .Include(p => p.Images)
             .Include(p => p.Category)
             .Include(p => p.Brand)
             .Include(p => p.Inventories)
@@ -40,6 +73,33 @@ public class InventoryController : ControllerBase
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+            
+        var productImagesMap = await _context.ProductImages
+            .AsNoTracking()
+            .Select(pi => new { pi.ProductId, pi.Id })
+            .ToListAsync();
+            
+        var imagesGrouped = productImagesMap
+            .GroupBy(x => x.ProductId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Id).ToList());
+
+        var baseUrl = Request.Scheme + "://" + Request.Host;
+        
+        foreach (var p in products)
+        {
+            if (imagesGrouped.TryGetValue(p.Id, out var imageIds))
+            {
+                p.Images = imageIds.Select(imgId => new ProductImage {
+                    Id = imgId,
+                    ProductId = p.Id,
+                    PhotoBase64 = $"{baseUrl}/api/app/products/{p.Id}/images/{imgId}"
+                }).ToList();
+            }
+            else 
+            {
+                p.Images = new List<ProductImage>();
+            }
+        }
             
         return Ok(new { data = products, total, page, pageSize });
     }
@@ -111,7 +171,7 @@ public class InventoryController : ControllerBase
                         Reason = "Ajuste Inicial",
                         Date = DateTime.Now,
                         UserId = userId,
-                        Reference = "Creación de Producto"
+                        Reference = "CreaciÃ³n de Producto"
                     });
                 }
                 await _context.SaveChangesAsync();
@@ -153,12 +213,41 @@ public class InventoryController : ControllerBase
             prod.IsBlocked = input.IsBlocked;
             prod.Status = input.Status;
     
-            if (input.Photos != null && input.Photos.Any())
+            if (input.Photos != null)
             {
-                _context.ProductImages.RemoveRange(prod.Images);
+                var existingImageIdsToKeep = new List<int>();
+                var newPhotosBase64 = new List<string>();
+
                 foreach (var photo in input.Photos)
                 {
-                    prod.Images.Add(new ProductImage { PhotoBase64 = photo });
+                    if (photo.StartsWith("http") && photo.Contains("/images/"))
+                    {
+                        var parts = photo.Split("/images/");
+                        if (parts.Length == 2 && int.TryParse(parts[1], out int imgId))
+                        {
+                            existingImageIdsToKeep.Add(imgId);
+                        }
+                    }
+                    else if (photo.StartsWith("http") && photo.EndsWith("/image"))
+                    {
+                        var firstExisting = prod.Images.FirstOrDefault();
+                        if (firstExisting != null)
+                        {
+                            existingImageIdsToKeep.Add(firstExisting.Id);
+                        }
+                    }
+                    else if (photo.StartsWith("data:image"))
+                    {
+                        newPhotosBase64.Add(photo);
+                    }
+                }
+
+                var imagesToRemove = prod.Images.Where(img => !existingImageIdsToKeep.Contains(img.Id)).ToList();
+                _context.ProductImages.RemoveRange(imagesToRemove);
+
+                foreach (var base64 in newPhotosBase64)
+                {
+                    prod.Images.Add(new ProductImage { PhotoBase64 = base64 });
                 }
             }
     
@@ -189,7 +278,7 @@ public class InventoryController : ControllerBase
                             Reason = "Ajuste Manual",
                             Date = DateTime.Now,
                             UserId = userId,
-                            Reference = "Actualización de Catálogo"
+                            Reference = "ActualizaciÃ³n de CatÃ¡logo"
                         });
                     }
                     await _context.SaveChangesAsync();
@@ -266,7 +355,7 @@ public class InventoryController : ControllerBase
 
         if (po.Status != "Borrador" && po.Status != "Pendiente")
         {
-            return BadRequest("Solo se pueden editar órdenes en estado Borrador/Pendiente que no hayan sido recibidas en inventario.");
+            return BadRequest("Solo se pueden editar Ã³rdenes en estado Borrador/Pendiente que no hayan sido recibidas en inventario.");
         }
 
         po.ProviderId = input.ProviderId;
@@ -349,12 +438,12 @@ public class InventoryController : ControllerBase
                     if (wp == null || wp.Stock < detail.ReceivedQuantity)
                     {
                         var prod = await _context.Products.FindAsync(detail.ProductId);
-                        return BadRequest($"No se puede cancelar. El producto {prod?.Name ?? detail.ProductId.ToString()} no tiene suficiente inventario en el almacén para revertir la entrada. (Existencia actual: {wp?.Stock ?? 0}, Requerido: {detail.ReceivedQuantity})");
+                        return BadRequest($"No se puede cancelar. El producto {prod?.Name ?? detail.ProductId.ToString()} no tiene suficiente inventario en el almacÃ©n para revertir la entrada. (Existencia actual: {wp?.Stock ?? 0}, Requerido: {detail.ReceivedQuantity})");
                     }
                 }
             }
 
-            // Si pasa la validación, procedemos a descontar el inventario y registrar transacciones
+            // Si pasa la validaciÃ³n, procedemos a descontar el inventario y registrar transacciones
             foreach (var detail in po.Details)
             {
                 if (detail.ReceivedQuantity > 0)
@@ -362,6 +451,29 @@ public class InventoryController : ControllerBase
                     var wp = await _context.ProductInventories.FirstOrDefaultAsync(w => w.ProductId == detail.ProductId && w.WarehouseId == detail.WarehouseId);
                     if (wp != null)
                     {
+                        var product = await _context.Products.FindAsync(detail.ProductId);
+                        decimal newAvgCost = product?.AverageCost ?? 0;
+                        if (product != null)
+                        {
+                            int currentTotalStock = await _context.ProductInventories.Where(i => i.ProductId == product.Id).SumAsync(i => i.Stock);
+                            decimal currentAvgCost = product.AverageCost > 0 ? product.AverageCost : product.Cost;
+                            int newTotalStock = currentTotalStock - detail.ReceivedQuantity;
+
+                            if (newTotalStock > 0)
+                            {
+                                decimal totalCurrentValue = currentTotalStock * currentAvgCost;
+                                decimal removedValue = detail.ReceivedQuantity * (detail.ReceivedUnitCost > 0 ? detail.ReceivedUnitCost : detail.UnitCost);
+                                newAvgCost = (totalCurrentValue - removedValue) / newTotalStock;
+                                if (newAvgCost < 0) newAvgCost = 0;
+                            }
+                            else
+                            {
+                                newAvgCost = currentAvgCost;
+                            }
+
+                            product.AverageCost = newAvgCost;
+                        }
+
                         wp.Stock -= detail.ReceivedQuantity;
 
                         var transaction = new InventoryMovement
@@ -369,11 +481,13 @@ public class InventoryController : ControllerBase
                             ProductId = detail.ProductId,
                             WarehouseId = detail.WarehouseId,
                             Type = "Salida",
-                            Reason = "Cancelación OC",
+                            Reason = "CancelaciÃ³n OC",
                             Quantity = detail.ReceivedQuantity,
-                            Reference = $"Cancelación OC-{po.Id} Fact:{po.Reference1 ?? "N/A"}",
+                            Reference = $"CancelaciÃ³n {po.PoNumber} Fact: {po.Reference1 ?? "S/F"}",
                             Date = DateTime.Now,
-                            UserId = userId
+                            UserId = userId,
+                            UnitCost = detail.ReceivedUnitCost > 0 ? detail.ReceivedUnitCost : detail.UnitCost,
+                            AverageCost = newAvgCost
                         };
                         _context.InventoryMovements.Add(transaction);
                     }
@@ -382,7 +496,7 @@ public class InventoryController : ControllerBase
         }
         else if (po.Status != "Borrador" && po.Status != "Pendiente")
         {
-            return BadRequest("El estado actual de la orden no permite su cancelación.");
+            return BadRequest("El estado actual de la orden no permite su cancelaciÃ³n.");
         }
 
         po.Status = "Cancelada";
@@ -398,7 +512,7 @@ public class InventoryController : ControllerBase
 
         if (po.Status != "Borrador" && po.Status != "Pendiente")
         {
-            return BadRequest("Solo se pueden recibir órdenes en estado Borrador o Pendiente que no hayan sido recibidas previamente.");
+            return BadRequest("Solo se pueden recibir Ã³rdenes en estado Borrador o Pendiente que no hayan sido recibidas previamente.");
         }
 
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -443,12 +557,12 @@ public class InventoryController : ControllerBase
 
                     if (product == null)
                     {
-                        // Autocrear en catálogo sin categoría para clasificación manual posterior
+                        // Autocrear en catÃ¡logo sin categorÃ­a para clasificaciÃ³n manual posterior
                         product = new Product
                         {
                             SKU = skuClean,
                             Name = !string.IsNullOrWhiteSpace(item.ProductName) ? item.ProductName.Trim() : $"Producto {skuClean}",
-                            CategoryId = null, // Sin Categoría (clasificación manual posterior)
+                            CategoryId = null, // Sin CategorÃ­a (clasificaciÃ³n manual posterior)
                             Cost = item.ReceivedUnitCost > 0 ? item.ReceivedUnitCost : (item.OrderedUnitCost > 0 ? item.OrderedUnitCost : 0),
                             Price = item.ReceivedUnitCost > 0 ? Math.Round(item.ReceivedUnitCost * 1.25m, 2) : 0,
                             Status = "Activo"
@@ -498,7 +612,7 @@ public class InventoryController : ControllerBase
                 subtotal += lineSubtotal;
                 taxAmount += lineTax;
 
-                // Si se recibieron piezas físicas (> 0), aplicar entradas de inventario
+                // Si se recibieron piezas fÃ­sicas (> 0), aplicar entradas de inventario
                 if (recQty > 0)
                 {
                     // Calcular costo promedio ponderado
@@ -514,10 +628,10 @@ public class InventoryController : ControllerBase
                         newAvgCost = ((currentTotalStock * currentAvgCost) + (recQty * recCost)) / (currentTotalStock + recQty);
                     }
 
-                    product.Cost = recCost; // Actualizar último costo
+                    product.Cost = recCost; // Actualizar Ãºltimo costo
                     product.AverageCost = newAvgCost; // Actualizar costo promedio
 
-                    // 1. Inventario por almacén
+                    // 1. Inventario por almacÃ©n
                     var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == product.Id && i.WarehouseId == targetWarehouseId);
                     if (inventory == null)
                     {
@@ -532,7 +646,7 @@ public class InventoryController : ControllerBase
                     }
                     inventory.Stock += recQty;
 
-                    // 3. Crear lote físico
+                    // 3. Crear lote fÃ­sico
                     _context.ProductBatches.Add(new ProductBatch
                     {
                         ProductId = product.Id,
@@ -550,7 +664,7 @@ public class InventoryController : ControllerBase
                         WarehouseId = targetWarehouseId,
                         Quantity = recQty,
                         Type = "Entrada",
-                        Reason = "Recepción OC",
+                        Reason = "RecepciÃ³n OC",
                         Date = DateTime.Now,
                         UserId = userId,
                         Reference = $"{po.PoNumber} (Fact: {po.Reference1 ?? "S/F"})",
@@ -585,7 +699,7 @@ public class InventoryController : ControllerBase
 
         var receiveInput = new ReceivePurchaseOrderInputModel
         {
-            ReceptionNotes = "Recepción rápida automática",
+            ReceptionNotes = "RecepciÃ³n rÃ¡pida automÃ¡tica",
             Reference1 = po.Reference1,
             Reference2 = po.Reference2,
             Items = po.Details.Select(d => new ReceivePurchaseOrderDetailModel
@@ -606,6 +720,84 @@ public class InventoryController : ControllerBase
         };
 
         return await ReceivePurchaseOrder(id, receiveInput);
+    }
+
+    [HttpPost("purchase-order/{id}/return")]
+    public async Task<IActionResult> ReturnPurchaseOrder(int id, [FromBody] ReturnPurchaseOrderInputModel input)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = string.IsNullOrEmpty(userIdString) ? 1 : int.Parse(userIdString);
+
+        var po = await _context.PurchaseOrders
+            .Include(p => p.Details)
+            .FirstOrDefaultAsync(p => p.Id == id);
+            
+        if (po == null) return NotFound("Orden de compra no encontrada");
+        if (po.Status != "Recibida") return BadRequest("Solo se pueden devolver productos de una orden recibida");
+
+        decimal totalReturnedAmount = 0;
+
+        foreach (var item in input.Items)
+        {
+            if (item.ReturnQuantity <= 0) continue;
+
+            var detail = po.Details.FirstOrDefault(d => d.Id == item.DetailId);
+            if (detail == null) continue;
+
+            if (item.ReturnQuantity > detail.ReceivedQuantity)
+                return BadRequest($"La cantidad a devolver ({item.ReturnQuantity}) supera la recibida ({detail.ReceivedQuantity}) para el producto ID {detail.ProductId}");
+
+            // Reducir stock
+            var inventory = await _context.ProductInventories
+                .FirstOrDefaultAsync(i => i.ProductId == detail.ProductId && i.WarehouseId == (detail.WarehouseId ?? 1));
+                
+            if (inventory != null)
+            {
+                inventory.Stock -= item.ReturnQuantity;
+            }
+
+            // Movimiento de inventario
+            _context.InventoryMovements.Add(new InventoryMovement
+            {
+                ProductId = detail.ProductId,
+                WarehouseId = detail.WarehouseId ?? 1,
+                Quantity = item.ReturnQuantity,
+                Type = "Salida",
+                Reason = "DevoluciÃ³n OC",
+                Date = DateTime.Now,
+                UserId = userId,
+                Reference = $"{po.PoNumber} (DevoluciÃ³n: {input.ReturnReason ?? item.Reason})",
+                UnitCost = detail.ReceivedUnitCost,
+                AverageCost = detail.ReceivedUnitCost // SimplificaciÃ³n
+            });
+
+            // Ajustar detalle de OC
+            var returnedSubtotal = item.ReturnQuantity * detail.ReceivedUnitCost;
+            var returnedTax = returnedSubtotal * detail.IvaRate;
+            
+            detail.ReceivedQuantity -= item.ReturnQuantity;
+            detail.Subtotal -= returnedSubtotal;
+            detail.TaxAmount -= returnedTax;
+            detail.Total -= (returnedSubtotal + returnedTax);
+            detail.VarianceReason = $"DevoluciÃ³n parcial: {item.ReturnQuantity} piezas. {input.ReturnReason ?? item.Reason}";
+
+            totalReturnedAmount += (returnedSubtotal + returnedTax);
+        }
+
+        // Ajustar totales de la OC
+        po.Subtotal = po.Details.Sum(d => d.Subtotal);
+        po.TaxAmount = po.Details.Sum(d => d.TaxAmount);
+        po.TotalAmount = po.Subtotal + po.TaxAmount;
+
+        // Ajustar CXP del proveedor
+        var provider = await _context.Providers.FindAsync(po.ProviderId);
+        if (provider != null)
+        {
+            provider.CurrentBalance -= totalReturnedAmount;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(po);
     }
 
     [HttpPut("products/bulk")]
@@ -641,7 +833,29 @@ public class InventoryController : ControllerBase
                     if (up.Cost.HasValue) p.Cost = up.Cost.Value;
                     if (up.Cogs.HasValue) p.Cogs = up.Cogs.Value;
 
-                    // Bulk stock updates disabled in multi-warehouse. Use adjustments endpoint.
+                    _context.Entry(p).State = EntityState.Modified;
+                }
+                else if (!string.IsNullOrWhiteSpace(up.Sku))
+                {
+                    // Create new product
+                    p = new Product
+                    {
+                        SKU = up.Sku.Trim(),
+                        Name = string.IsNullOrWhiteSpace(up.Name) ? "Producto Nuevo " + up.Sku.Trim() : up.Name.Trim(),
+                        Price = up.Price ?? 0,
+                        Price1 = up.Price1 ?? 0,
+                        Price2 = up.Price2 ?? 0,
+                        Price3 = up.Price3 ?? 0,
+                        Price4 = up.Price4 ?? 0,
+                        Price5 = up.Price5 ?? 0,
+                        BoxPrice = up.BoxPrice ?? 0,
+                        VolumePrice = up.VolumePrice ?? 0,
+                        Cost = up.Cost ?? 0,
+                        Cogs = up.Cogs ?? 0,
+                        IsPerishable = false,
+                        UnitsPerBox = 1
+                    };
+                    _context.Products.Add(p);
                 }
             }
             await _context.SaveChangesAsync();
@@ -668,7 +882,9 @@ public class InventoryController : ControllerBase
                 m.Reason,
                 m.Date,
                 m.UserId,
-                m.Reference
+                m.Reference,
+                m.UnitCost,
+                m.AverageCost
             })
             .ToListAsync();
         
@@ -718,7 +934,9 @@ public class InventoryController : ControllerBase
                 m.Reason,
                 m.Date,
                 m.UserId,
-                m.Reference
+                m.Reference,
+                m.UnitCost,
+                m.AverageCost
             })
             .ToListAsync();
 
@@ -736,7 +954,7 @@ public class InventoryController : ControllerBase
 
             var inventory = await _context.ProductInventories.FirstOrDefaultAsync(i => i.ProductId == input.ProductId && i.WarehouseId == 1 /* Default */);
             if (inventory == null || inventory.Stock < input.Quantity)
-                return BadRequest($"Stock físico insuficiente.");
+                return BadRequest($"Stock fÃ­sico insuficiente.");
 
             inventory.Stock -= input.Quantity;
 
@@ -763,3 +981,4 @@ public class InventoryController : ControllerBase
         }
 
 }
+

@@ -187,22 +187,37 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
     {
       title: 'Inventario y Logística',
       items: [
-        ['almacen','Kardex / Inventario', ['Admin', 'Almacenista']],
+        ['almacen/stock', 'Existencias (Stock)', ['Admin', 'Almacenista']],
+        ['almacen/kardex', 'Movimientos (Kardex)', ['Admin', 'Almacenista']],
+        ['almacen/ajustes', 'Ajustes de Inventario', ['Admin', 'Almacenista']],
+        ['almacen/devoluciones', 'Devoluciones', ['Admin', 'Almacenista']],
         ['ordenes', 'Órdenes de Compra', ['Admin', 'Almacenista']],
-        ['remisiones','Remisiones (Despacho)', ['Admin', 'Chofer', 'Almacenista']],
-        ['mermas','Mermas y Caducados', ['Admin', 'Almacenista']],
-        ['masivos','Cambios Masivos', ['Admin', 'Almacenista']]
+        ['mermas','Mermas y Caducados', ['Admin', 'Almacenista']]
       ]
     },
     {
-      title: 'Ventas y Finanzas',
+      title: 'Ventas',
       items: [
         ['vendedor','App Vendedor', ['Admin', 'Vendedor']],
         ['tienda','Tienda B2B (Portal)', ['Admin', 'Cliente']],
-        ['facturacion','Facturación SAT', ['Admin']],
+        ['ventas/surtido', 'Pedidos Pendientes de Surtir', ['Admin', 'Vendedor', 'Almacenista']],
+        ['remisiones','Remisiones (Despacho)', ['Admin', 'Chofer', 'Almacenista']]
+      ]
+    },
+    {
+      title: 'Finanzas',
+      items: [
         ['cobranza','Cuentas por Cobrar (CxC)', ['Admin']],
         ['liquidacion','Liquidación', ['Admin']],
         ['caja','Corte de Caja', ['Admin']]
+      ]
+    },
+    {
+      title: 'CFDI Facturación',
+      items: [
+        ['cfdi/ingresos','Facturar Ingresos (Pedidos)', ['Admin']],
+        ['cfdi/pagos','Complementos de Pago', ['Admin']],
+        ['cfdi/egresos','Notas de Crédito (Devoluciones)', ['Admin']]
       ]
     },
     {
@@ -218,8 +233,9 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
     'Dashboards y Reportes': true,
     'Catálogos': true,
     'Inventario y Logística': true,
-    'Cuentas por Pagar (CxP)': true,
-    'Ventas y Finanzas': true,
+    'Ventas': true,
+    'Finanzas': true,
+    'CFDI Facturación': true,
     'Administración': true
   });
 
@@ -250,9 +266,9 @@ export default function Sidebar({tab,setTab,user,sucursal,logout}){
           const permissionsStr = user?.permissions || '';
           
           const visibleItems = group.items.filter(t => {
-             if (userRole === 'Admin') return true; 
+             if (userRole === 'Admin' && (!permissionsStr || permissionsStr === '[]' || permissionsStr === '')) return true; 
              const baseKey = t[0].split('/')[0];
-             return permissionsStr.includes(t[0]) || permissionsStr.includes(baseKey);
+             return permissionsStr.includes(t[0]) || permissionsStr.includes(baseKey) || permissionsStr.includes(`"${t[0]}"`);
           });
           
           if (visibleItems.length === 0) return null;

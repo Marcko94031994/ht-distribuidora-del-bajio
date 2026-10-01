@@ -1,13 +1,38 @@
-import React, { useState } from 'react';
+/* eslint-disable react/react-in-jsx-scope */
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function PwaHome({ user, route, clients, data }) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [timeRange, setTimeRange] = useState('day');
+  const [randomDays] = useState(() => Math.floor(Math.random() * 10) + 1);
 
-  // Calculations for metrics
-  const todayOrders = (data.pedidos || []).filter(p => p.routeId === route?.id && new Date(p.createdAt || new Date()).toDateString() === new Date().toDateString());
-  const todaySales = todayOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  // Helper para inicio de semana (Lunes)
+  const getStartOfWeek = () => {
+    const now = new Date();
+    const day = now.getDay() || 7; // 1-7 (Lunes-Domingo)
+    if (day !== 1) now.setHours(-24 * (day - 1));
+    now.setHours(0, 0, 0, 0);
+    return now;
+  };
+
+  const isCurrentDay = (d) => new Date(d).toDateString() === new Date().toDateString();
+  const isCurrentWeek = (d) => new Date(d) >= getStartOfWeek();
+
+  const offlineOrders = JSON.parse(localStorage.getItem('ht_offline_orders') || '[]').filter(p => p.routeId === route?.id);
+  
+  const allOrders = [
+    ...(data.pedidos || []).filter(p => p.routeId === route?.id),
+    ...offlineOrders
+  ];
+
+  const filteredOrders = allOrders.filter(p => {
+    const d = p.createdAt || new Date();
+    return timeRange === 'day' ? isCurrentDay(d) : isCurrentWeek(d);
+  });
+
+  const currentSales = filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   
   const overdueClients = clients.filter(c => (c.overdueBalance || 0) > 0);
 
@@ -27,14 +52,25 @@ function PwaHome({ user, route, clients, data }) {
         </div>
       </div>
 
-      <div className="pwa-metrics-card">
-        <div className="pwa-metrics-subtitle">Resumen del día</div>
-        <div className="pwa-metrics-value">${todaySales.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
-        <div style={{fontSize: '0.9rem', opacity: 0.9}}>Venta levantada hoy</div>
+      <div className="pwa-metrics-card" style={{ position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.2)', padding: '4px', borderRadius: '8px' }}>
+          <button 
+            style={{ border: 'none', background: timeRange === 'day' ? '#fff' : 'transparent', color: timeRange === 'day' ? '#d81921' : '#fff', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}
+            onClick={() => setTimeRange('day')}
+          >Día</button>
+          <button 
+            style={{ border: 'none', background: timeRange === 'week' ? '#fff' : 'transparent', color: timeRange === 'week' ? '#d81921' : '#fff', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}
+            onClick={() => setTimeRange('week')}
+          >Semana</button>
+        </div>
+        
+        <div className="pwa-metrics-subtitle">Resumen {timeRange === 'day' ? 'del día' : 'de la semana'}</div>
+        <div className="pwa-metrics-value">${currentSales.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+        <div style={{fontSize: '0.9rem', opacity: 0.9}}>Venta levantada {timeRange === 'day' ? 'hoy' : 'esta semana'}</div>
 
         <div className="pwa-metrics-grid">
           <div className="pwa-metrics-item">
-            <strong>{todayOrders.length}</strong>
+            <strong>{filteredOrders.length}</strong>
             <span>Pedidos</span>
           </div>
           <div className="pwa-metrics-item">
@@ -83,7 +119,7 @@ function PwaHome({ user, route, clients, data }) {
                 </div>
               </div>
               <div className="pwa-card-footer">
-                <span>Última compra: hace {Math.floor(Math.random() * 10) + 1} días</span>
+                <span>Última compra: hace {randomDays} días</span>
                 <span className="pwa-card-action">Ver cliente →</span>
               </div>
             </div>

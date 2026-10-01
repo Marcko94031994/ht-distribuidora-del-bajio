@@ -1,63 +1,42 @@
-import React from 'react';
+// No React import needed; component uses JSX only
 
 export default function Login({ user, setUser, onLogin }) {
   return (
     <div className="login-wrap">
       {/* Left Branding Hero Section */}
-      <div className="login-hero">
-        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div className="login-hero" style={{ position: 'relative' }}>
+        {/* Faded watermark icon */}
+        <img 
+          src="/surtalia-icon.png" 
+          alt="" 
+          style={{ position: 'absolute', bottom: '-40px', left: '-40px', width: '400px', opacity: 0.1, zIndex: 0, pointerEvents: 'none' }} 
+        />
+        
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '14px', zIndex: 2 }}>
           <img 
-            src="/logo.png" 
-            alt="HT Distribuidora del Bajío" 
-            style={{ height: '70px', objectFit: 'contain' }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-            }}
+            src="/surtalia-logo.png" 
+            alt="Surtalia" 
+            style={{ width: '220px', objectFit: 'contain', mixBlendMode: 'multiply' }}
           />
-          <div className="brand-fallback" style={{ display: 'none', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              background: '#fff1f2',
-              border: '1.5px solid #fecdd3',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '20px',
-              letterSpacing: '-0.05em'
-            }}>
-              <span style={{ color: '#d81921' }}>H</span>
-              <span style={{ color: '#111111' }}>T</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-              <span style={{ fontSize: '15px', fontWeight: 900, color: '#111827', letterSpacing: '-0.02em' }}>HT DISTRIBUIDORA</span>
-              <span style={{ fontSize: '12px', fontWeight: 800, color: '#d81921', letterSpacing: '0.04em' }}>DEL BAJÍO</span>
-            </div>
-          </div>
         </div>
 
-        <div className="login-hero-content">
-          <h1>
-            Soluciones eficientes,<br />
-            distribución <span className="highlight">confiable.</span>
+        <div className="login-hero-content" style={{ zIndex: 2 }}>
+          <h1 style={{ fontSize: '3rem', fontWeight: 900 }}>
+            <span style={{ color: '#0f172a' }}>Vende, surte y </span>
+            <span style={{ color: '#00a884' }}>controla.</span>
           </h1>
-          <p>
-            Sistema integral para la gestión de pedidos, rutas, inventarios y clientes de HT Distribuidora del Bajío.
+          <p style={{ fontSize: '1.1rem', color: '#64748b', maxWidth: '420px', lineHeight: 1.5 }}>
+            Gestiona pedidos, rutas, inventarios y clientes desde una sola plataforma.
           </p>
         </div>
 
-        <div style={{ fontSize: '13px', color: '#94a3b8', zmdIndex: 2, position: 'relative' }}>
-          Demo: <b>admin@htdistribuidora.mx</b> · Pass: <b>123456</b>
-        </div>
+        {/* Removed Demo Credentials */}
       </div>
 
       {/* Right Login Form Section */}
       <div className="login-card-wrap">
         <div style={{ width: '100%', maxWidth: '440px' }}>
-          <form className="login-card" onSubmit={e => { e.preventDefault(); onLogin(); }}>
+          <form className="login-card" onSubmit={e => { e.preventDefault(); onLogin(e); }}>
             <div className="login-card-header">
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
                 <img 
@@ -105,9 +84,10 @@ export default function Login({ user, setUser, onLogin }) {
                 </span>
                 <input 
                   className="input" 
+                  name="email"
                   placeholder="ejemplo@htdistribuidora.mx"
                   value={user.email} 
-                  onChange={e => setUser({ ...user, email: e.target.value })}
+                  onChange={e => setUser({ ...user, email: e.target.value.trim() })}
                   required
                 />
               </div>
@@ -123,6 +103,7 @@ export default function Login({ user, setUser, onLogin }) {
                 </span>
                 <input 
                   className="input" 
+                  name="pass"
                   type="password" 
                   placeholder="••••••••"
                   value={user.pass} 

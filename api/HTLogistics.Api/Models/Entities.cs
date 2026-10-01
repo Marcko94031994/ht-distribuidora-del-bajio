@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HTLogistics.Api.Models;
@@ -17,6 +17,9 @@ public class User
 
     public int? SucursalId { get; set; }
     public Branch? Sucursal { get; set; }
+
+    public int? DriverId { get; set; }
+    public Driver? Driver { get; set; }
 }
 
 public class Branch
@@ -103,14 +106,14 @@ public class Client
     public double Latitude { get; set; } 
     public double Longitude { get; set; } 
     
-    public int RouteId { get; set; }
+    public int? RouteId { get; set; }
     public DeliveryRoute? Route { get; set; }
 
     public decimal CreditLimit { get; set; }
     public decimal CurrentBalance { get; set; }
     public bool HasOverdueDebt { get; set; }
     public int CreditDays { get; set; } = 30; // Configurable per client
-    // Datos Fiscales (Para Facturación)
+    // Datos Fiscales (Para FacturaciÃ³n)
     public string? RFC { get; set; }
     public string? RazonSocial { get; set; }
     public string? RegimenFiscal { get; set; }
@@ -171,12 +174,12 @@ public class Product
     public decimal VolumePrice { get; set; }
     public decimal Weight { get; set; } // Peso en KG
 
-    public int MinStock { get; set; } // Stock mínimo para alertas de reorden
-    public int MaxStock { get; set; } // Stock máximo sugerido
+    public int MinStock { get; set; } // Stock mÃ­nimo para alertas de reorden
+    public int MaxStock { get; set; } // Stock mÃ¡ximo sugerido
 
     public decimal Cost { get; set; }
     public decimal Cogs { get; set; } // Costo de venta
-    public decimal AverageCost { get; set; } // Costo promedio ponderado histórico
+    public decimal AverageCost { get; set; } // Costo promedio ponderado histÃ³rico
 
     public decimal IvaRate { get; set; } // e.g., 0.16
     public decimal IepsRate { get; set; } // e.g., 0.08
@@ -196,9 +199,9 @@ public class Product
     public ICollection<ProductInventory> Inventories { get; set; } = new List<ProductInventory>();
     
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public int TotalStock => Inventories?.Sum(i => i.Stock) ?? 0;
+    public int Stock => Inventories?.Sum(i => i.Stock) ?? 0;
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public int TotalAvailableStock => Inventories?.Sum(i => i.AvailableStock) ?? 0;
+    public int AvailableStock => Inventories?.Sum(i => i.AvailableStock) ?? 0;
     
     [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[]? RowVersion { get; set; }
@@ -236,7 +239,7 @@ public class ProductCategory
 {
     public int Id { get; set; }
     public required string Name { get; set; }
-    public string? Icon { get; set; } // e.g. "🥛", "🧴"
+    public string? Icon { get; set; } // e.g. "ðŸ¥›", "ðŸ§´"
     
     public ICollection<Product> Products { get; set; } = new List<Product>();
 }
@@ -247,7 +250,7 @@ public class ProductBatch
     public int ProductId { get; set; }
     public Product? Product { get; set; }
     
-    public int? WarehouseId { get; set; } // Opcional por migración, ideal requerido
+    public int? WarehouseId { get; set; } // Opcional por migraciÃ³n, ideal requerido
     public Warehouse? Warehouse { get; set; }
     
     public required string BatchNumber { get; set; }
@@ -267,12 +270,12 @@ public class InventoryMovement
     
     public int Quantity { get; set; }
     public required string Type { get; set; } // Entrada, Salida, Ajuste
-    public required string Reason { get; set; } // Venta, Compra, Merma, Devolución
+    public required string Reason { get; set; } // Venta, Compra, Merma, DevoluciÃ³n
     public DateTime Date { get; set; }
     public int UserId { get; set; }
     public string? Reference { get; set; } // Numero de pedido u OC
     
-    public decimal UnitCost { get; set; } // Costo al que entró o salió
+    public decimal UnitCost { get; set; } // Costo al que entrÃ³ o saliÃ³
     public decimal AverageCost { get; set; } // Costo promedio en el momento del movimiento
 }
 
@@ -296,11 +299,14 @@ public class Order
     public int ClientId { get; set; }
     public Client? Client { get; set; }
     
-    public int RouteId { get; set; }
+    public int? RouteId { get; set; }
     public DeliveryRoute? Route { get; set; }
     
     public int DriverId { get; set; }
     public Driver? Driver { get; set; }
+    
+    public int? VehicleId { get; set; }
+    public Vehicle? Vehicle { get; set; }
     
     public string PaymentMethod { get; set; } = "Contado";
     public bool NeedsAdminApproval { get; set; }
@@ -320,9 +326,10 @@ public class Order
     public double Longitude { get; set; }
     public bool IsGeoValidated { get; set; } // Validated against client coordinates
     
-    // Facturación
+    // FacturaciÃ³n
     public bool IsFacturado { get; set; }
     public string? FolioFiscal { get; set; } // UUID
+    public string? FolioFactura { get; set; }
     public DateTime? FechaFacturacion { get; set; }
     
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
@@ -364,7 +371,7 @@ public class PurchaseOrder
     public required string Status { get; set; } // Borrador, Autorizada, Recibida, Cancelada
     
     public string? Reference1 { get; set; } // Factura / Folio de Proveedor
-    public string? Reference2 { get; set; } // Orden de Embarque / Cotización / Guía
+    public string? Reference2 { get; set; } // Orden de Embarque / CotizaciÃ³n / GuÃ­a
     public string? Notes { get; set; }
 
     public decimal Subtotal { get; set; }
@@ -378,7 +385,7 @@ public class PurchaseOrder
     public int? AuthorizedById { get; set; }
     public User? AuthorizedBy { get; set; }
 
-    public DateTime? ReceivedDate { get; set; } // Fecha y hora de recepción física en almacén
+    public DateTime? ReceivedDate { get; set; } // Fecha y hora de recepciÃ³n fÃ­sica en almacÃ©n
     public int? ReceivedById { get; set; }
     public User? ReceivedBy { get; set; }
     public string? ReceptionNotes { get; set; } // Observaciones / Trazabilidad al recibir
@@ -397,7 +404,7 @@ public class PurchaseOrderDetail
     
     public int Quantity { get; set; } // Cantidad en OC (compatibilidad)
     public int OrderedQuantity { get; set; } // Cantidad original solicitada en OC
-    public int ReceivedQuantity { get; set; } // Cantidad física real recibida en almacén
+    public int ReceivedQuantity { get; set; } // Cantidad fÃ­sica real recibida en almacÃ©n
 
     public decimal UnitCost { get; set; } // Costo unitario en OC
     public decimal OrderedUnitCost { get; set; } // Costo original solicitado en OC
@@ -410,20 +417,20 @@ public class PurchaseOrderDetail
 
     public int? WarehouseId { get; set; }
     public Warehouse? Warehouse { get; set; }
-    public string? Location { get; set; } // Ubicación / Pasillo / Rack dentro del almacén
+    public string? Location { get; set; } // UbicaciÃ³n / Pasillo / Rack dentro del almacÃ©n
     
     public string? BatchNumber { get; set; }
     public DateTime? ExpirationDate { get; set; }
 
-    public string? VarianceReason { get; set; } // Justificación si cantidad o costo difieren de la OC
-    public bool IsAdditional { get; set; } // True si fue un producto extra añadido durante la recepción
+    public string? VarianceReason { get; set; } // JustificaciÃ³n si cantidad o costo difieren de la OC
+    public bool IsAdditional { get; set; } // True si fue un producto extra aÃ±adido durante la recepciÃ³n
 }
 
 public class LoginInputModel
 {
     public required string Email { get; set; }
     public required string Password { get; set; }
-    public int SucursalId { get; set; }
+    public int? SucursalId { get; set; }
 }
 
 public class WarehouseInputModel
@@ -451,6 +458,7 @@ public class RouteInputModel
     public int SucursalId { get; set; }
     public int VendedorId { get; set; }
     public required string ClientesText { get; set; }
+    public List<int>? ClientIds { get; set; }
 }
 
 public class PurchaseOrderPaymentItem
@@ -493,7 +501,7 @@ public class ReceivePurchaseOrderInputModel
 {
     public string? ReceptionNotes { get; set; }
     public string? Reference1 { get; set; } // Factura del proveedor
-    public string? Reference2 { get; set; } // Guía / Embarque
+    public string? Reference2 { get; set; } // GuÃ­a / Embarque
     public List<ReceivePurchaseOrderDetailModel> Items { get; set; } = new();
 }
 
@@ -502,6 +510,9 @@ public class ReceivePurchaseOrderDetailModel
     public int? DetailId { get; set; }
     public int? ProductId { get; set; }
     public string? Sku { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    public string? Name { get; set; }
     public string? ProductName { get; set; }
     public int OrderedQuantity { get; set; }
     public int ReceivedQuantity { get; set; }
@@ -514,6 +525,19 @@ public class ReceivePurchaseOrderDetailModel
     public DateTime? ExpirationDate { get; set; }
     public string? VarianceReason { get; set; }
     public bool IsAdditional { get; set; }
+}
+
+public class ReturnPurchaseOrderInputModel
+{
+    public string? ReturnReason { get; set; }
+    public List<ReturnPurchaseOrderDetailModel> Items { get; set; } = new();
+}
+
+public class ReturnPurchaseOrderDetailModel
+{
+    public int DetailId { get; set; }
+    public int ReturnQuantity { get; set; }
+    public string? Reason { get; set; }
 }
 
 public class Provider
@@ -557,6 +581,12 @@ public class CreditNote
     public decimal Amount { get; set; }
     public DateTime Date { get; set; }
     public required string Reason { get; set; }
+    
+    // FacturaciÃ³n
+    public bool IsFacturado { get; set; }
+    public string? FolioFiscal { get; set; } // UUID
+    public string? FolioFactura { get; set; }
+    public DateTime? FechaFacturacion { get; set; }
 }
 
 public class ClientPayment
@@ -568,6 +598,12 @@ public class ClientPayment
     public DateTime Date { get; set; }
     public string? Reference { get; set; }
     public string? PaymentMethod { get; set; } // Efectivo, Transferencia, Cheque
+    
+    // FacturaciÃ³n
+    public bool IsFacturado { get; set; }
+    public string? FolioFiscal { get; set; } // UUID
+    public string? FolioFactura { get; set; }
+    public DateTime? FechaFacturacion { get; set; }
 }
 
 public class Visit
@@ -621,7 +657,7 @@ public class CashClosure
     public int Id { get; set; }
     public int DriverId { get; set; }
     public Driver? Driver { get; set; }
-    public int RouteId { get; set; }
+    public int? RouteId { get; set; }
     public DeliveryRoute? Route { get; set; }
     public DateTime Date { get; set; }
     public decimal TotalExpected { get; set; }
@@ -648,6 +684,19 @@ public class DeliveryInputModel
     public string? PhotoBase64 { get; set; }
 }
 
+public class FulfillOrderInput
+{
+    public int? VehicleId { get; set; }
+    public List<FulfillOrderItem> Items { get; set; } = new();
+}
+
+public class FulfillOrderItem
+{
+    public int Id { get; set; } // OrderDetail ID
+    public int ProductId { get; set; }
+    public int FulfillQuantity { get; set; }
+}
+
 public class IncidentInputModel
 {
     public int DriverId { get; set; }
@@ -657,7 +706,7 @@ public class IncidentInputModel
 public class OrderInputModel
 {
     public int ClientId { get; set; }
-    public int RouteId { get; set; }
+    public int? RouteId { get; set; }
     public int DriverId { get; set; }
     public string? PhotoBase64 { get; set; }
     public string PaymentMethod { get; set; } = "Contado";
@@ -670,6 +719,7 @@ public class OrderItemInput
 {
     public int ProductId { get; set; }
     public int Quantity { get; set; }
+    public decimal? UnitPrice { get; set; }
 }
 
 public class VehicleInputModel
@@ -683,7 +733,7 @@ public class VehicleInputModel
 public class CashClosureInputModel
 {
     public int DriverId { get; set; }
-    public int RouteId { get; set; }
+    public int? RouteId { get; set; }
     public decimal TotalExpected { get; set; }
     public decimal TotalReceived { get; set; }
     public string? Observations { get; set; }
@@ -736,7 +786,7 @@ public class ClientInputModel
 {
     public required string Name { get; set; }
     public required string Zone { get; set; }
-    public int RouteId { get; set; }
+    public int? RouteId { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public decimal CreditLimit { get; set; }
@@ -816,6 +866,7 @@ public class PaymentInputModel
     public decimal Amount { get; set; }
     public string? Reference { get; set; }
     public string? PaymentMethod { get; set; }
+    public List<int>? SelectedOrderIds { get; set; }
 }
 
 public class CashClosureDeclareInput
@@ -828,19 +879,49 @@ public class CashClosureDeclareInput
 
 public class ProductBulkUpdateModel
 {
+    [System.Text.Json.Serialization.JsonPropertyName("id")]
     public int? Id { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("sku")]
     public string? Sku { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("name")]
+    public string? Name { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("price")]
     public decimal? Price { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("price1")]
     public decimal? Price1 { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("price2")]
     public decimal? Price2 { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("price3")]
     public decimal? Price3 { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("price4")]
     public decimal? Price4 { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("price5")]
     public decimal? Price5 { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("boxPrice")]
     public decimal? BoxPrice { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("volumePrice")]
     public decimal? VolumePrice { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("stock")]
     public int? Stock { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("weight")]
     public decimal? Weight { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("cost")]
     public decimal? Cost { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("cogs")]
     public decimal? Cogs { get; set; }
 }
 
@@ -853,6 +934,7 @@ public class UserInputModel
     public required string Role { get; set; }
     public int? SucursalId { get; set; }
     public int? ClientId { get; set; }
+    public int? DriverId { get; set; }
 }
 
 public class WarehouseLocation
@@ -890,3 +972,4 @@ public class InventoryAdjustmentInput
     public required string AdjustmentType { get; set; } // "Merma", "Muestra"
     public required string Reason { get; set; }
 }
+

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { pesos } from '../utils/helpers';
 
@@ -8,6 +8,8 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
   const [paying, setPaying] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -33,25 +35,36 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
       address: p.address || ''
     });
     setShowModal(true);
-  };
+      };
 
-  const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      name: form.name,
-      rfc: form.rfc,
-      contact: form.contact,
-      phone: form.phone,
-      address: form.address
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name,
+        rfc: form.rfc,
+        contact: form.contact,
+        phone: form.phone,
+        address: form.address
+      };
 
-    if (editing) {
-      if (updateProveedor) updateProveedor(editing.id, payload);
-    } else {
-      if (addProveedor) addProveedor(payload);
+      if (editing) {
+        if (updateProveedor) await updateProveedor(editing.id, payload);
+      } else {
+        if (addProveedor) await addProveedor(payload);
+      }
+      setSuccessMsg(true);
+      setTimeout(() => {
+        setShowModal(false);
+        setEditing(null);
+        setSuccessMsg(false);
+      }, 1500);
+    } catch(err) {
+      alert("Error: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
-    setEditing(null);
   };
 
   const handlePayment = (e) => {
@@ -145,8 +158,8 @@ export default function Proveedores({ data, addProveedor, updateProveedor, regis
                 />
               </div>
               <div className="full" style={{ marginTop: '12px' }}>
-                <button type="submit" className={`btn success full ${editing ? 'warn' : ''}`}>
-                  {editing ? '💾 Actualizar Proveedor' : '✅ Guardar Proveedor'}
+                <button type="submit" disabled={saving || successMsg} className={`btn full ${successMsg ? 'success' : (editing ? 'warn' : 'primary')}`}>
+                  {successMsg ? '✅ ¡Guardado exitosamente!' : (saving ? '⏳ Guardando...' : (editing ? '📝 Actualizar Proveedor' : '💾 Guardar Proveedor'))}
                 </button>
               </div>
             </form>

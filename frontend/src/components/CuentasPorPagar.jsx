@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { pesos, pesosDecimals } from '../utils/helpers';
 import AntiguedadSaldosProveedores from './AntiguedadSaldosProveedores';
@@ -48,8 +48,8 @@ export default function CuentasPorPagar({ data, reloadState, initialView }) {
 
   // Purchase Orders list
   const purchaseOrders = useMemo(() => {
-    return data.ordenesCompra || [];
-  }, [data.ordenesCompra]);
+    return data.compras || [];
+  }, [data.compras]);
 
   // Calculate detailed CxP data per provider
   const cxpPortfolio = useMemo(() => {

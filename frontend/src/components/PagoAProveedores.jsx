@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { pesos, pesosDecimals } from '../utils/helpers';
 
@@ -35,10 +35,14 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
 
   // Providers list
   const providers = useMemo(() => data.proveedores || [], [data.proveedores]);
-  const purchaseOrders = useMemo(() => data.ordenesCompra || [], [data.ordenesCompra]);
+  const purchaseOrders = useMemo(() => data.compras || [], [data.compras]);
 
   // Selected provider object
   const selectedProvider = useMemo(() => {
+    if (selectedProviderId === 'ALL') {
+      const allDebt = providers.reduce((s, p) => s + (p.currentBalance || 0), 0);
+      return { id: 'ALL', name: 'MÚLTIPLES PROVEEDORES (PAGO GLOBAL)', currentBalance: allDebt };
+    }
     return providers.find(p => p.id === Number(selectedProviderId)) || null;
   }, [providers, selectedProviderId]);
 
@@ -85,6 +89,20 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
       return;
     }
 
+    if (selectedProviderId === 'ALL') {
+      setLoadingStatement(true);
+      const allUnpaid = purchaseOrders.filter(po => po.status !== 'Cancelada' && (Number(po.totalAmount) || 0) > (Number(po.amountPaid) || 0));
+      setStatement({ purchaseOrders: allUnpaid });
+      const allocs = {};
+      allUnpaid.forEach(po => {
+        const balance = (Number(po.totalAmount) || 0) - (Number(po.amountPaid) || 0);
+        allocs[po.id] = { selected: false, amountToPay: balance, fullBalance: balance };
+      });
+      setInvoiceAllocations(allocs);
+      setLoadingStatement(false);
+      return;
+    }
+
     const loadProviderStatement = async () => {
       setLoadingStatement(true);
       try {
@@ -94,11 +112,10 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
         });
         if (res.ok) {
           const json = await res.json();
-          const localPOs = purchaseOrders.filter(po => po.providerId === Number(selectedProviderId) && po.status !== 'Cancelada');
-          setStatement({ ...json, purchaseOrders: localPOs });
+          setStatement(json);
           // Initialize allocations with all unpaid POs
           const allocs = {};
-          localPOs.forEach(po => {
+          (json.purchaseOrders || []).forEach(po => {
             const balance = (Number(po.totalAmount) || 0) - (Number(po.amountPaid) || 0);
             if (balance > 0) {
               allocs[po.id] = {
@@ -281,6 +298,47 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
     if (!window.confirm(confirmMsg)) return;
 
     setSubmitting(true);
+    
+    if (selectedProviderId === 'ALL') {
+      const byProvider = {};
+      itemsToPay.forEach(item => {
+        const po = purchaseOrders.find(p => p.id === item.purchaseOrderId);
+        if (po) {
+          if (!byProvider[po.providerId]) byProvider[po.providerId] = { total: 0, items: [] };
+          byProvider[po.providerId].total += item.amount;
+          byProvider[po.providerId].items.push(item);
+        }
+      });
+      
+      try {
+        const token = localStorage.getItem('ht_token');
+        const promises = Object.keys(byProvider).map(provId => {
+          const group = byProvider[provId];
+          return fetch((import.meta.env.VITE_API_URL || '') + '/api/app/provider-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              providerId: Number(provId),
+              amount: group.total,
+              reference: paymentHeader.reference ? `${paymentHeader.reference} (Global)` : `Pago Global`,
+              paymentMethod: paymentHeader.method,
+              purchaseOrderPayments: group.items
+            })
+          });
+        });
+
+        await Promise.all(promises);
+        alert(`✅ Pago global aplicado exitosamente.`);
+        if (reloadState) await reloadState();
+        setSelectedProviderId(''); // Reset to Cartera view
+      } catch (e) {
+        alert('Error: ' + e.message);
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const token = localStorage.getItem('ht_token');
       const payload = {
@@ -369,7 +427,7 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
             </label>
             <select
               value={selectedProviderId || ''}
-              onChange={(e) => setSelectedProviderId(e.target.value ? Number(e.target.value) : null)}
+              onChange={(e) => setSelectedProviderId(e.target.value === 'ALL' ? 'ALL' : (e.target.value ? Number(e.target.value) : null))}
               style={{
                 padding: '11px 14px',
                 borderRadius: '9px',
@@ -386,6 +444,7 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
               onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
             >
               <option value="">-- Elija un Proveedor de la Cartera --</option>
+              <option value="ALL">🌐 TODOS LOS PROVEEDORES (Pago Global)</option>
               {providersWithDebt.map(p => (
                 <option key={p.id} value={p.id}>
                   {p.name} {p.rfc ? `(${p.rfc})` : ''} — Saldo Deudor: {pesosDecimals(p.totalBalance)} {p.hasOverdue ? '⚠️ [VENCIDO]' : ''}
@@ -627,6 +686,7 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     <th style={{ padding: '12px 14px', width: '50px', textAlign: 'center' }}>Pagar</th>
+                    {selectedProvider?.id === 'ALL' && <th style={{ padding: '12px 14px' }}>Proveedor</th>}
                     <th style={{ padding: '12px 14px' }}>Folio OC</th>
                     <th style={{ padding: '12px 14px' }}>Factura Fiscal / Ref</th>
                     <th style={{ padding: '12px 14px' }}>Emisión</th>
@@ -670,6 +730,13 @@ export default function PagoAProveedores({ data, reloadState, preSelectedProvide
                             style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#16a34a' }}
                           />
                         </td>
+
+                        {/* Proveedor */}
+                        {selectedProvider?.id === 'ALL' && (
+                          <td style={{ padding: '12px 14px', fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+                            {providers.find(p => p.id === po.providerId)?.name || `ID: ${po.providerId}`}
+                          </td>
+                        )}
 
                         {/* Folio OC */}
                         <td style={{ padding: '12px 14px', fontWeight: 700, color: '#0f172a' }}>

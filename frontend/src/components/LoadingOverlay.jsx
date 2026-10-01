@@ -1,4 +1,4 @@
-import React from 'react';
+// No React import needed; component uses JSX only
 
 export default function LoadingOverlay({ 
   show = false, 

@@ -98,10 +98,15 @@ public class FinanceController : ControllerBase
             };
     
             // FIFO logic to distribute payment across unpaid orders
-            var pendingOrders = await _context.Orders
-                .Where(o => o.ClientId == input.ClientId && o.PaymentMethod == "Crédito" && o.AmountPaid < o.TotalAmount)
-                .OrderBy(o => o.Date)
-                .ToListAsync();
+            var query = _context.Orders
+                .Where(o => o.ClientId == input.ClientId && o.PaymentMethod == "Crédito" && o.AmountPaid < o.TotalAmount);
+            
+            if (input.SelectedOrderIds != null && input.SelectedOrderIds.Any())
+            {
+                query = query.Where(o => input.SelectedOrderIds.Contains(o.Id));
+            }
+
+            var pendingOrders = await query.OrderBy(o => o.Date).ToListAsync();
 
             decimal remainingPayment = input.Amount;
             foreach(var o in pendingOrders)

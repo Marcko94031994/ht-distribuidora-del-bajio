@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import SearchableSelect from './SearchableSelect';
+
 
 export default function VendedoresCatalogo({ data, sucursal, addVendedor, updateVendedor }) {
   const [showModal, setShowModal] = useState(false);
@@ -41,7 +42,9 @@ export default function VendedoresCatalogo({ data, sucursal, addVendedor, update
     setShowModal(true);
   };
 
-  const handleSubmit = (e) => {
+
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const payload = {
       nombre: form.nombre,
@@ -52,13 +55,17 @@ export default function VendedoresCatalogo({ data, sucursal, addVendedor, update
       sucursalId: Number(form.sucursalId)
     };
 
-    if (editing) {
-      if (updateVendedor) updateVendedor(editing.id, payload);
-    } else {
-      if (addVendedor) addVendedor(payload);
+    try {
+      if (editing) {
+        if (updateVendedor) await updateVendedor(editing.id, payload);
+      } else {
+        if (addVendedor) await addVendedor(payload);
+      }
+      setShowModal(false);
+      setEditing(null);
+    } catch (err) {
+      alert("Error al guardar: " + err);
     }
-    setShowModal(false);
-    setEditing(null);
   };
 
   const vendedoresList = data.vendedores || [];

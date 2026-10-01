@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Mermas({ data }) {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [batches, setBatches] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
 
   const filteredProducts = (data.productos || []).filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -139,8 +141,8 @@ export default function Mermas({ data }) {
                   </div>
                   
                   <div className="full" style={{marginTop: '1rem'}}>
-                    <button type="submit" className="btn warn full" disabled={batches.length === 0}>
-                      Registrar Salida por Merma
+                    <button type="submit" className={`btn full ${successMsg ? 'success' : 'warn'}`} disabled={batches.length === 0 || saving || successMsg}>
+                      {successMsg ? '✅ ¡Registrada!' : (saving ? '⏳ Procesando...' : 'Registrar Salida por Merma')}
                     </button>
                   </div>
                 </form>
